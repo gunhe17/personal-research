@@ -1,0 +1,4 @@
+{
+  "source": "https://llama.developer.meta.com/docs/reasoning.md",
+  "head": "---\nmeta:\n  title: Reasoning\n  description: Control how much the model thinks before responding using the reasoning_effort parameter.\n  keywords: reasoning, chain of thought, reasoning_effort, thinking, reasoning effort\ncms:\n  alias: /model-api/docs/reasoning\n  target: aidmc\n---\n\n"
+}

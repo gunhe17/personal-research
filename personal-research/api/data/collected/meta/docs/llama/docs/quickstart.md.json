@@ -1,0 +1,4 @@
+{
+  "source": "https://llama.developer.meta.com/docs/quickstart.md",
+  "head": "---\nmeta:\n  title: Quickstart — Meta Model API\n  description: Get an API key, wire up your coding agent or SDK, and make your first Muse Spark call on Meta Model API.\n  keywords: Meta Model API, quickstart, Muse Spark, OpenAI SDK, coding agent, MODEL_API_KEY\ncms:\n  alias: /model-api/docs/quickstart\n  target: aidmc\n---\n\n"
+}

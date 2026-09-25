@@ -1,0 +1,4 @@
+{
+  "source": "https://llama.developer.meta.com/docs/api-reference/chat-completions/schemas.md",
+  "head": "---\nmeta:\n  title: Chat completions schemas\n  description: Full schema and model definitions referenced by the Chat completions API endpoint.\n  keywords: chat completions, schemas, models, types, API reference, schema reference\ncms:\n  layout: large\n  alias: /model-api/docs/api-reference/chat-completions/schemas\n  target: aidmc\n---\n\n"
+}

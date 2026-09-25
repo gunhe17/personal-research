@@ -1,0 +1,4 @@
+{
+  "source": "https://llama.developer.meta.com/docs/api-reference/chat-completions.md",
+  "head": "---\nmeta:\n  title: Chat completions API reference\n  description: API reference for the POST /v1/chat/completions endpoint.\n  keywords: chat completions, API reference, /v1/chat/completions, endpoint reference\ncms:\n  layout: large\n  alias: /model-api/docs/api-reference/chat-completions\n  target: aidmc\n  in_page_nav: false\n---\n\n"
+}

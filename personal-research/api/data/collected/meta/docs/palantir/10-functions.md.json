@@ -1,0 +1,21 @@
+{
+  "source": "https://www.palantir.com/docs/foundry/functions/overview/",
+  "fetched": "2026-08-12",
+  "category": "kinetic",
+  "publisher": "Palantir Foundry Docs",
+  "extraction": "full-page-body",
+  "banner": "> **Source:** [https://www.palantir.com/docs/foundry/functions/overview/](https://www.palantir.com/docs/foundry/functions/overview/)  \n> **Fetched:** 2026-08-12  \n> **Publisher:** Palantir Foundry Documentation (official)",
+  "kor": {
+    "sha256": "ab472324c0c2",
+    "date": "2026-09-03",
+    "frontmatter": {
+      "title": "Functions — Overview (한국어)",
+      "source": "https://www.palantir.com/docs/foundry/functions/overview/",
+      "source_local": "02-functions.md",
+      "lang": "ko",
+      "translated": "2026-08-12",
+      "category": "kinetic"
+    },
+    "banner": "> **원문:** [https://www.palantir.com/docs/foundry/functions/overview/](https://www.palantir.com/docs/foundry/functions/overview/)  \n> **로컬 원문:** [02-functions.md](02-functions.md)"
+  }
+}

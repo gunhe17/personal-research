@@ -1,0 +1,21 @@
+name: personal-research-production
+
+services:
+  api:
+    container_name: personal-research-production-api
+    build:
+      context: ..
+      dockerfile: .docker/Dockerfile.production.api
+    restart: unless-stopped
+    volumes:
+      - ../personal-research/api/data:/app/personal-research/api/data
+      - grok-auth:/root/.grok
+      - claude-config:/root/.claude
+    ports:
+      - "127.0.0.1:${PRODUCTION_API_PORT}:${PORT}"
+    env_file:
+      - ../.env/.env.production
+
+volumes:
+  grok-auth:
+  claude-config:

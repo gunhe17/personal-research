@@ -1,0 +1,4 @@
+{
+  "source": "https://llama.developer.meta.com/docs/protocols.md",
+  "head": "---\nmeta:\n  title: Choosing an API — Meta Model API\n  description: Compare the Responses, Chat Completions, and Messages formats on Meta Model API — same models, same auth, same cost — and pick the one your code already speaks.\n  keywords: Meta Model API, Responses API, Chat Completions, Messages API, OpenAI compatible, Anthropic compatible, choosing an API\ncms:\n  layout: large\n  alias: /model-api/docs/protocols\n  target: aidmc\n---\n\n"
+}

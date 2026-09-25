@@ -1,0 +1,21 @@
+{
+  "source": "https://www.palantir.com/docs/foundry/ontology-sdk/overview/",
+  "fetched": "2026-08-12",
+  "category": "tooling",
+  "publisher": "Palantir Foundry Docs",
+  "extraction": "full-page-body",
+  "banner": "> **Source:** [https://www.palantir.com/docs/foundry/ontology-sdk/overview/](https://www.palantir.com/docs/foundry/ontology-sdk/overview/)  \n> **Fetched:** 2026-08-12  \n> **Publisher:** Palantir Foundry Documentation (official)",
+  "kor": {
+    "sha256": "a321723349d7",
+    "date": "2026-09-03",
+    "frontmatter": {
+      "title": "Ontology SDK (OSDK) — Overview (한국어)",
+      "source": "https://www.palantir.com/docs/foundry/ontology-sdk/overview/",
+      "source_local": "02-ontology-sdk.md",
+      "lang": "ko",
+      "translated": "2026-08-12",
+      "category": "tooling"
+    },
+    "banner": "> **원문:** [https://www.palantir.com/docs/foundry/ontology-sdk/overview/](https://www.palantir.com/docs/foundry/ontology-sdk/overview/)  \n> **로컬 원문:** [02-ontology-sdk.md](02-ontology-sdk.md)"
+  }
+}

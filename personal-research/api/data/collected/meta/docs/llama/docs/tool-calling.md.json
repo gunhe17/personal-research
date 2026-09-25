@@ -1,0 +1,4 @@
+{
+  "source": "https://llama.developer.meta.com/docs/tool-calling.md",
+  "head": "---\nmeta:\n  title: Tool calling\n  description: Define functions the model can invoke, execute them locally, and return results for the model to incorporate.\n  keywords: tool calling, function calling, tools, function execution, agents\ncms:\n  alias: /model-api/docs/tool-calling\n  target: aidmc\n---\n\n"
+}

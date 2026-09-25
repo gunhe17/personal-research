@@ -1,0 +1,4 @@
+{
+  "source": "https://llama.developer.meta.com/docs/protocols/messages.md",
+  "head": "---\nmeta:\n  title: Messages API\n  description: Call Muse Spark with the Messages API, the Anthropic Messages-compatible endpoint on Meta Model API.\n  keywords: Messages API, Anthropic compatibility, Claude SDK, /v1/messages, count_tokens, thinking\ncms:\n  alias: /model-api/docs/protocols/messages\n  target: aidmc\n---\n\n"
+}

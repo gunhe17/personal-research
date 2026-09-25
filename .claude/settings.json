@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "deny": [
+      "Edit(personal-research/api/data/collected/eng/**)",
+      "Edit(personal-research/api/data/collected/meta/**)",
+      "Edit(personal-research/api/data/collected/CATALOG.md)"
+    ]
+  }
+}

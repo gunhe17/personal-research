@@ -1,0 +1,4 @@
+{
+  "source": "https://llama.developer.meta.com/docs/api-reference/responses/cancel-response.md",
+  "head": "---\nmeta:\n  title: Cancel a response\n  description: API reference for cancelling an in-progress model response with POST /v1/responses/{response_id}/cancel.\n  keywords: Responses API, cancel response, POST /responses cancel, API reference, endpoint reference\ncms:\n  layout: large\n  alias: /model-api/docs/api-reference/responses/cancel-response\n  target: aidmc\n---\n\n"
+}

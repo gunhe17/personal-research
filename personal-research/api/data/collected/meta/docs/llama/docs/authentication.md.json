@@ -1,0 +1,4 @@
+{
+  "source": "https://llama.developer.meta.com/docs/authentication.md",
+  "head": "---\nmeta:\n  title: Authentication\n  description: Create and manage API keys for authenticating requests to Meta Model API.\n  keywords: authentication, API keys, key management, MODEL_API_KEY, Bearer token\ncms:\n  alias: /model-api/docs/authentication\n  target: aidmc\n---\n\n"
+}

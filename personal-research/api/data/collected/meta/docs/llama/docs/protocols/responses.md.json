@@ -1,0 +1,4 @@
+{
+  "source": "https://llama.developer.meta.com/docs/protocols/responses.md",
+  "head": "---\nmeta:\n  title: Responses API\n  description: Run agentic and multi-turn workloads on the Responses API with cross-turn reasoning replay, tool loops, search grounding, and file inputs.\n  keywords: Responses API, agentic, reasoning replay, multi-turn, tool calling, previous_response_id\ncms:\n  alias: /model-api/docs/protocols/responses\n  target: aidmc\n---\n\n"
+}

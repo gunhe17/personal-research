@@ -1,0 +1,4 @@
+{
+  "source": "https://llama.developer.meta.com/docs/overview.md",
+  "head": "---\nmeta:\n  title: Get started with Meta Model API\n  description: Build with Muse Spark on Meta Model API — your hub for the quickstart, capabilities, protocols, guides, and cookbook recipes.\n  keywords: Meta Model API, Muse Spark, overview, quickstart, capabilities, cookbook\ncms:\n  layout: large\n  alias: /model-api/docs/overview\n  target: aidmc\n---\n\n"
+}

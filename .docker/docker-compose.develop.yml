@@ -1,0 +1,20 @@
+name: personal-research-develop
+
+services:
+  api:
+    container_name: personal-research-develop-api
+    build:
+      context: ..
+      dockerfile: .docker/Dockerfile.develop.api
+    volumes:
+      - ..:/app
+      - grok-auth:/root/.grok
+      - claude-config:/root/.claude
+    ports:
+      - "127.0.0.1:${DEVELOP_API_PORT}:${PORT}"
+    env_file:
+      - ../.env/.env.develop
+
+volumes:
+  grok-auth:
+  claude-config:

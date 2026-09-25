@@ -1,0 +1,4 @@
+{
+  "source": "https://llama.developer.meta.com/docs/cookbook.md",
+  "head": "---\nmeta:\n  title: Meta Model API cookbook\n  description: Working recipes for building on Meta Model API — API primitives, agent loops, and end-to-end use cases on Muse Spark.\n  keywords: cookbook, recipes, Meta Model API, agents, tool calling, Muse Spark\ncms:\n  layout: large\n  alias: /model-api/docs/cookbook\n  target: aidmc\n  copy_markdown: false\n  github_url: https://github.com/meta-models/meta-model-cookbook\n---\n\n"
+}

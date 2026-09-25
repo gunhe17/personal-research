@@ -1,0 +1,4 @@
+{
+  "source": "https://llama.developer.meta.com/docs/structured-output.md",
+  "head": "---\nmeta:\n  title: Structured output\n  description: Constrain model output to match a JSON schema using the response_format parameter.\n  keywords: structured output, JSON schema, response_format, JSON mode, schema validation\ncms:\n  alias: /model-api/docs/structured-output\n  target: aidmc\n---\n\n"
+}

@@ -1,0 +1,4 @@
+{
+  "source": "https://llama.developer.meta.com/docs/models.md",
+  "head": "---\nmeta:\n  title: Models\n  description: Available models on Meta Model API and guidance on choosing the right model for your workload.\n  keywords: models, Muse Spark, model lineup, capabilities, context window\ncms:\n  alias: /model-api/docs/models\n  target: aidmc\n---\n\n"
+}

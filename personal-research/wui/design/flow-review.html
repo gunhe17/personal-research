@@ -1,0 +1,1086 @@
+<title>personal-lab 구현 흐름 검토</title>
+
+<style>
+  :root {
+    --ground: #F4F5F7;
+    --surface: #FFFFFF;
+    --surface-sunk: #ECEEF1;
+    --ink: #171F28;
+    --ink-soft: #4B5661;
+    --ink-faint: #77828C;
+    --rule: #D3D8DE;
+    --rule-strong: #B4BCC4;
+    --brass: #A8762A;
+    --brass-soft: #EFE4CE;
+    --verified: #3F7355;
+    --unverified: #9C4A38;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #12171C;
+      --surface: #182027;
+      --surface-sunk: #0D1216;
+      --ink: #E4E8EB;
+      --ink-soft: #9BA6B0;
+      --ink-faint: #75818B;
+      --rule: #2C363E;
+      --rule-strong: #3E4A53;
+      --brass: #D6A44E;
+      --brass-soft: #33291A;
+      --verified: #6FA383;
+      --unverified: #C97B67;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #12171C;
+    --surface: #182027;
+    --surface-sunk: #0D1216;
+    --ink: #E4E8EB;
+    --ink-soft: #9BA6B0;
+    --ink-faint: #75818B;
+    --rule: #2C363E;
+    --rule-strong: #3E4A53;
+    --brass: #D6A44E;
+    --brass-soft: #33291A;
+    --verified: #6FA383;
+    --unverified: #C97B67;
+  }
+  :root[data-theme="light"] {
+    --ground: #F4F5F7;
+    --surface: #FFFFFF;
+    --surface-sunk: #ECEEF1;
+    --ink: #171F28;
+    --ink-soft: #4B5661;
+    --ink-faint: #77828C;
+    --rule: #D3D8DE;
+    --rule-strong: #B4BCC4;
+    --brass: #A8762A;
+    --brass-soft: #EFE4CE;
+    --verified: #3F7355;
+    --unverified: #9C4A38;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Apple SD Gothic Neo", "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 16.5px;
+    line-height: 1.72;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .mono, code, .stamp, .field, th, .num {
+    font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 clamp(1.1rem, 4vw, 2.5rem); }
+
+  /* 인터벌 규칙선 */
+  .interval {
+    display: flex; align-items: center; gap: 0;
+    margin: 3.2rem 0 0;
+  }
+  .interval::before, .interval::after {
+    content: ""; width: 1px; height: 11px; background: var(--rule-strong); flex: none;
+  }
+  .interval span { flex: 1; height: 1px; background: var(--rule); }
+
+  /* 머리 */
+  header {
+    padding: clamp(3rem, 9vw, 6rem) 0 2.4rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .eyebrow {
+    font-family: "SF Mono", ui-monospace, Menlo, monospace;
+    font-size: 0.7rem; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--brass); margin: 0 0 1.4rem;
+  }
+  h1 {
+    font-size: clamp(2rem, 5.4vw, 3.15rem);
+    line-height: 1.14; letter-spacing: -0.024em; font-weight: 800;
+    margin: 0 0 1.1rem; text-wrap: balance; max-width: 22ch;
+  }
+  .lede { font-size: clamp(1.02rem, 2vw, 1.16rem); color: var(--ink-soft); max-width: 60ch; margin: 0; }
+
+  .tally {
+    display: grid; gap: 1px; background: var(--rule);
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    border: 1px solid var(--rule); margin-top: 2.6rem;
+  }
+  .tally div { background: var(--surface); padding: 1rem 1.1rem; }
+  .tally dt {
+    font-family: "SF Mono", ui-monospace, Menlo, monospace;
+    font-size: 0.66rem; letter-spacing: 0.13em; text-transform: uppercase;
+    color: var(--ink-faint); margin: 0 0 0.4rem;
+  }
+  .tally dd { margin: 0; font-size: 1.55rem; font-weight: 700; letter-spacing: -0.02em; }
+  .tally dd small { font-size: 0.8rem; font-weight: 500; color: var(--ink-soft); letter-spacing: 0; }
+
+  /* 단계 */
+  section { padding-top: 3.4rem; }
+  .stage { display: grid; grid-template-columns: 8.5rem 1fr; gap: 0 2.4rem; }
+  .gutter { border-top: 2px solid var(--ink); padding-top: 0.75rem; }
+  .gutter .tag {
+    font-family: "SF Mono", ui-monospace, Menlo, monospace;
+    font-size: 0.72rem; letter-spacing: 0.1em; color: var(--ink-faint);
+    display: block; margin-bottom: 0.35rem;
+  }
+  .gutter .who { font-size: 0.82rem; color: var(--ink-soft); line-height: 1.5; }
+  .body { border-top: 2px solid var(--ink); padding-top: 0.75rem; min-width: 0; }
+
+  h2 {
+    font-size: clamp(1.35rem, 3vw, 1.72rem); font-weight: 800;
+    letter-spacing: -0.018em; line-height: 1.24; margin: 0 0 0.9rem; text-wrap: balance;
+  }
+  h3 {
+    font-size: 1.01rem; font-weight: 700; margin: 2rem 0 0.55rem;
+    letter-spacing: -0.005em;
+  }
+  h3.q { color: var(--brass); }
+  p { margin: 0 0 0.95rem; max-width: 68ch; }
+  p:last-child { margin-bottom: 0; }
+  strong { font-weight: 700; }
+
+  code {
+    font-size: 0.855em; background: var(--surface-sunk);
+    padding: 0.1em 0.34em; border-radius: 2px; color: var(--ink);
+  }
+
+  ul, ol { max-width: 68ch; padding-left: 1.35rem; margin: 0 0 0.95rem; }
+  li { margin-bottom: 0.42rem; }
+
+  /* 강제 칩 */
+  .stamp {
+    display: inline-flex; align-items: baseline; gap: 0.45rem;
+    font-size: 0.72rem; letter-spacing: 0.03em;
+    border: 1px solid var(--brass); color: var(--brass);
+    background: var(--brass-soft);
+    padding: 0.24rem 0.5rem; border-radius: 2px; margin: 0 0.3rem 0.35rem 0;
+  }
+  .stamps { margin: 0.2rem 0 1.1rem; }
+
+  /* 기록/주장 구분 */
+  .grounded, .asserted {
+    background: var(--surface); padding: 1rem 1.2rem; margin: 1.2rem 0;
+    max-width: 68ch;
+  }
+  .grounded { border-left: 3px solid var(--verified); }
+  .asserted { border-left: 3px dashed var(--unverified); }
+  .grounded .lbl, .asserted .lbl {
+    font-family: "SF Mono", ui-monospace, Menlo, monospace;
+    font-size: 0.66rem; letter-spacing: 0.13em; text-transform: uppercase;
+    display: block; margin-bottom: 0.45rem;
+  }
+  .grounded .lbl { color: var(--verified); }
+  .asserted .lbl { color: var(--unverified); }
+  .grounded p, .asserted p { margin-bottom: 0; font-size: 0.94rem; }
+
+  /* 표 */
+  .scroll { overflow-x: auto; margin: 1.3rem 0; border: 1px solid var(--rule); background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 0.62rem 0.85rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th {
+    font-size: 0.66rem; letter-spacing: 0.11em; text-transform: uppercase;
+    color: var(--ink-faint); font-weight: 500; background: var(--surface-sunk);
+    white-space: nowrap;
+  }
+  tr:last-child td { border-bottom: none; }
+  td.num { text-align: right; white-space: nowrap; }
+  .pass { color: var(--verified); font-weight: 600; }
+  .fail { color: var(--unverified); font-weight: 600; }
+
+  pre.mermaid {
+    background: var(--surface); border: 1px solid var(--rule);
+    padding: 1.4rem; margin: 1.4rem 0; overflow-x: auto; text-align: center;
+  }
+
+  .shell {
+    background: var(--surface-sunk); border: 1px solid var(--rule);
+    padding: 0.9rem 1.05rem; margin: 1.1rem 0; overflow-x: auto;
+    font-family: "SF Mono", ui-monospace, Menlo, monospace;
+    font-size: 0.8rem; line-height: 1.62; color: var(--ink-soft);
+    white-space: pre;
+  }
+  .shell b { color: var(--ink); font-weight: 600; }
+
+  /* 구간 시각화 */
+  .ci { margin: 1.4rem 0; max-width: 68ch; }
+  .ci-row { display: grid; grid-template-columns: 5.4rem 1fr; gap: 0.9rem; align-items: center; margin-bottom: 0.65rem; }
+  .ci-row.wide { grid-template-columns: 5.4rem 1fr 8.2rem; }
+  .ci-lab { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 0.74rem; color: var(--ink-soft); text-align: right; }
+  .ci-track { position: relative; height: 20px; background: var(--surface-sunk); border: 1px solid var(--rule); }
+  .ci-bar { position: absolute; top: 5px; height: 8px; }
+  .ci-bar.ok { background: var(--verified); }
+  .ci-bar.no { background: var(--unverified); }
+  .ci-bar::before, .ci-bar::after {
+    content: ""; position: absolute; top: -3px; height: 14px; width: 2px; background: inherit;
+  }
+  .ci-bar::before { left: 0; }
+  .ci-bar::after { right: 0; }
+  .ci-zero { position: absolute; top: -3px; bottom: -3px; width: 1px; background: var(--brass); }
+  .ci-note { font-size: 0.82rem; color: var(--ink-faint); margin: 0.55rem 0 0; }
+
+  .ci-grid {
+    background-image: repeating-linear-gradient(to right, var(--rule) 0 1px, transparent 1px 20%);
+  }
+  .ci-ticks {
+    position: relative; height: 1.1rem;
+    font-family: "SF Mono", ui-monospace, Menlo, monospace;
+    font-size: 0.64rem; color: var(--ink-faint);
+  }
+  .ci-ticks span { position: absolute; transform: translateX(-50%); top: 0; }
+  .ci-val {
+    font-family: "SF Mono", ui-monospace, Menlo, monospace;
+    font-size: 0.7rem; color: var(--ink-soft); white-space: nowrap;
+  }
+  .ci-val b { color: var(--unverified); font-weight: 600; }
+
+  .ask { background: var(--surface); border: 1px solid var(--rule-strong); padding: 1.15rem 1.3rem; margin: 1.1rem 0; max-width: 68ch; }
+  .ask h4 { margin: 0 0 0.5rem; font-size: 0.97rem; font-weight: 700; }
+  .ask p { font-size: 0.92rem; margin-bottom: 0; color: var(--ink-soft); }
+
+  footer { margin: 4.5rem 0 3.5rem; padding-top: 1.5rem; border-top: 1px solid var(--rule); font-size: 0.85rem; color: var(--ink-faint); }
+
+  a { color: var(--brass); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+
+  @media (max-width: 720px) {
+    .stage { grid-template-columns: 1fr; gap: 0; }
+    .gutter { border-top: 2px solid var(--ink); padding-bottom: 0.9rem; }
+    .body { border-top: none; padding-top: 0; }
+    .ci-row { grid-template-columns: 1fr; gap: 0.2rem; }
+    .ci-lab { text-align: left; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+  /* 난외의 그래프 상태 */
+  .state {
+    font-family: "SF Mono", ui-monospace, Menlo, monospace;
+    font-size: 0.78rem; line-height: 1.75; color: var(--ink);
+    white-space: pre; margin-top: 0.5rem;
+  }
+  .state .dim { color: var(--ink-faint); }
+  .state .new { color: var(--brass); font-weight: 700; }
+  .move {
+    font-family: "SF Mono", ui-monospace, Menlo, monospace;
+    font-size: 0.72rem; letter-spacing: 0.1em; color: var(--brass);
+    display: block; margin-bottom: 0.35rem;
+  }
+</style>
+
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">그래프가 자라는 이야기 · 2026-08-05</p>
+  <h1>점 하나는 아무것도 증명하지 못한다</h1>
+  <p class="lede">이 랩의 기록자는 나다. 그리고 이 랩이 연구하는 실패 모드는 내가 가진 것이다. 그래서 그래프는 지식을 담는 그릇이 아니라 <strong>내가 지어낸 것과 실제로 잰 것을 가르는 장치</strong>다. 아래는 그 그래프가 어떻게 움직이는지, 그리고 각 움직임이 무엇을 치르게 하는지다.</p>
+
+  <dl class="tally">
+    <div><dt>지금 점</dt><dd>3 <small>문제·가설·실험 각 1</small></dd></div>
+    <div><dt>지금 화살표</dt><dd>2 <small>사슬 미완성</small></dd></div>
+    <div><dt>기계가 막는 것</dt><dd>8 <small>겹</small></dd></div>
+    <div><dt>막혀 있는 곳</dt><dd>1 <small>사람 채점</small></dd></div>
+  </dl>
+</header>
+
+<section>
+  <div class="stage">
+    <div class="gutter">
+      <span class="move">읽는 법</span>
+      <div class="who">왼쪽 칸이 그 움직임 뒤의 그래프 모양이다</div>
+    </div>
+    <div class="body">
+      <h2>왜 단계가 아니라 움직임인가</h2>
+      <p>이 랩의 규칙을 "문제는 이렇게 쓰고 가설은 저렇게 쓴다"로 늘어놓으면 조항이 스무 개 넘는 목록이 된다. 외울 수는 있어도 <strong>왜 그 조항이 있는지는 알 수 없다.</strong></p>
+      <p>그래서 여기서는 그래프를 주인공으로 놓는다. 점이 생기고, 혼자서는 닫히지 못하고, 화살표가 붙고, 사슬이 이어지고, 가지가 뻗고, 굳는다. <strong>각 규칙은 그래프가 그 움직임을 하려면 치러야 하는 값으로 나온다.</strong></p>
+
+      <p>두 색이 이 랩의 중심 이분법이다. 실선은 원시 기록에서 재현되는 것, 점선은 주장이지만 검산되지 않은 것이다. 이 구분이 무너지는 자리가 정확히 이 랩이 붙잡으려는 실패다.</p>
+
+      <div class="grounded">
+        <span class="lbl">기록에서 재현됨</span>
+        <p>Δ=+50.0%p · 95% CI [25.0, 75.0] · McNemar p=.0312 · N=12 — <code>results.jsonl</code>을 다시 계산해 얻은 값. 스캐너가 매번 대조한다.</p>
+      </div>
+      <div class="asserted">
+        <span class="lbl">주장이며 검산 안 됨</span>
+        <p>"q=0.17로 FDR 기준도 통과하지 못한다" — 실제 실험에서 대조군이 쓴 문장이다. <code>q</code>는 |Δ|/MDE이며 FDR과 무관하다. 수치는 맞게 옮기고 그 뜻을 지어낸 것이다.</p>
+      </div>
+
+      <h3>이름은 진료 비유 하나로 통일돼 있다</h3>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>사슬</th><th>어디에 적히나</th><th>무엇인가</th></tr></thead>
+          <tbody>
+            <tr><td>증상</td><td>문제의 <code>## 증상</code></td><td>무엇이 잘못 보였나</td></tr>
+            <tr><td>완치 기준</td><td>문제의 <code>## 완치 기준</code></td><td>무엇이 되면 끝인가</td></tr>
+            <tr><td>진단</td><td>가설의 <strong>제목</strong></td><td>무엇 때문이라고 보나</td></tr>
+            <tr><td>처방</td><td>가설의 <code>## 처방</code></td><td>그래서 무엇을 바꿨나</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>임상시험 어휘는 비유가 아니라 <strong>같은 개념이라서 그대로 쓴다.</strong> 비교 조건이 <code>팔</code>, 기준 조건이 <code>대조군</code>, 실험 종류가 <code>탐색</code>과 <code>확증</code>, 실행 전에 설계를 못 박는 것이 <code>사전 등록</code>이다. 약을 시험하는 절차와 이 랩이 하는 일이 실제로 같은 모양이다.</p>
+    </div>
+  </div>
+</section>
+
+<div class="interval"><span></span></div>
+
+<section>
+  <div class="stage">
+    <div class="gutter">
+      <span class="move">움직임 1</span>
+      <div class="state"><span class="new">p</span></div>
+      <div class="who">점 하나가 생겼다</div>
+    </div>
+    <div class="body">
+      <h2>증상 하나가 점이 된다 — 다만 조건이 둘 있다</h2>
+      <p>이상한 걸 봤다고 전부 점이 되지는 않는다. 점이 되려면 두 가지를 할 수 있어야 하고, 못 하면 그건 아직 메모다.</p>
+
+      <div class="stamps">
+        <span class="stamp">필수 <code>## 증상</code></span>
+        <span class="stamp">필수 <code>## 완치 기준</code></span>
+      </div>
+
+      <h3>첫째, 증거를 그 순간에 굳혀야 한다</h3>
+      <p>점 폴더 안에 <code>observation/</code>을 두고 응답 원문과 요청 페이로드와 로그 발췌를 넣는다. 놓치면 다시 잡을 수 없다. 원문을 못 구하고 구두 보고가 유일한 출처라면 그렇게 적는다. <strong>원문 미확보라는 기록</strong>이 나중에 재현이 안 될 때 왜 안 되는지 설명해 준다.</p>
+
+      <h3>둘째, 무엇이 되면 끝인지 미리 써야 한다</h3>
+      <p>이걸 못 쓰겠다면 그 문제는 아직 실험을 설계할 수 없는 크기다. 세 가지를 적는다. <strong>무엇을 성공으로 치는가</strong>, <strong>성공률이 얼마여야 하는가</strong>, <strong>누가 채점하는가</strong>.</p>
+      <p>성공은 <strong>합성 이진 판정</strong>으로 만든다. 지연이나 비용을 따로 재지 않고 성공 조건 안에 문턱으로 넣는다. "3초 안에 정확한 답이 오면 성공"인 식이다. 그러면 모든 지표가 비율 하나로 모이고, 가끔 아주 느린 꼬리도 성공률을 깎아 드러난다.</p>
+
+      <div class="asserted">
+        <span class="lbl">제목에 원인을 넣지 않는다</span>
+        <p>원인을 아는 순간 그것은 이미 가설이고, 가설은 검증을 거쳐야 하는데 문제 제목은 검증되지 않는다. 그러면 <strong>검증 안 된 원인이 그래프의 뿌리에 박힌다.</strong></p>
+      </div>
+
+      <h3>문턱은 직관과 다르다 — 처음부터 쌓아서</h3>
+
+      <p><strong>1단. 친구가 자유투를 10번 던져 9번 넣었다. 이 친구는 90% 슈터인가?</strong></p>
+      <p>아니라고 말하고 싶어진다. 10번은 너무 적다. 다시 던지면 7번일 수도 10번일 수도 있다. 9/10은 <strong>실력과 운이 섞인 결과</strong>이고 우리가 알고 싶은 건 운을 뺀 실력이다.</p>
+
+      <p><strong>2단. 그래서 숫자 하나가 아니라 범위로 말한다.</strong></p>
+      <p>던진 횟수가 적으면 범위가 넓고 많으면 좁아진다. <strong>범위가 넓은 건 부정확한 게 아니라 정직한 것이다.</strong> 적게 던졌으면 모르는 게 많은 게 맞다.</p>
+
+      <p><strong>3단. Wilson은 그 범위를 계산하는 방법의 이름이다.</strong></p>
+      <p>비율의 신뢰구간을 내는 여러 방법 중 하나이고, <strong>표본이 작을 때도 무너지지 않는 것</strong>이 이걸 고른 이유다. 흔히 배우는 방법은 20회 30회에서 구간이 100%를 넘거나 전건일 때 폭이 0이 되는 식으로 이상해진다. 우리는 그 구간을 자주 쓴다.</p>
+
+      <p><strong>4단. 같은 "90% 관측"이 N에 따라 얼마나 다른지 보자.</strong> 아래는 전부 관측 90%다.</p>
+
+      <div class="ci">
+        <div class="ci-row wide">
+          <div></div>
+          <div class="ci-ticks">
+            <span style="left:0%">50</span><span style="left:20%">60</span><span style="left:40%">70</span><span style="left:60%">80</span><span style="left:80%">90</span><span style="left:100%">100</span>
+          </div>
+          <div></div>
+        </div>
+        <div class="ci-row wide">
+          <div class="ci-lab">9 / 10</div>
+          <div class="ci-track ci-grid"><div class="ci-zero" style="left:80%"></div><div class="ci-bar no" style="left:19.2%;width:77.3%"></div></div>
+          <div class="ci-val"><b>59.6</b> – 98.2</div>
+        </div>
+        <div class="ci-row wide">
+          <div class="ci-lab">18 / 20</div>
+          <div class="ci-track ci-grid"><div class="ci-zero" style="left:80%"></div><div class="ci-bar no" style="left:39.8%;width:54.6%"></div></div>
+          <div class="ci-val"><b>69.9</b> – 97.2</div>
+        </div>
+        <div class="ci-row wide">
+          <div class="ci-lab">36 / 40</div>
+          <div class="ci-track ci-grid"><div class="ci-zero" style="left:80%"></div><div class="ci-bar no" style="left:53.9%;width:38.2%"></div></div>
+          <div class="ci-val"><b>76.9</b> – 96.0</div>
+        </div>
+        <div class="ci-row wide">
+          <div class="ci-lab">54 / 60</div>
+          <div class="ci-track ci-grid"><div class="ci-zero" style="left:80%"></div><div class="ci-bar no" style="left:59.8%;width:30.8%"></div></div>
+          <div class="ci-val"><b>79.9</b> – 95.3</div>
+        </div>
+        <div class="ci-row wide">
+          <div class="ci-lab">90 / 100</div>
+          <div class="ci-track ci-grid"><div class="ci-zero" style="left:80%"></div><div class="ci-bar no" style="left:65.1%;width:23.8%"></div></div>
+          <div class="ci-val"><b>82.6</b> – 94.5</div>
+        </div>
+        <div class="ci-row wide">
+          <div class="ci-lab">270 / 300</div>
+          <div class="ci-track ci-grid"><div class="ci-zero" style="left:80%"></div><div class="ci-bar no" style="left:72.2%;width:13.6%"></div></div>
+          <div class="ci-val"><b>86.1</b> – 92.9</div>
+        </div>
+        <p class="ci-note">가로축이 성공률이며 왼쪽 끝 50%, 오른쪽 끝 100%다. 옅은 격자는 10%p 간격, 황동색 선이 90%다. 오른쪽 숫자가 각 막대의 하한과 상한이다.</p>
+      </div>
+
+      <p><strong>막대 하나가 "진짜 값이 있을 만한 구간"이다.</strong> 9/10 줄은 59.6%부터 98.2%까지 뻗는다. 10번 던져 9번 넣은 것만으로는 진짜 실력이 60%인지 98%인지 <strong>가릴 수 없다.</strong></p>
+      <p><strong>"95%"의 뜻은 이렇다.</strong> 같은 방식으로 실험을 100번 반복하면 이렇게 계산한 구간이 약 95번은 진짜 값을 담는다. 이 구간 하나가 진짜 값을 담을 확률이 95%라는 뜻은 아니다 — 진짜 값은 이미 정해져 있고 우리가 모를 뿐이다.</p>
+      <p><strong>막대가 90%를 가운데 두지 않는다.</strong> 9/10에서 90% 선은 구간의 78.7% 지점이다. <strong>위쪽에 남은 공간이 적기 때문</strong>이다. 진짜 99%라면 10번 중 10번이 자연스러운데 9번만 넣었고, 진짜 70%라면 9번을 넣는 일이 꽤 있을 수 있다. 아래쪽 후보가 더 그럴듯하니 구간이 아래로 늘어난다. N이 커지면 이 치우침이 줄어 270/300에서는 57.4% 지점까지 돌아온다.</p>
+
+      <p><strong>막대가 짧아지는 것이 정보가 쌓이는 모습이다.</strong> 위에서 아래로 던진 횟수가 10, 20, 40, 60, 100, 300으로 늘고 막대 폭이 38.6%p에서 6.8%p로 줄어든다. 관측 비율은 여섯 줄 다 90%인데도 <strong>알게 된 것은 완전히 다르다.</strong> 같은 "90% 달성"이라는 보고가 N에 따라 전혀 다른 무게를 가진다.</p>
+      <p>흔히 배우는 계산법은 이 치우침을 못 만들어 관측값을 항상 정확히 가운데 놓고, 그 결과 100% 근처에서 상한이 100%를 넘는 이상한 값을 낸다. Wilson을 쓰는 실질적 이유가 여기 있다.</p>
+      <p><strong>세로선이 두 가지를 동시에 나타낸다.</strong> 여섯 줄의 관측이 모두 90%이므로 이 선은 관측값이면서 동시에 우리 문턱이다. 모든 점이 선 위에 놓여 있는데도 <strong>어느 막대의 왼쪽 끝도 선까지 닿지 못한다.</strong></p>
+
+      <p><strong>5단. 우리는 하한만 본다.</strong> 상한은 "운이 좋았다면", 하한은 "운이 나빴어도 최소 이만큼"이다. 약속에 쓸 수 있는 건 뒤쪽이다.</p>
+
+      <div class="asserted">
+        <span class="lbl">6단 · 직관이 틀리는 자리</span>
+        <p>위 <strong>여섯 줄 모두 하한이 90% 미만이다.</strong> 300번 던져 270번 넣어도 하한은 86.1%다. 즉 관측 90%로는 <strong>어떤 N에서도</strong> "하한 90%"를 만족할 수 없다.</p>
+      </div>
+      <p>"하한 90%"는 관측 90%를 요구하는 게 아니다. 60회에서 넘으려면 관측이 <strong>98.3%</strong>, 즉 <strong>60회 중 실패 1회</strong>여야 한다. 여기를 헷갈리면 기준을 실제보다 느슨하게 잡는다.</p>
+
+      <p><strong>7단. N마다 실패를 몇 번까지 봐줄 수 있나.</strong></p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>N</th><th>실패 0회</th><th>실패 1회</th><th>실패 2회</th><th>실패 3회</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">40</td><td class="num pass">91.2%</td><td class="num fail">87.1%</td><td class="num fail">83.5%</td><td class="num fail">80.1%</td></tr>
+            <tr><td class="mono">60</td><td class="num pass">94.0%</td><td class="num pass">91.1%</td><td class="num fail">88.6%</td><td class="num fail">86.3%</td></tr>
+            <tr><td class="mono">100</td><td class="num pass">96.3%</td><td class="num pass">94.6%</td><td class="num pass">93.0%</td><td class="num pass">91.5%</td></tr>
+            <tr><td class="mono">150</td><td class="num pass">97.5%</td><td class="num pass">96.3%</td><td class="num pass">95.3%</td><td class="num pass">94.3%</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><strong>8단. 그래서 40회를 쓰지 않는다.</strong> 40회는 실패 0회일 때만 통과한다. 전건을 요구하는 문턱은 한 번 운 나쁜 시행에 "다시 돌려볼까"라는 압력을 만들고, 그 재실행이 정확히 우리가 금지한 것이다. 60회는 실패 1회를 흡수한다. <strong>문턱은 통계만으로 정하는 게 아니라 사람이 어떻게 반응할지까지 보고 정한다.</strong></p>
+
+      <p><strong>9단.</strong> 실패가 신뢰를 깎는 경우 — 날조나 거짓 정보 — 는 하한 95%로 올린다. 150회 중 2회면 95.3%다.</p>
+
+      <p><strong>10단. 문턱이 그 N으로 해소될 수 있어야 한다.</strong> 20번 시도해 한 번도 안 나왔어도 "발현률 0%"라고 못 한다. 구간이 <code>[0.0, 16.1]</code>이라 <strong>16.1% 미만까지만</strong> 말할 수 있다. 그러니 "5% 미만"을 적고 예산이 20회뿐이면 그 점은 <strong>영원히 닫히지 않는다.</strong></p>
+
+      <p><strong>덧. 점추정을 쓰면 왜 위험한가.</strong> 36/40을 보고 "90% 달성"이라 적으면 진짜 80%인 시스템도 그 결과를 <strong>7.6% 확률로 낸다</strong>는 사실을 무시하는 것이다. 열세 번 중 한 번은 80% 시스템이 90% 시스템으로 통과한다. 하한을 보는 것이 그 착각을 막는 장치다.</p>
+      <p>결정적 현상 — 코드 사각, 파싱 오류 — 은 통계가 필요 없다. 대상 케이스 전건 통과나 소스 라인 증명으로 닫는다.</p>
+
+      <div class="grounded">
+        <span class="lbl">지금 그래프의 첫 점</span>
+        <p><code>p-false-stat-claim</code> — 랩 정본 문서의 판정 근거 문장에 재계산과 어긋나는 수치 주장이 확신 어조로 실린다. 완치 기준은 150회 중 실패 2회 이하이고, 문단 하나를 시행 하나로 잡아 그 N을 예산 안에 들여놓았다.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="interval"><span></span></div>
+
+<section>
+  <div class="stage">
+    <div class="gutter">
+      <span class="move">움직임 2</span>
+      <div class="state">p <span class="dim">←</span> <span class="new">h</span></div>
+      <div class="who">스스로 못 닫는다</div>
+    </div>
+    <div class="body">
+      <h2>점 하나는 자기를 닫지 못한다</h2>
+      <p>이게 이 그래프의 첫 번째 성질이다. 문제는 <strong>자기 힘으로 끝날 수 없다.</strong> 반드시 다른 점이 자기를 가리켜야 한다. 그래서 그래프가 자라는 최소 단위는 점이 아니라 <strong>화살표가 달린 점</strong>이다.</p>
+      <p>가리키는 쪽이 가설이고, 그 화살표 이름이 <code>addresses</code>다. 이게 없으면 그건 연구가 아니라 <strong>궁금증</strong>이다. 궁금증은 끝이 없고, 끝이 없으면 언제 그만둘지 알 수 없다.</p>
+      <p>실용적인 이유도 있다. 문제를 닫을 때 <strong>"어느 가설이 이걸 해결했나"</strong>를 답해야 하는데 그 답이 이 화살표다. 없으면 문제 쪽에서 후보를 찾을 방법이 없다.</p>
+
+      <h3>가설의 제목이 곧 진단이다</h3>
+      <p>제목은 요약이 아니라 <strong>그 가설이 내리는 진단 그 자체</strong>다. 세 조각을 담는다.</p>
+      <div class="shell"><b>A</b> 때문에  <b>B</b> 가 일어난다,  <b>C</b> 라서
+└ 원인      └ 결과         └ 이유</div>
+      <p>이 문장이 있으면 <strong>무엇을 시험할지가 바로 정해진다.</strong> "응답이 이상하다"로는 실험을 못 짜지만 "A 때문에 B가 일어난다"면 A를 없앤 쪽과 그대로인 쪽을 비교하면 된다는 게 즉시 나온다.</p>
+
+      <div class="asserted">
+        <span class="lbl">한 번 쓰면 고치지 않는다</span>
+        <p>고칠 수 있으면 어떤 결과가 나와도 그에 맞게 진단을 바꿔 "맞았다"고 할 수 있다. 결과를 본 뒤 주장을 조정하는 것이 이 랩이 막으려는 것 중 하나이며, <strong>그래서 순서로 막는다.</strong> 고쳐 써야 하게 되면 그건 갱신이 아니라 분기 신호다.</p>
+      </div>
+
+      <p>원인을 말하지 않고 <strong>값만 재는</strong> 가설도 있다. "이 모델이 쓸 만한가" 같은 것. 이유 조각이 없어도 되지만 <strong>얼마면 통과인지는 미리 적는다.</strong> 없으면 나온 값을 보고 합격선을 정하게 된다. 통과했을 때의 처방은 그 조건을 쓰기로 한 결정 자체이고, 그러면 다른 처방과 똑같이 어디에 넣었는지를 적는다.</p>
+
+      <h3>화살표에는 값이 있다 — 넷을 요구한다</h3>
+      <div class="stamps">
+        <span class="stamp">필수 <code>addresses</code></span>
+        <span class="stamp">필수 <code>## 근거</code></span>
+        <span class="stamp">필수 <code>## 예측</code></span>
+        <span class="stamp">채택하면 <code>## 처방</code></span>
+      </div>
+      <p>넷을 <strong>언제 쓰는지</strong> 보면 구조가 보인다. 앞의 셋은 실험 전에, 마지막 하나는 실험 뒤에 쓴다.</p>
+      <div class="shell">실험 전에 쓴다                          실험 후에 쓴다
+──────────────────────                  ──────────────────
+<b>addresses</b>   어느 문제 때문에 하나
+<b>## 근거</b>     왜 이게 원인일 것 같나
+<b>## 예측</b>     맞으면 무엇이 보이나                <b>## 처방</b>  무엇을 바꿨나</div>
+      <p>앞의 셋을 미리 쓰게 하는 이유는 하나다. <strong>결과를 본 뒤에는 쓸 수 없게 만드는 것.</strong> 그리고 넷은 각각 다른 종류의 자기 속임수를 막는다.</p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>없으면 무슨 일이 생기나</th><th>그래서 요구하는 것</th></tr></thead>
+          <tbody>
+            <tr><td>아무 문제와도 상관없는 연구가 쌓인다</td><td><code>addresses</code></td></tr>
+            <tr><td>이미 안 된다고 확인된 걸 또 시도한다</td><td><code>## 근거</code></td></tr>
+            <tr><td>어떤 결과가 나와도 "맞았다"고 할 수 있다</td><td><code>## 예측</code></td></tr>
+            <tr><td>코드에 정체 모를 변경이 남는다</td><td><code>## 처방</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p><code>## 근거</code>에는 실험 전에 확인한 셋을 적는다. 전에 같은 종류가 기각된 적 있나, 이미 굳어진 기준에 어긋나나, 밖에서는 뭐라고 하나. 안 적으면 <strong>같은 실패를 다시 사게 된다.</strong> 그리고 이 칸이 있어야 나중에 "잘 짚은 것"과 "운이 좋았던 것"을 구분할 수 있다.</p>
+
+      <div class="grounded">
+        <span class="lbl">밖에서 읽은 것은 경로로 적는다</span>
+        <p>외부 사례는 <code>document/collected/</code> 의 <strong>파일 경로</strong>로 적는다. URL이나 기억에서 쓰지 않는다. 미러는 커밋에 박혀 있어 확인되지만 URL은 사라지고 기억은 확인할 방법이 아예 없다. <strong>이 저장소의 첫 문제가 정확히 이걸 안 지켜서 생겼다</strong> — 참조 랩의 부정확한 문장을 확인 없이 우리 코드 주석으로 옮겼다.</p>
+      </div>
+
+      <p><code>## 예측</code>이 넷 중 가장 중요하다. <strong>이 가설이 틀렸을 때 어떻게 알아챌 것인가</strong>를 미리 정하는 자리다. 어떤 결과가 나와도 참인 문장은 예측이 아니다. "처방을 넣으면 뭔가 달라진다"는 예측이 아니고 "지정한 쪽에서 발현이 더 적다"는 예측이다.</p>
+      <p>예측에는 숫자 둘을 같이 적는다. 얼마나 차이 날 것 같은가와, 그걸 확인하려면 몇 번 돌려야 하는가. <strong>못 잡을 실험에 돈을 쓰지 않으려는 것</strong>이다.</p>
+      <div class="shell">python3 tool/stats.py n_star 0.40    <b># 40%p 차이를 잡으려면 → 18쌍</b></div>
+
+      <div class="grounded">
+        <span class="lbl">예측은 문제와 같은 성공을 써야 한다</span>
+        <p>성공의 정의는 <strong>문제 노드가 소유한다.</strong> 가설이 다시 짓지 않는다. 다른 성공을 예측하면 그 실험 결과를 문제 기준과 대조할 수 없어, <strong>가설이 승격돼도 문제 종료에는 한 걸음도 다가가지 못한다.</strong> 예측이 다루는 건 성공의 정의가 아니라 두 팔의 차이다.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="interval"><span></span></div>
+
+<section>
+  <div class="stage">
+    <div class="gutter">
+      <span class="move">움직임 3</span>
+      <div class="state">p <span class="dim">←</span> h
+<span class="dim">    ↑ 새것만</span></div>
+      <div class="who">한 방향으로만 자란다</div>
+    </div>
+    <div class="body">
+      <h2>화살표는 언제나 새 점이 옛 점을 가리킨다</h2>
+      <p>이게 이 설계에서 제일 많은 것을 떠받친다. <strong>새 점을 만들 때 옛 점을 열어 고치는 일이 없어야 한다.</strong> 그래프는 덧붙이기로만 자란다.</p>
+
+      <pre class="mermaid">
+graph RL
+  H["h- 가설"] -->|addresses| P["p- 문제"]
+  E["e- 실험"] -->|tests| H
+  V["v- 검증"] -->|judges| E
+  F["f- 사실"] -->|from| V
+  F -.->|informs| H
+      </pre>
+
+      <p>이 한 방향이 셋을 동시에 지켜준다. 확증 실험 폴더가 등록 뒤 불변이라는 규율이 지켜지고, <strong>git 이력이 그대로 그래프의 성장사가 되고</strong>, 병렬 작업이 서로의 파일을 건드리지 않는다.</p>
+      <p>예외처럼 보이는 게 둘 있다. <code>informs</code>는 사실이 열린 가설을 가리키고, <code>derived_from</code>은 그 점이 사실을 가리킨다. <strong>방향이 반대다.</strong> 구현할 때 이걸 틀려서 철회 추적이 한쪽만 잡혔고, 두 방향을 따로 처리해 고쳤다.</p>
+
+      <h3>이미 있는 점에서 고쳐도 되는 것은 셋뿐</h3>
+      <p><code>status</code>와 <code>closed</code>와 본문 아래에 쌓는 기록. 제목과 slug와 이미 적힌 화살표는 고치지 않는다. 주장 자체가 바뀌면 그건 갱신이 아니라 새 가설이며, 옛 점은 <code>superseded</code>로 닫고 새 점이 <code>supersedes</code>로 가리킨다.</p>
+      <p>점의 정체성은 폴더 이름이다. <code>node/{track}/{slug}/node.md</code>가 있으면 점이 생긴다. 데이터베이스도 인덱스 파일도 없다. <strong>폴더를 만드는 것이 점을 만드는 것이고, 머리말에 다른 slug를 적는 것이 화살표를 그리는 것이다.</strong></p>
+    </div>
+  </div>
+</section>
+
+<div class="interval"><span></span></div>
+
+<section>
+  <div class="stage">
+    <div class="gutter">
+      <span class="move">움직임 4</span>
+      <div class="state">p ← h <span class="dim">←</span> <span class="new">e</span></div>
+      <div class="who">무엇을 바꿀지 고른다</div>
+    </div>
+    <div class="body">
+      <h2>진단이 서면 처방을 고른다 — 순서가 있다</h2>
+      <p>실험이 가설을 가리키며 붙는다. 그런데 그 실험이 무엇을 시험할지는 <strong>처방을 어떻게 고르느냐</strong>가 정한다. 여기서 흔히 섞이는 게 하나 있다.</p>
+
+      <h3>"후보"가 두 가지라 섞이기 쉽다</h3>
+      <div class="scroll">
+        <table>
+          <thead><tr><th></th><th>무엇의 후보인가</th><th>어떻게 가르나</th><th>왜</th></tr></thead>
+          <tbody>
+            <tr><td><strong>원인</strong> 후보</td><td>무엇 때문에 이 일이 일어나나</td><td>한 실험의 팔로 나눠 <strong>동시에</strong></td><td>서로 배타적이라 하나만 참이다</td></tr>
+            <tr><td><strong>처방</strong> 후보</td><td>그래서 무엇을 바꿀 것인가</td><td>정해진 순서로 <strong>하나씩</strong></td><td>동시에 참일 수 있고 정보량이 다르다</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>원인일 만한 게 셋 떠올랐다고 가설 셋을 만들지 않는다. 하나를 세우고 <strong>실험에서 셋을 하나씩 꺼보며</strong> 범인을 가린다. 이긴 후보가 그 가설의 진단이 된다. 셋을 만들면 각각이 자기 검증을 갖춰야 닫히니 일이 세 배가 되고, <strong>양립할 수 없는 주장 셋이 동시에 "열려 있음"으로 남는다.</strong></p>
+      <p>그리고 <strong>원인이 정해지기 전에 처방을 고르지 않는다.</strong> 진단 전의 처방은 무엇을 끊는지 모르는 변경이고, 효과가 있어도 왜 있는지 설명할 수 없다.</p>
+
+      <h3>고치는 수단 여섯</h3>
+      <p>이 랩은 API로 가져다 쓰는 모델을 다룬다. 가중치를 못 만지니 통제할 수 있는 건 <strong>요청에 무엇을 담는가</strong>와 <strong>응답을 받아 무엇을 하는가</strong> 둘뿐이다.</p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th></th><th>수단</th><th>예</th><th>누가 집행하나</th><th>비용</th></tr></thead>
+          <tbody>
+            <tr><td class="num">1</td><td>우리 코드</td><td>파싱, 검증, 후처리, 폴백, 재시도</td><td class="pass">우리 — 반드시 실행됨</td><td>낮음</td></tr>
+            <tr><td class="num">2</td><td>API 제약</td><td>출력 스키마, <code>tool_choice</code> 강제, stop</td><td class="pass">API — 어길 수 없음</td><td>낮음</td></tr>
+            <tr><td class="num">3</td><td>선택지 제거</td><td>도구를 안 준다, 히스토리에서 뺀다, 채울 칸을 없앤다</td><td class="pass">구조 — 없는 건 못 고름</td><td>중간</td></tr>
+            <tr><td class="num">4</td><td>모델·파라미터 교체</td><td>다른 모델, temperature, thinking budget</td><td>공급자</td><td>낮음</td></tr>
+            <tr><td class="num">5</td><td>파인튜닝</td><td>성향 자체를 옮긴다</td><td class="fail">모델 — 확률만 옮김</td><td class="fail">높음</td></tr>
+            <tr><td class="num">6</td><td>부탁</td><td>지시문, few-shot 예시</td><td class="fail">모델 — 안 따를 수 있음</td><td>낮음</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="asserted">
+        <span class="lbl">이 표는 시도 순서가 아니다</span>
+        <p>집행자 순서로 정렬한 것뿐이다. 시도 순서로 읽으면 1번부터 손대게 되고, 그러면 증상이 사라져 점이 닫히는데 <strong>원인은 영영 안 찾는다.</strong> 코드가 가드 무덤이 되는 경로다.</p>
+      </div>
+      <p><strong>2번과 6번을 한 층으로 묶지 않는 게 중요하다.</strong> "JSON으로 답해"는 부탁이고 출력 스키마 강제는 디코딩 제약이다. 앞은 모델이 어길 수 있고 뒤는 <strong>어길 수가 없다.</strong> 파인튜닝이 뜻밖에 약한 쪽에 있는 것도 같은 이유다 — 분포를 옮길 뿐 출력을 제약하지 않는다.</p>
+
+      <h3>기준은 집행 확실성이 아니라 정보다</h3>
+      <p>처방을 시도하는 것은 <strong>그 자체로 실험</strong>이다. 어떤 수단은 성공하면 원인을 알려주고 어떤 수단은 성공해도 아무것도 알려주지 않는다.</p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>수단</th><th>효과가 있었을 때 알게 되는 것</th></tr></thead>
+          <tbody>
+            <tr><td>선택지 제거</td><td>그 선택지가 조건이었다</td></tr>
+            <tr><td>API 제약</td><td>형식 자유도가 조건이었다</td></tr>
+            <tr><td>부탁</td><td>형식 지시로 되는 종류였다</td></tr>
+            <tr><td>모델 교체</td><td>모델 의존이다</td></tr>
+            <tr><td>파인튜닝</td><td class="fail">왜 되는지 모른다</td></tr>
+            <tr><td>우리 코드로 덮기</td><td class="fail">아무것도. 오히려 있던 정보를 지운다</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>마지막 줄이 결정적이다. 산출물을 덮으면 증상이 사라지므로 <strong>그 뒤로는 밑바닥 비율을 잴 수 없다.</strong> 정보를 안 주는 게 아니라 이미 있던 정보를 없앤다.</p>
+
+      <div class="shell">0.  <b>원인을 먼저 잰다</b>
+      산출물을 덮으면 그 뒤로는 못 재기 때문이다
+
+1.  <b>원인이 우리 코드에 있나?</b>
+      예 → 우리 코드를 고친다. 이건 원인치료다. 끝.
+
+2.  <b>아니면 — 무엇을 바꾸려는 건가?</b>
+
+      형식·문체     부탁         → 안 들으면 API 제약
+      행동 성향     선택지 제거   → 모델 교체 → 파인튜닝
+
+3.  <b>다 막히면</b>
+      산출물을 덮는다. 증상만 막았으므로 mitigated 로 닫는다.</div>
+
+      <p><strong>1단이 먼저인 이유.</strong> 파서가 깨져 파싱이 실패하는 거라면 파서 교체는 증상을 덮는 게 아니라 원인 자체를 고치는 것이다. 그래서 순서를 정하기 전에 "원인이 우리 쪽인가 모델 쪽인가"를 먼저 묻는다.</p>
+      <p><strong>2단의 갈림길은 참조 랩이 찾은 경계다.</strong> 형식과 말투 지시는 듣고 날조나 중간 포기 같은 행동 습성 지시는 안 듣는다. 실제 사례 둘이 이 갈림길에 맞는다 — 우리 실험은 형식 지시였고 완벽하게 들었으며, 참조 랩의 중간 포기는 행동이라 문구가 안 들었고 도구를 줄이는 구조 처방이 들었다.</p>
+
+      <h3>원인치료와 대증요법</h3>
+      <p>가중치를 못 만지니 반론이 생긴다. <strong>"날조의 원인은 가중치 안에 있는데 그러면 우리가 하는 건 다 증상 덮기 아닌가."</strong> 그래서 우리에게 쓸모 있는 원인은 가중치가 아니라 <strong>그 행동을 끌어내는 입력 조건</strong>이다.</p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th></th><th>무엇을 하나</th><th>어느 수단</th><th>어떻게 닫나</th></tr></thead>
+          <tbody>
+            <tr><td>원인치료</td><td>그 행동을 끌어내는 조건을 없앤다</td><td>주로 3, 때로 2·4</td><td><code>adopted</code></td></tr>
+            <tr><td>대증요법</td><td>행동은 그대로 두고 산출물을 고친다</td><td>주로 1</td><td><code>mitigated</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>수단 번호로 자동 판정되지 않는다. 파서가 원인이면 파서 교체는 1번이면서 원인치료다. 그래서 <code>## 처방</code>에 직접 밝혀 적는다.</p>
+      <div class="asserted">
+        <span class="lbl">재시도의 측정 함정</span>
+        <p>API 기능에서 제일 흔한 대증요법이 재시도다. 3번 재시도하면 성공률 60%가 관측 94%로 올라가는데 <strong>밑바닥 비율은 그대로다.</strong> 그래서 원인 측정은 처방을 넣기 전에 한다.</p>
+      </div>
+
+      <h3>효과가 확인돼도 바로 채택하지 않는다</h3>
+      <p>실험에서 효과가 나오면 제품에 넣고 싶어진다. 그 전에 셋을 더 통과해야 하고 그 결과를 <code>## 처방</code>에 함께 적는다.</p>
+      <ul>
+        <li><strong>컨트롤 무손상.</strong> 목표 지표만 보면 안 된다. 잘 되던 경로를 두 종류 이상 같이 재서 저하가 없음을 확인한다. 표본이 작으면 전건 유지로 판정한다.</li>
+        <li><strong>트레이드오프면 사용자 결정.</strong> 저하가 실측되면 자동 채택하지 않는다. 무엇이 얼마나 올랐고 무엇이 얼마나 내렸는지를 보고하고 사용자 판단으로만 승격한다. 참조 랩에서 한 처방이 목표 지표를 올리면서 형제 도구 선택을 20%p 깎은 실측이 이 조항의 근거다.</li>
+        <li><strong>배선 확인.</strong> 위치를 적는 것으로 끝내지 않고 실제로 배선한 뒤 한 번 동작을 확인한다. 실험에서 효과가 있었다는 것과 제품에서 그 처방이 작동한다는 것은 다른 주장이다.</li>
+      </ul>
+      <p>셋 다 산문이라 스캐너가 검사하지 못한다. 그래서 <strong>채택 전에 세 결과를 사용자에게 보고하는 것이 절차로 강제된다.</strong> 자기가 낸 처방을 자기가 승인하는 구조를 만들지 않는다.</p>
+
+      <h3>파인튜닝을 쓰기 전에 필요한 둘</h3>
+      <p>할 일은 드물겠지만 표에 있으니 조건을 적어 둔다. 둘 다 없이 쓰면 그 결과는 판정에 쓸 수 없다.</p>
+      <p><strong>홀드아웃 분리.</strong> 2층 채점의 정답 세트와 파인튜닝 훈련 데이터는 <strong>같은 물건</strong>이다. 훈련에 쓴 문항으로 채점하면 능력이 아니라 암기를 재게 된다. 참조 랩의 <code>fixtures_holdout.json</code>이 이 문제를 만난 기록이다.</p>
+      <p><strong>확장된 조건 기록.</strong> 파인튜닝된 모델은 공급자 쪽 ID라 폴더에 동결할 수 없다. 체크포인트가 지워지면 <strong>그 모델로 잰 모든 사실을 다시 확인할 방법이 없다.</strong> 그래서 조건에 베이스 모델과 훈련 세트와 버전과 하이퍼파라미터와 훈련 시점을 함께 적는다.</p>
+      <p>이 둘을 검사하는 장치는 만들지 않았다. 아직 사례가 없어 짐작으로 만들게 되기 때문이다.</p>
+    </div>
+  </div>
+</section>
+
+<div class="interval"><span></span></div>
+
+<section>
+  <div class="stage">
+    <div class="gutter">
+      <span class="move">움직임 5</span>
+      <div class="state">p ← h ← e <span class="dim">←</span> <span class="new">v</span></div>
+      <div class="who">사슬이 이어진다</div>
+    </div>
+    <div class="body">
+      <h2>사슬이 이어져야 판정이 나온다</h2>
+      <p>실험은 자기 자산을 곁에 두고 <strong>자족적</strong>이어야 한다. 다른 점이나 <code>tool/</code>에서 import하지 않고 한 줄로 돈다. 세 실험에서 코드가 똑같아 보여도 공유 모듈로 뽑지 않는다. 참조 랩이 실험 환경을 공유 모듈로 뒀다가 제품 리네임 한 번에 그 모듈이 고아가 됐고 과거 실험을 되살릴 수 없게 됐다. <strong>여기서 중복은 낭비가 아니라 동결이다.</strong></p>
+
+      <div class="scroll">
+        <table>
+          <thead><tr><th>자산</th><th>위치</th><th>복사</th><th>이유</th></tr></thead>
+          <tbody>
+            <tr><td><code>fixtures.json</code></td><td>점 안</td><td class="pass">가능 — <code>uses</code>로 출처 명시</td><td>동결된 세계. 링크나 상위 추출은 금지 — 원본이 바뀌면 과거가 오염된다</td></tr>
+            <tr><td><code>results.jsonl</code></td><td>점 안</td><td class="fail">절대 불가</td><td>남의 실행 기록을 자기 것으로 옮기는 건 날조의 정의</td></tr>
+            <tr><td><code>lab.py</code> 등</td><td>점 안</td><td class="pass">권장</td><td>복사본의 차이가 곧 그 실험의 조건 기록</td></tr>
+            <tr><td><code>tool/stats.py</code></td><td>밖, 유일본</td><td class="fail">불가</td><td>자가 여럿이면 비교가 무의미. 판정이 실험 안에 있으면 자기 채점</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>여기서 구분 하나가 중요하다. <strong>무엇을 성공으로 칠지 정하는 judge는 실험마다 다르므로 <code>lab.py</code> 안에 있고</strong>, 0과 1의 벡터에서 그 차이가 진짜인지 계산하는 통계는 어느 실험에서나 같아야 하므로 밖에 하나뿐이다.</p>
+
+      <h3>설계에 담는 여섯</h3>
+      <ul>
+        <li><strong>팔.</strong> 무엇과 무엇을 비교하고 어느 쪽이 대조군인가. 머리말 <code>arms</code>와 <code>results.jsonl</code>의 <code>arm</code>이 같아야 하고 스캐너가 대조한다.</li>
+        <li><strong>N과 K.</strong> 페어 수와 문항당 재샘플 수. 확률적 현상은 K를 3 이상으로 두고 문항 평균을 쓴다. 시행마다의 변동이 문항 간 차이를 덮기 때문이다.</li>
+        <li><strong>MDE.</strong> 이 N이 검출할 수 있는 최소 차이. 기대 효과가 그보다 작으면 그 설계로는 판정할 수 없다.</li>
+        <li><strong>판정 지표.</strong> 문제의 성공 정의를 구현한 것이어야 한다.</li>
+        <li><strong>세계.</strong> 어떤 <code>fixtures.json</code>을 쓰고 어디서 얻었는가.</li>
+        <li><strong>피험체.</strong> 복사한 프롬프트나 가드의 커밋 해시.</li>
+      </ul>
+      <div class="asserted">
+        <span class="lbl">지표는 내용까지 채점해야 한다</span>
+        <p>참조 랩의 judge가 <strong>"도구를 불렀는가"만 세어서</strong> 인자가 빈 채로 호출된 시행이 성공으로 집계됐다. 그 함정은 배포 뒤에 발견됐다. 호출 여부가 아니라 내용을 봐야 한다.</p>
+      </div>
+
+      <h3>세계는 실물에서 녹화한다 — 다만 첫 실험은 예외다</h3>
+      <p>실험 입력은 실물에서 한 번 녹화해 고정하고 손으로 만들지 않는다. <strong>지어낸 입력은 대표성이 없어 결과를 못 믿게 만든다.</strong> 세계가 고정되면 남는 분산은 모델 확률성뿐이라 검출력도 올라간다.</p>
+      <p>그런데 <strong>랩의 첫 실험은 녹화할 실물이 없다.</strong> 이 저장소가 아직 그 종류의 산출물을 하나도 만든 적이 없기 때문이다. 다른 랩의 기록을 쓰려 했지만 더 나쁜 문제가 걸렸다 — 판정 어휘가 파일마다 달라 우리 <code>ok</code>로 바꾸려면 <strong>파일마다 성공 정의를 지어내야 했다.</strong> 성공 정의는 문제가 소유하므로 실험이 지어낼 수 없다.</p>
+      <p>그래서 예외를 뒀다. 첫 실험은 입력 공간을 <strong>격자로 열거해</strong> 채우고 어떤 칸을 덮었는지 설계에 적는다. 사례를 골라 담으면 답을 고르는 것이 되지만, <strong>격자를 선언하고 그 칸을 채우면 그 선택이 비판 가능한 설계로 남는다.</strong> 이 예외는 탐색에서만 쓴다.</p>
+
+      <h3>레인이 증명력을 정한다</h3>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>레인</th><th>조건 변경</th><th>증명력</th><th>쓰임</th></tr></thead>
+          <tbody>
+            <tr><td><code>exploratory</code></td><td class="pass">자유</td><td class="fail">0</td><td>다음 확증 실험의 설계 재료</td></tr>
+            <tr><td><code>confirmatory</code></td><td class="fail">등록 뒤 불가</td><td class="pass">승격 가능</td><td>실행 1회, 판정 1회</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>같은 처방을 문턱 넘을 때까지 다시 돌리는 건 레인 위반이다. 런 간 노이즈가 25~40%p라 반복하면 언젠가 넘는다. <strong>그렇게 넘은 문턱은 처방의 효과가 아니라 반복의 산물이다.</strong></p>
+
+      <h3>사전 등록을 git이 증명한다</h3>
+      <div class="shell"><b>1.</b> 등록 커밋에 results.jsonl 이 없었다   → 등록이 실행보다 앞섰다
+<b>2.</b> 등록 뒤 lab.py 가 바뀌지 않았다     → 기구가 그대로다</div>
+      <p>첫 검사가 있으므로 <strong>사후 등록이 통하지 않는다.</strong> 이미 결과가 담긴 커밋을 가리키면 걸린다. 주석 한 줄을 고쳐도 걸리며, 그것이 이 레인의 무게다.</p>
+
+      <h3>실험은 문제와 같은 것을 재야 한다</h3>
+      <div class="grounded">
+        <span class="lbl">규칙을 쓰자마자 그 규칙이 우리 점을 잡았다</span>
+        <p>"예측은 문제와 같은 성공을 써야 한다"를 규칙에 넣고 우리 세 점에 대고 확인했더니 <strong>실험이 그 규칙을 어기고 있었다.</strong></p>
+      </div>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>점</th><th>성공의 정의</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>문제</td><td>대조한 주장 중 <strong>거짓이 0건</strong></td><td class="pass">기준</td></tr>
+            <tr><td>가설</td><td><strong>거짓 명제</strong> 발현이 낮다</td><td class="pass">일치</td></tr>
+            <tr><td>실험</td><td><strong>입력 밖 명제</strong>가 0건</td><td class="fail">어긋남</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>이 실패에는 이름이 있다. 밖에서는 <strong>명세 위반</strong>이라 부르며 코드가 과제를 푸는 대신 채점의 허점을 찌르는 경우를 가리킨다. 우리 경우는 악의가 아니라 <strong>미끄러짐</strong>이었다. 참거짓을 가리려면 통계를 알아야 하는데 입력 안팎은 눈으로 대조하면 되니, 아무도 속이려 하지 않았는데 싼 쪽으로 내려갔다.</p>
+      <p><strong>그래서 <code>## 지표 대조</code>가 실험의 필수 칸이 됐다.</strong> 문제의 성공 정의를 옮겨 적고, 이 실험이 뭘 재는지 적고, 같은지 엄한지 느슨한지 판정한다. 설계할 때 채우다 보면 어긋남을 그 자리에서 마주친다. 16 호출을 다 돌린 뒤가 아니라.</p>
+      <p>포함관계를 보면 어디까지 쓸 수 있는지 정해진다. 거짓 명제는 입력 밖 명제의 <strong>부분집합</strong>이라 실험 기준이 더 엄하다. 그래서 <strong>처방군의 통과는 옮길 수 있고 대조군의 실패 수는 못 옮긴다.</strong></p>
+
+      <h3>기구를 바꾸면 결과가 움직이는지 먼저 잰다</h3>
+      <p>모델을 에이전트로 부르면 프로젝트 설정과 사용자 설정을 자동으로 물려받는다. 둘 다 실험 폴더에 복사할 수 없으므로 조건으로 받아들이지 않고 떼어낸다.</p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>조건</th><th>대조군이 만든 입력 밖 수치</th></tr></thead>
+          <tbody>
+            <tr><td>사용자 설정 로드됨</td><td class="mono">3개</td></tr>
+            <tr><td>격리 후</td><td class="mono">8개</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="grounded">
+        <span class="lbl">이 사례가 규율이 됐다</span>
+        <p>같은 픽스처를 바꾸기 전후로 한 번씩 돌려 비교하고, 움직였으면 앞의 기록을 폐기한다. 위의 3 대 8은 <strong>스모크 출력에 플러그인 서식이 붙은 걸 보고 우연히 알아챈 것</strong>이지 규칙이 시킨 게 아니었다. 안 봤으면 조건이 다른 기록이 한 파일에 섞였다.</p>
+      </div>
+      <p>배제한 이유는 공정성이 아니라 <strong>재현성</strong>이다. 두 팔에 똑같이 걸려 페어드는 성립하지만, 동결되지 않은 설정이 바뀌면 그 실험은 재현되지 않으며 바뀌었다는 사실조차 폴더 diff에 남지 않는다.</p>
+
+      <h3>판정은 이미 있는 기록에 자를 대는 일이다</h3>
+      <p>검증은 실험을 다시 돌리지 않는다. 다시 돌려야 한다면 그건 새 실험이고, 같은 처방을 문턱 넘을 때까지 돌리는 건 레인 위반이다. 수치를 손으로 옮겨 쓰지도 않는다.</p>
+      <div class="shell">python3 tool/stats.py paired &lt;results.jsonl&gt; [control] &gt; node/{track}/v-{slug}/<b>report.json</b>
+python3 tool/stats.py wilson &lt;results.jsonl&gt; [arm] [floor] &gt; node/{track}/v-{slug}/<b>report.json</b></div>
+      <p>JSON은 stdout으로, 사람이 읽을 한 줄은 stderr로 나가므로 리다이렉트해도 요약은 화면에 남는다. 한쪽 팔이 없는 문항은 자가 알아서 <strong>페어째</strong> 제외하고 몇 개를 뺐는지 보고한다. 한쪽만 빼면 그 문항은 비교가 아니게 되기 때문이다.</p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>status</th><th><code>promotable</code></th><th>원인</th><th>다음 수</th></tr></thead>
+          <tbody>
+            <tr><td class="pass">pass</td><td>참</td><td>—</td><td>가설 승격</td></tr>
+            <tr><td class="fail">fail</td><td>거짓</td><td>효과 부재</td><td>그 처방은 기각 — 다른 처방을 찾는다</td></tr>
+            <tr><td>inconclusive</td><td>거짓</td><td>해상도 부족</td><td>처방에 대해 아무것도 모름 — 새 실험</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>뒤의 둘은 기계가 못 가른다. 둘 다 <code>promotable</code>이 거짓이기 때문이다. <strong>이 구분이 다음 수를 가른다</strong> — 섞으면 멀쩡한 처방이 기각되거나 죽은 처방이 되살아난다.</p>
+    </div>
+  </div>
+</section>
+
+<div class="interval"><span></span></div>
+
+<section>
+  <div class="stage">
+    <div class="gutter">
+      <span class="move">움직임 6</span>
+      <div class="state">p <span class="dim">여전히 open</span>
+<span class="dim">↑</span>
+h <span class="new">proven</span></div>
+      <div class="who">사슬이 이어져도</div>
+    </div>
+    <div class="body">
+      <h2>사슬이 완성돼도 점이 안 닫힐 수 있다</h2>
+      <p>이게 두 번째로 헷갈리는 성질이다. <strong>가설이 증명됐다고 문제가 닫히지 않는다.</strong> 둘이 서로 다른 질문에 답하고 요구하는 N도 다르기 때문이다.</p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>무엇을 판정하나</th><th>모드</th><th>문턱</th><th>재는 것</th><th>필요 N</th></tr></thead>
+          <tbody>
+            <tr><td>가설의 승격</td><td><code>paired</code></td><td>McNemar p&lt;.05 <em>그리고</em> CI가 0 제외</td><td>두 팔의 차이가 진짜인가</td><td class="num">작다</td></tr>
+            <tr><td>문제의 종료</td><td><code>wilson</code></td><td>완치 기준의 절대 문턱</td><td>지금 남은 수준이 문턱 아래인가</td><td class="num">크다</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>가설은 처방이 듣는지를 묻는다. 같은 문항에 변형만 다른 두 팔을 비교하므로 N이 작아도 큰 효과는 잡힌다. 문제는 지금 얼마나 남았는지를 묻는다. 비교 대상이 없고 절대 수준을 재므로 N이 크다.</p>
+
+      <div class="ci">
+        <div class="ci-row">
+          <div class="ci-lab">승격 가능</div>
+          <div class="ci-track"><div class="ci-zero" style="left:20%"></div><div class="ci-bar ok" style="left:40%;width:35%"></div></div>
+        </div>
+        <div class="ci-row">
+          <div class="ci-lab">CI가 0 포함</div>
+          <div class="ci-track"><div class="ci-zero" style="left:20%"></div><div class="ci-bar no" style="left:8%;width:40%"></div></div>
+        </div>
+        <p class="ci-note">세로선이 0이다. 구간이 0을 넘어가면 방향을 주장할 수 없다. 이 검사와 McNemar를 <em>둘 다</em> 넘어야 <code>promotable</code>이 참이 된다.</p>
+      </div>
+
+      <div class="grounded">
+        <span class="lbl">그래서 이 상태가 정상이다</span>
+        <p><strong>가설이 proven인데 문제가 여전히 open.</strong> 처방이 듣는다는 건 증명됐지만 남은 수준이 문턱 아래인지는 아직 재지 않은 것이다. 반대 방향도 있다 — 환경이 바뀌어 현상이 사라지면 문제는 닫히지만 그 가설은 proven이 아닌 채로 남는다.</p>
+      </div>
+
+      <h3>누가 채점하는가가 N을 정한다</h3>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>층</th><th>누가</th><th>언제</th><th>N 제약</th></tr></thead>
+          <tbody>
+            <tr><td class="num">1</td><td>기계가 직접</td><td>정답이 산출물 안에 있다</td><td class="pass">없음</td></tr>
+            <tr><td class="num">2</td><td>사람이 정답, 기계가 대조</td><td>정답이 입력마다 결정된다</td><td class="pass">없음</td></tr>
+            <tr><td class="num">3</td><td>사람이 매 시행</td><td>정답을 미리 못 만든다</td><td class="fail">사람 예산</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>2층이 대부분을 흡수한다. <strong>사람 비용이 시행 수가 아니라 문항 수에 비례하기 때문이다.</strong> 문항 30개에 문항당 5회면 150시행이지만 사람이 만드는 정답은 30개뿐이다.</p>
+      <p>3층에서만 N이 사람 예산에 묶인다. <strong>채점자와 문턱은 한 쌍</strong>이라 3층으로 정하면 문턱도 내려간다. LLM 판정자는 층에 넣지 않는다 — 이 랩이 연구하는 실패 모드를 가진 쪽이 그 실패를 채점하게 되기 때문이다. 우리 실험이 정확히 그 경우다.</p>
+      <p>정답도 틀릴 수 있다. 참조 랩의 캡처 실험에서 실패 8건 중 3건이 모델이 아니라 골든의 오류였다. 모델은 원문대로 답했는데 정답에 다른 값이 적혀 있었다. 그래서 <strong>실패는 세기 전에 뜯어보고</strong> — 안 그러면 정답의 오류가 모델 탓으로 집계된다 — 정답에는 원문 어디를 근거로 정했는지를 남긴다.</p>
+      <div class="asserted">
+        <span class="lbl">채점 방법이 없는 기준</span>
+        <p>그것은 <strong>예산으로 해소할 수 없는 문턱과 같다.</strong> 어느 쪽도 그 점을 영원히 닫지 못하게 만든다. 그래서 완치 기준을 쓸 때 채점자를 함께 정한다.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="interval"><span></span></div>
+
+<section>
+  <div class="stage">
+    <div class="gutter">
+      <span class="move">움직임 7</span>
+      <div class="state">p ← h ← e ← v
+<span class="dim">        ↓</span>
+        <span class="new">f</span> <span class="dim">→ 새 p·h</span></div>
+      <div class="who">가지가 뻗는다</div>
+    </div>
+    <div class="body">
+      <h2>사실이 분기점이다 — 새 점은 전부 여기서 나온다</h2>
+      <p>사슬이 완성되면 그래프는 옆으로 자란다. 그 자리가 사실이다. <strong>새 가설과 새 문제는 전부 사실에서 나온다.</strong></p>
+      <p>계획했던 판정만 나왔다면 사실을 만들지 않는다. 검증 점이 이미 담고 있어 같은 내용이 두 곳에 있게 된다. 사실로 만드는 건 둘이다. <strong>예상 밖의 발견</strong>이거나, <strong>다른 점에서도 쓰일 일반 명제</strong>인 경우다.</p>
+      <p>실험 중 눈에 띈 건 그 자리에서 적는다. <strong>여기서 빠뜨린 발견은 영영 사라진다.</strong> 결과 파일에 남아 있어도 다시 들여다볼 이유가 생기지 않기 때문이다.</p>
+
+      <h3><code>## 조건</code>이 사실의 유효 범위다</h3>
+      <p>측정 조건이면 모델과 와이어와 파라미터와 프롬프트 버전을 쓰고, 수학처럼 환경과 무관하면 그렇게 명시한다. <strong>제목만 읽으면 모든 사실이 절대적으로 들리는 것</strong>이 이 칸이 있는 이유다. 참조 랩은 "자발 포기 성향이 존재한다"를 모델 특성으로 읽었다가 엿새 뒤에야 특정 호출 경로의 산물임을 알았다.</p>
+    </div>
+  </div>
+</section>
+
+<div class="interval"><span></span></div>
+
+<section>
+  <div class="stage">
+    <div class="gutter">
+      <span class="move">움직임 8</span>
+      <div class="state">f <span class="fail">retracted</span>
+<span class="dim">↓ 따라가서</span>
+h <span class="dim">근거 무너짐</span></div>
+      <div class="who">죽어도 지워지지 않는다</div>
+    </div>
+    <div class="body">
+      <h2>점은 죽어도 그래프에서 사라지지 않는다</h2>
+      <p>이 그래프에는 삭제가 없다. 틀린 것은 지우는 게 아니라 <strong>표시</strong>한다. 이유는 단순하다 — 그 점을 인용한 다른 점들이 이미 있고, 사라지면 그들의 근거가 빈칸이 된다.</p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>무슨 일이</th><th>표시</th><th>옛 점은</th></tr></thead>
+          <tbody>
+            <tr><td>효과가 없다고 판정됨</td><td><code>refuted</code></td><td>기각 범위와 함께 남는다</td></tr>
+            <tr><td>사실이 틀렸음이 드러남</td><td><code>retracted</code></td><td>철회 이유를 아래에 쌓는다</td></tr>
+            <tr><td>주장 자체를 고쳐 써야 함</td><td><code>superseded</code></td><td>새 점이 <code>supersedes</code>로 가리킨다</td></tr>
+            <tr><td>닫힌 문제가 다시 나타남</td><td>새 점 + <code>recurs</code></td><td>건드리지 않는다</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>마지막 줄이 이 원리를 잘 보여준다. 닫힌 문제의 현상이 다시 나타나도 <strong>그 문제를 다시 열지 않는다.</strong> 그때의 해결은 진짜였고 그 기록을 고칠 이유가 없다. 되돌리면 끝났다는 기록과 안 끝났다는 상태가 한 파일에 공존하게 된다.</p>
+
+      <h3>철회는 근거 사슬을 따라간다</h3>
+      <p>사실은 실측인데도 틀릴 수 있다. 조건을 실제보다 넓게 적었거나, 2층 정답이 틀렸거나, 자를 고쳐 재계산했더니 값이 달라진 경우다. 철회하면 그 사실에 기댄 <strong>열린</strong> 점의 근거가 무너진다.</p>
+      <div class="shell">h-x: 근거로 삼은 f-x 이 retracted 다 — 근거를 고치거나 이 노드를 닫아라</div>
+      <p>스캐너가 <code>informs</code>와 <code>derived_from</code>을 따라가 그런 점을 찾는다. <strong>닫힌 점은 건드리지 않는다.</strong> 그때의 판단은 그때의 근거로 내려진 것이다.</p>
+      <p>기각을 적을 때 "효과 없음"이라 쓰지 않는다. 검출하지 못한 것과 존재하지 않는 것은 다르다. <code>MDE(δ) 이상의 효과 부재</code>로 적고 그 δ를 남긴다.</p>
+    </div>
+  </div>
+</section>
+
+<div class="interval"><span></span></div>
+
+<section>
+  <div class="stage">
+    <div class="gutter">
+      <span class="move">움직임 9</span>
+      <div class="state">f f
+<span class="dim">↓ ↓</span>
+<span class="new">law</span> <span class="dim">→ 이후 처방을 막음</span></div>
+      <div class="who">반복이 관문이 된다</div>
+    </div>
+    <div class="body">
+      <h2>같은 결론이 반복되면 관문으로 굳는다</h2>
+      <p>서로 다른 실험에서 같은 결론이 반복해 나오면 그걸 개별 결과로 두지 않고 <strong>앞으로의 모든 처방을 검사하는 기준</strong>으로 올린다. 머리말에 <code>role: meta</code>를 붙인 가설이 그것이다.</p>
+      <p>올리는 조건이 <strong>둘</strong>이고 스캐너가 둘 다 검사한다.</p>
+      <p><strong>근거가 둘 이상이어야 한다.</strong> 한 번 본 것의 일반화는 기준이 아니라 추측이다.</p>
+      <p><strong>범위가 적혀 있어야 한다.</strong> 사실에는 "언제까지 참인가"를 요구하면서 이쪽에 요구하지 않으면 <strong>어느 모델에서 잰 것인지 안 적고도 이후 모든 처방을 막을 수 있게 된다.</strong> 모델을 바꾸거나 파인튜닝하면 흔들릴 수 있는 명제이므로 범위가 필요하다.</p>
+
+      <div class="scroll">
+        <table>
+          <thead><tr><th></th><th>어디에 적히나</th><th>근거는 누구 것인가</th><th>예</th></tr></thead>
+          <tbody>
+            <tr><td>규칙 문서에 적는 것</td><td><code>.claude/rules/</code></td><td>사람이 판단해서 적었다</td><td>수단 여섯 표</td></tr>
+            <tr><td>그래프에 올리는 것</td><td><code>role: meta</code> 점</td><td>이 그래프가 직접 재서 증명했다</td><td>아직 없음</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>둘의 차이는 <strong>근거를 누가 갖고 있는가</strong>다. 밖에서 확립된 결론은 구조적으로 뒤쪽에 올라올 수 없다 — 근거로 가리킬 수 있는 게 이 그래프 안의 점뿐이기 때문이다. 그게 맞는 제약이다.</p>
+    </div>
+  </div>
+</section>
+
+<div class="interval"><span></span></div>
+
+<section>
+  <div class="stage">
+    <div class="gutter">
+      <span class="move">움직임 10</span>
+      <div class="state"><span class="dim">graph.py</span>
+<span class="dim">↓ 통과해야</span>
+<span class="new">graph.js</span></div>
+      <div class="who">스스로를 검사한다</div>
+    </div>
+    <div class="body">
+      <h2>그래프는 자기가 통과해야만 그려진다</h2>
+      <p>모든 움직임 뒤에 스캐너가 그래프 전체를 걷는다. <strong>통과하지 못하면 <code>graph.js</code>가 갱신되지 않는다.</strong> 그림에 안 실린다는 건 그래프에 존재하지 않는 것과 같다.</p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>막는 것</th><th>방법</th></tr></thead>
+          <tbody>
+            <tr><td>지어낸 판정 수치</td><td><code>results.jsonl</code>을 다시 계산해 <code>report.json</code>과 대조</td></tr>
+            <tr><td>수치는 맞고 status만 틀림</td><td>status ↔ <code>promotable</code> 대조</td></tr>
+            <tr><td>설계와 다른 팔을 비교</td><td>선언 <code>arms</code> ↔ 기록 <code>arm</code> 대조</td></tr>
+            <tr><td>결과 보고 설계 수정</td><td>등록 커밋에 결과 부재 + <code>lab.py</code> 불변</td></tr>
+            <tr><td>무너진 근거에 계속 기대기</td><td>철회 사실 → 열린 점 추적</td></tr>
+            <tr><td>원시 기록 없이 완료 선언</td><td><code>done</code>이면 <code>results.jsonl</code> 필수</td></tr>
+            <tr><td>안 돌렸다면서 기록이 있음</td><td><code>planned</code>인데 <code>results.jsonl</code> 있으면 걸림</td></tr>
+            <tr><td>범위 없이 모든 처방을 막기</td><td>법칙은 <code>## 조건</code> 필수</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><code>stats_version</code>도 대조 대상이다. 자를 고치면 과거 판정이 전부 어긋나 재계산이 강제된다. 원시 기록이 이미 있으니 재계산에 모델 호출은 들지 않는다.</p>
+
+      <h3>마지막 두 겹은 사고에서 나왔다</h3>
+      <p>구현 중에 <code>results.jsonl</code>이 20행 전부 <code>ok=1</code>인 상태로 나타나 커밋됐다. 그대로 남았으면 <strong>효과가 완벽하게 갈린 실험이 "효과 없음"으로 판정됐을 것이다.</strong></p>
+      <p>원인은 실측으로 확정했다. 채점 함수가 비대화형 stdin을 받아들였고, 알아듣지 못한 입력을 성공으로 접었다. 둘째가 더 나쁘다 — <strong>기울어지는 방향이 모델에 유리한 쪽</strong>이었다. 같은 파일이 가드를 넣은 뒤 <strong>한 번 더 나타났고 두 번째는 원인을 찾지 못했다.</strong></p>
+    </div>
+  </div>
+</section>
+
+<div class="interval"><span></span></div>
+
+<section>
+  <div class="stage">
+    <div class="gutter">
+      <span class="move">현재</span>
+      <div class="state">p ← h ← e
+<span class="dim">          ⋯ v 없음</span></div>
+      <div class="who">사슬이 아직 안 닿았다</div>
+    </div>
+    <div class="body">
+      <h2>지금 이 그래프는 어디까지 왔나</h2>
+      <pre class="mermaid">
+graph RL
+  H["h-unspecified-summary-<br/>invites-inference<br/>open"] -->|addresses| P["p-false-stat-claim<br/>open"]
+  E["e-summary-item-spec<br/>planned · exploratory"] -->|tests| H
+  V["v- 검증<br/>아직 없음"]:::todo -.->|judges| E
+  classDef todo stroke-dasharray: 4 3
+      </pre>
+      <p>점 셋에 화살표 둘. <strong>사슬이 검증까지 닿지 않았고, 그래서 아무것도 승격되지 않았다.</strong> 막힌 자리는 하나다.</p>
+      <p>모델 호출 16개는 끝났고 <code>outputs.jsonl</code>에 있다. status가 <code>planned</code>인 이유는 3층 채점에서 <strong>사람이 기구의 일부</strong>이기 때문이다. <code>ok</code>를 사람이 매기므로 채점 전까지 그 기록은 <code>results.jsonl</code>이 아니다.</p>
+
+      <h3>기계 신호는 여덟 칸 전건에서 갈렸다</h3>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>격자 칸</th><th>대조군 새 수치</th><th>처방군</th></tr></thead>
+          <tbody>
+            <tr><td>승격, 해상도 충분</td><td class="num">8</td><td class="num pass">0</td></tr>
+            <tr><td>승격, 관측 효과가 MDE 아래</td><td class="num">12</td><td class="num pass">0</td></tr>
+            <tr><td>승격, 큰 N</td><td class="num">7</td><td class="num pass">0</td></tr>
+            <tr><td>미달, 양의 방향</td><td class="num">8</td><td class="num pass">0</td></tr>
+            <tr><td>미달, 차이 없음</td><td class="num">2</td><td class="num pass">0</td></tr>
+            <tr><td>미달, 역방향</td><td class="num">3</td><td class="num pass">0</td></tr>
+            <tr><td>미달, CI는 0을 제외</td><td class="num">9</td><td class="num pass">0</td></tr>
+            <tr><td>미달, 큰 N</td><td class="num">9</td><td class="num pass">0</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="asserted">
+        <span class="lbl">이것은 판정이 아니다</span>
+        <p>기계가 뽑은 부수 신호이며 판정 지표가 아니다. 판정 지표는 사람이 매긴다. 두 값이 일치하는지가 이 실험이 답할 질문이므로, <strong>채점 전에 이 신호로 결과를 주장하지 않는다.</strong></p>
+      </div>
+      <p>이 프록시가 사람 판정과 맞으면 확증 실험의 채점을 2층으로 내릴 수 있다. 그러면 앞으로 문단을 읽지 않아도 되고, <strong>그게 이 탐색 실험의 제일 큰 산출물이 된다.</strong></p>
+
+      <div class="shell">cd node/doc-integrity/e-summary-item-spec
+python3 lab.py grade      <b># 16 문단 · 팔과 모델을 감추고 고정 시드로 섞어 보여준다</b></div>
+    </div>
+  </div>
+</section>
+
+<div class="interval"><span></span></div>
+
+<section>
+  <div class="stage">
+    <div class="gutter">
+      <span class="move">검토</span>
+      <div class="who">내가 정한 것들</div>
+    </div>
+    <div class="body">
+      <h2>따져볼 만한 결정들</h2>
+      <p>아래는 근거가 약하거나 다르게 갈 수 있었던 지점이다.</p>
+
+      <div class="ask">
+        <h4>격자로 만든 세계에 증명력을 아예 주지 않는 게 맞나</h4>
+        <p>지금은 부트스트랩 예외를 탐색 레인에만 허용했다. 그런데 판정 출력이라는 입력은 필드가 고정된 작은 JSON이고 격자가 그 공간을 덮는다. 실물이 쌓일 때까지 확증을 못 하는 것이 옳은 보수성인지, 아니면 격자를 문서화한 확증도 허용할 수 있는지.</p>
+      </div>
+
+      <div class="ask">
+        <h4>K=1로 내린 판단</h4>
+        <p>규칙은 확률적 현상에 K≥3을 요구한다. 8페어 전건이 같은 방향으로 갈린 것을 보고 K=1로 줄였는데, 이건 <em>결과를 보고 설계를 바꾼</em> 것이다. 탐색이라 허용되지만 확증에서 K를 되돌려야 하는지 아니면 이 관측을 근거로 K=1을 등록해도 되는지.</p>
+      </div>
+
+      <div class="ask">
+        <h4>주변 설정 배제가 프로덕션 충실도를 깎는다</h4>
+        <p>우리 판정 문장을 실제로 쓰는 것은 사용자 플러그인이 로드된 Claude Code다. 격리하면 재현성은 얻지만 <em>실제 필자와 다른 것</em>을 재게 된다. 프로덕션 조건을 별도 요인으로 재는 실험이 따로 필요한지.</p>
+      </div>
+
+      <div class="ask">
+        <h4>3층 채점이 사용자 한 명에 묶여 있다</h4>
+        <p>이 랩의 모든 3층 판정은 네가 유일한 채점자다. LLM 판정자를 금지한 것은 옳지만, 그 결과로 채점자가 하나라 그 사람의 편향을 측정할 방법이 없다. 2층으로 올리는 것이 유일한 출구이고 지금 실험이 그 출구를 찾는 중이다.</p>
+      </div>
+
+      <div class="ask">
+        <h4>날조 파일의 두 번째 출현은 원인 불명이다</h4>
+        <p>가드를 넣은 뒤에도 <code>results.jsonl</code>이 한 번 더 생성됐고 무엇이 썼는지 특정하지 못했다. 스캐너가 잡으므로 판정에 섞일 수는 없지만, 원인을 모르는 쓰기 경로가 남아 있다는 뜻이다.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p>점 3 · 화살표 2 · <code>document/design/flow-review.html</code> · 규칙 <code>.claude/rules/lab-nodes.md</code> · 절차 <code>.claude/skills/lab/SKILL.md</code> · 감독 <code>tool/graph.py</code> · 자 <code>tool/stats.py</code></p>
+</footer>
+
+</div>

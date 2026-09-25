@@ -1,0 +1,4 @@
+{
+  "source": "https://llama.developer.meta.com/docs/api-reference/responses/create-response.md",
+  "head": "---\nmeta:\n  title: Create a response\n  description: API reference for creating a model response with POST /v1/responses.\n  keywords: Responses API, create response, POST /responses, API reference, endpoint reference\ncms:\n  layout: large\n  alias: /model-api/docs/api-reference/responses/create-response\n  target: aidmc\n---\n\n"
+}

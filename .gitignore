@@ -1,0 +1,6 @@
+.DS_Store
+__pycache__/
+.env/.env.develop
+.env/.env.production
+personal-research/api/data/database/
+personal-research/api/data/log/

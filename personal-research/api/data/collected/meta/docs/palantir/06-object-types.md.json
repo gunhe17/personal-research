@@ -1,0 +1,21 @@
+{
+  "source": "https://www.palantir.com/docs/foundry/object-link-types/object-types-overview/",
+  "fetched": "2026-08-12",
+  "category": "semantic",
+  "publisher": "Palantir Foundry Docs",
+  "extraction": "full-page-body",
+  "banner": "> **Source:** [https://www.palantir.com/docs/foundry/object-link-types/object-types-overview/](https://www.palantir.com/docs/foundry/object-link-types/object-types-overview/)  \n> **Fetched:** 2026-08-12  \n> **Publisher:** Palantir Foundry Documentation (official)",
+  "kor": {
+    "sha256": "92f425bb87b2",
+    "date": "2026-09-03",
+    "frontmatter": {
+      "title": "Object types — Overview (한국어)",
+      "source": "https://www.palantir.com/docs/foundry/object-link-types/object-types-overview/",
+      "source_local": "01-object-types.md",
+      "lang": "ko",
+      "translated": "2026-08-12",
+      "category": "semantic"
+    },
+    "banner": "> **원문:** [https://www.palantir.com/docs/foundry/object-link-types/object-types-overview/](https://www.palantir.com/docs/foundry/object-link-types/object-types-overview/)  \n> **로컬 원문:** [01-object-types.md](01-object-types.md)"
+  }
+}

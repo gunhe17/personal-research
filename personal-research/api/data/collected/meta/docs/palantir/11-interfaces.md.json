@@ -1,0 +1,21 @@
+{
+  "source": "https://www.palantir.com/docs/foundry/interfaces/interface-overview/",
+  "fetched": "2026-08-12",
+  "category": "semantic",
+  "publisher": "Palantir Foundry Docs",
+  "extraction": "full-page-body",
+  "banner": "> **Source:** [https://www.palantir.com/docs/foundry/interfaces/interface-overview/](https://www.palantir.com/docs/foundry/interfaces/interface-overview/)  \n> **Fetched:** 2026-08-12  \n> **Publisher:** Palantir Foundry Documentation (official)",
+  "kor": {
+    "sha256": "1f2ec4aac9ea",
+    "date": "2026-09-03",
+    "frontmatter": {
+      "title": "Interfaces — Overview (한국어)",
+      "source": "https://www.palantir.com/docs/foundry/interfaces/interface-overview/",
+      "source_local": "04-interfaces.md",
+      "lang": "ko",
+      "translated": "2026-08-12",
+      "category": "semantic"
+    },
+    "banner": "> **원문:** [https://www.palantir.com/docs/foundry/interfaces/interface-overview/](https://www.palantir.com/docs/foundry/interfaces/interface-overview/)  \n> **로컬 원문:** [04-interfaces.md](04-interfaces.md)"
+  }
+}

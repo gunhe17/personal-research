@@ -1,0 +1,21 @@
+{
+  "source": "https://www.palantir.com/docs/foundry/ontology/overview/",
+  "fetched": "2026-08-12",
+  "category": "concepts",
+  "publisher": "Palantir Foundry Docs",
+  "extraction": "full-page-body",
+  "banner": "> **Source:** [https://www.palantir.com/docs/foundry/ontology/overview/](https://www.palantir.com/docs/foundry/ontology/overview/)  \n> **Fetched:** 2026-08-12  \n> **Publisher:** Palantir Foundry Documentation (official)",
+  "kor": {
+    "sha256": "e6a01e2668a8",
+    "date": "2026-09-03",
+    "frontmatter": {
+      "title": "Ontology building — Overview (한국어)",
+      "source": "https://www.palantir.com/docs/foundry/ontology/overview/",
+      "source_local": "01-overview.md",
+      "lang": "ko",
+      "translated": "2026-08-12",
+      "category": "concepts"
+    },
+    "banner": "> **원문:** [https://www.palantir.com/docs/foundry/ontology/overview/](https://www.palantir.com/docs/foundry/ontology/overview/)  \n> **로컬 원문:** [01-overview.md](01-overview.md)  \n> **출판:** Palantir Foundry Documentation (공식)  \n> **번역:** 연구용 한국어 번역. 용어·정본은 영문 원문을 따릅니다."
+  }
+}

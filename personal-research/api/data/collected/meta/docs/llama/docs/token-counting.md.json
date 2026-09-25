@@ -1,0 +1,4 @@
+{
+  "source": "https://llama.developer.meta.com/docs/token-counting.md",
+  "head": "---\nmeta:\n  title: Token counting\n  description: Count the fully rendered input tokens for a request before inference, to check context-window fit.\n  keywords: token counting, input tokens, count tokens, context window, usage, Meta Model API\ncms:\n  alias: /model-api/docs/token-counting\n  target: aidmc\n---\n\n"
+}

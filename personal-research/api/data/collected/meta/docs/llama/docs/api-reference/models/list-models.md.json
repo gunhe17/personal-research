@@ -1,0 +1,4 @@
+{
+  "source": "https://llama.developer.meta.com/docs/api-reference/models/list-models.md",
+  "head": "---\nmeta:\n  title: List models\n  description: API reference for listing available models with GET /v1/models.\n  keywords: models, list models, GET /models, API reference, endpoint reference\ncms:\n  layout: large\n  alias: /model-api/docs/api-reference/models/list-models\n  target: aidmc\n---\n\n"
+}

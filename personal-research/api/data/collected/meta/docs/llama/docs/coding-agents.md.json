@@ -1,0 +1,4 @@
+{
+  "source": "https://llama.developer.meta.com/docs/coding-agents.md",
+  "head": "---\nmeta:\n  title: Use Model API with coding agents\n  description: Connect coding agents like OpenCode, Codex, and Claude Code to Model API and drive Muse Spark for agentic coding workflows.\n  keywords: coding agents, OpenAI-compatible, Anthropic Messages, Claude Code, OpenCode, Codex, agentic coding, tool calling\ncms:\n  alias: /model-api/docs/coding-agents\n  target: aidmc\n---\n\n"
+}

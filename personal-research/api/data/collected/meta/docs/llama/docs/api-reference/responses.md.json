@@ -1,0 +1,4 @@
+{
+  "source": "https://llama.developer.meta.com/docs/api-reference/responses.md",
+  "head": "---\nmeta:\n  title: Responses API reference\n  description: API reference for the /v1/responses endpoints.\n  keywords: Responses API, API reference, /v1/responses, endpoint reference\ncms:\n  layout: large\n  alias: /model-api/docs/api-reference/responses\n  target: aidmc\n  in_page_nav: false\n---\n\n"
+}

@@ -1,0 +1,4 @@
+{
+  "source": "https://llama.developer.meta.com/docs/image-understanding.md",
+  "head": "---\nmeta:\n  title: Image understanding\n  description: Analyze images with text prompts using URLs, base64 encoding, or uploaded files.\n  keywords: image understanding, vision, multimodal, image analysis, image_url, base64, perception grounding, localization, bounding box, coordinates\ncms:\n  alias: /model-api/docs/image-understanding\n  target: aidmc\n---\n\n"
+}

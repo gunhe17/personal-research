@@ -1,0 +1,21 @@
+{
+  "source": "https://www.palantir.com/docs/foundry/ontology/core-concepts/",
+  "fetched": "2026-08-12",
+  "category": "concepts",
+  "publisher": "Palantir Foundry Docs",
+  "extraction": "full-page-body",
+  "banner": "> **Source:** [https://www.palantir.com/docs/foundry/ontology/core-concepts/](https://www.palantir.com/docs/foundry/ontology/core-concepts/)  \n> **Fetched:** 2026-08-12  \n> **Publisher:** Palantir Foundry Documentation (official)",
+  "kor": {
+    "sha256": "f2717582f528",
+    "date": "2026-09-03",
+    "frontmatter": {
+      "title": "Core concepts (한국어)",
+      "source": "https://www.palantir.com/docs/foundry/ontology/core-concepts/",
+      "source_local": "04-core-concepts.md",
+      "lang": "ko",
+      "translated": "2026-08-12",
+      "category": "concepts"
+    },
+    "banner": "> **원문:** [https://www.palantir.com/docs/foundry/ontology/core-concepts/](https://www.palantir.com/docs/foundry/ontology/core-concepts/)  \n> **로컬 원문:** [04-core-concepts.md](04-core-concepts.md)"
+  }
+}
