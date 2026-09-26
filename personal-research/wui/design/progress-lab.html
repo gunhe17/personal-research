@@ -23,6 +23,22 @@
 </script>
 <style type="text/tailwindcss">
   body { letter-spacing: -0.016em; }
+  @keyframes enter-fade  { from { opacity: 0; } }
+  @keyframes enter-pop   { from { opacity: 0; transform: scale(0.98); } }
+  @keyframes enter-rise  { from { opacity: 0; transform: translateY(8px) scale(0.98); } }
+  @keyframes enter-panel { from { opacity: 0; transform: translateX(16px); } }
+  @keyframes leave-fade  { to { opacity: 0; } }
+  @keyframes leave-pop   { to { opacity: 0; transform: scale(0.98); } }
+  @keyframes leave-rise  { to { opacity: 0; transform: translateY(8px) scale(0.98); } }
+  @keyframes leave-panel { to { opacity: 0; transform: translateX(16px); } }
+  .enter-fade  { animation: enter-fade  180ms cubic-bezier(0.22, 1, 0.36, 1); }
+  .enter-pop   { animation: enter-pop   180ms cubic-bezier(0.22, 1, 0.36, 1); }
+  .enter-rise  { animation: enter-rise  280ms cubic-bezier(0.22, 1, 0.36, 1); }
+  .enter-panel { animation: enter-panel 280ms cubic-bezier(0.22, 1, 0.36, 1); }
+  .leave-fade  { animation: leave-fade  120ms cubic-bezier(0.4, 0, 1, 1) forwards; }
+  .leave-pop   { animation: leave-pop   120ms cubic-bezier(0.4, 0, 1, 1) forwards; }
+  .leave-rise  { animation: leave-rise  180ms cubic-bezier(0.4, 0, 1, 1) forwards; }
+  .leave-panel { animation: leave-panel 180ms cubic-bezier(0.4, 0, 1, 1) forwards; }
   @keyframes step-in { from { opacity: 0; transform: translateY(-4px); } }
   .step-in { animation: step-in 0.28s cubic-bezier(0.22, 1, 0.36, 1); }
   @keyframes breathe { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .45; transform: scale(.82); } }
@@ -90,6 +106,52 @@
 
   </div>
 
+
+  <section class="mt-10 rounded-xl border border-slate-200 bg-white p-4">
+    <div class="mb-3 flex items-baseline justify-between">
+      <h2 class="text-[13px] font-semibold text-slate-800">Motion tokens</h2>
+      <span class="text-[11px] text-slate-400">등장 / 퇴장 쌍. 카드를 누르면 오간다</span>
+    </div>
+    <div id="motion" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"></div>
+  </section>
+
+  <script>
+    const MOTION = [
+      { name: "fade",  use: "배경, 문서 본문",   enter: "180ms", leave: "120ms" },
+      { name: "pop",   use: "드롭다운, 단계 행", enter: "180ms", leave: "120ms" },
+      { name: "rise",  use: "모달 카드",        enter: "280ms", leave: "180ms" },
+      { name: "panel", use: "채팅 패널",        enter: "280ms", leave: "180ms" },
+    ];
+    document.querySelector("#motion").innerHTML = MOTION.map((m) => `
+      <div class="rounded-lg border border-slate-200 p-3">
+        <div class="flex items-baseline justify-between">
+          <span class="font-mono text-[11px] text-slate-800">${m.name}</span>
+          <span class="font-mono text-[10px] tabular-nums text-slate-400">${m.enter} / ${m.leave}</span>
+        </div>
+        <p class="mt-0.5 text-[11px] text-slate-400">${m.use}</p>
+        <div class="mt-2 flex h-20 items-center justify-center overflow-hidden rounded bg-slate-50">
+          <div data-box="${m.name}" class="enter-${m.name} rounded-lg bg-white px-4 py-2 text-[12px] text-slate-600 ring-1 ring-slate-200">${m.name}</div>
+        </div>
+        <button data-play="${m.name}" class="mt-2 w-full rounded-full border border-slate-200 py-1 text-[11px] text-slate-500 hover:bg-slate-50 transition duration-150">toggle</button>
+      </div>`).join("");
+
+    document.querySelectorAll("[data-play]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const name = btn.dataset.play;
+        const box = document.querySelector(`[data-box="${name}"]`);
+        const gone = box.classList.contains("hidden");
+        box.classList.remove(`enter-${name}`, `leave-${name}`);
+        void box.offsetWidth;
+        if (gone) {
+          box.classList.remove("hidden");
+          box.classList.add(`enter-${name}`);
+        } else {
+          box.classList.add(`leave-${name}`);
+          box.addEventListener("animationend", () => box.classList.add("hidden"), { once: true });
+        }
+      });
+    });
+  </script>
   <p class="mt-8 text-[12px] text-slate-400">
     이벤트: <code class="rounded bg-slate-100 px-1 py-0.5">{"type":"step","key":"fetch","text":"…","state":"running|done|skip|error"}</code>
   </p>

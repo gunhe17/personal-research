@@ -117,9 +117,20 @@ def related(*, id: str, limit: int = 5) -> list[dict]:
         score += 2 * len(words & set(name_terms(path=other_path)))
         if score:
             scored.append((score, other_path, {"id": other, "path": other_path, "url": url, "score": score}))
-    scored.sort(key=lambda item: (-item[0], item[1]))
+    seen = store.opened()
+    found = [item[2] for item in scored]
+    visited = sorted(
+        (item for item in found if seen.get(item["id"])),
+        key=lambda item: seen[item["id"]],
+        reverse=True,
+    )
+    unvisited = sorted(
+        (item for item in found if not seen.get(item["id"])),
+        key=lambda item: (-item["score"], item["path"]),
+    )
+    picked = (visited + unvisited)[:limit]
 
-    return stamp(items=[item[2] for item in scored[:limit]]) or recent(limit=limit, skip=id)
+    return stamp(items=picked) or recent(limit=limit, skip=id)
 
 
 def name_terms(*, path: str) -> list[str]:
@@ -131,17 +142,19 @@ def name_terms(*, path: str) -> list[str]:
 def recent(*, limit: int = 5, skip: str | None = None) -> list[dict]:
     with store.session() as connection:
         rows = connection.execute(
-            """SELECT collected.id, collected.path, collected.url, MAX(c.created_at)
+            """SELECT collected.id, collected.path, collected.url
                FROM collected_content AS c
                JOIN collected ON collected.id = c.collected_id
+               LEFT JOIN opened ON opened.collected_id = collected.id
                WHERE c.language = 'eng' AND collected.id IS NOT ?
                GROUP BY collected.id
-               ORDER BY MAX(c.created_at) DESC, collected.path
+               ORDER BY opened.opened_at IS NULL, opened.opened_at DESC,
+                        MAX(c.created_at) DESC, collected.path
                LIMIT ?""",
             (skip, limit),
         ).fetchall()
 
     return stamp(items=[
         {"id": id, "path": path, "url": url, "language": "eng", "hits": 0, "excerpt": ""}
-        for id, path, url, _ in rows
+        for id, path, url in rows
     ])

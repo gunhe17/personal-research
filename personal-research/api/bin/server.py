@@ -25,6 +25,7 @@ VIEWER = store.API.parent / "wui" / "bin"
 HOST = os.environ.get("HOST") or "127.0.0.1"
 PORT = int(os.environ.get("PORT") or 8765)
 CONVERSATION = re.compile(r"/api/conversations/([a-zA-Z0-9_-]+)")
+INCLUDE = re.compile(r"\{\{include ([\w./-]+)\}\}")
 
 
 def load_dotenv(*, path: Path) -> None:
@@ -124,7 +125,11 @@ class Handler(BaseHTTPRequestHandler):
             wanted = (body.get("id") or "").strip()
             if not wanted:
                 return self.reply(code=400, payload={"error": "id 가 비어 있다"})
-            return self.reply(code=200, payload={"id": store.touch(id=wanted)})
+            store.touch(id=wanted)
+            return self.reply(code=200, payload={
+                "id": wanted,
+                "related": search.related(id=wanted),
+            })
         if parsed.path == "/api/conversations":
             return self.reply(code=200, payload=record.save(data=body))
         if parsed.path == "/api/chat":
@@ -237,9 +242,20 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(code=403, data=b"forbidden", content_type="text/plain; charset=utf-8")
         if path.is_dir():
             path = path / "index.html"
+        if not path.is_file() and path.with_suffix(".html").is_file():
+            path = path.with_suffix(".html")
         if not path.is_file():
             return self.send(code=404, data=b"not found", content_type="text/plain; charset=utf-8")
-        guessed = {".html": "text/html", ".js": "application/javascript", ".css": "text/css"}.get(path.suffix)
+        if path.suffix == ".html":
+            page = INCLUDE.sub(
+                lambda found: (VIEWER / found.group(1)).read_text(encoding="utf-8"),
+                path.read_text(encoding="utf-8"),
+            )
+            return self.send(
+                code=200, data=page.encode("utf-8"),
+                content_type="text/html; charset=utf-8", no_store=True,
+            )
+        guessed = {".js": "application/javascript", ".css": "text/css"}.get(path.suffix)
         content_type = f"{guessed}; charset=utf-8" if guessed else (
             mimetypes.guess_type(str(path))[0] or "application/octet-stream"
         )
