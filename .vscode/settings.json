@@ -1,0 +1,18 @@
+{
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/*.pyc": true,
+    "**/.DS_Store": true,
+    "**/*.db-wal": true,
+    "**/*.db-shm": true
+  },
+  "files.watcherExclude": {
+    "**/personal-research/api/data/**": true
+  },
+  "search.exclude": {
+    "**/personal-research/api/database": true
+  },
+  "python.analysis.extraPaths": ["personal-research/api"],
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true
+}

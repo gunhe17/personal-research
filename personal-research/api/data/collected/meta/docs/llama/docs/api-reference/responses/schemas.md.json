@@ -1,4 +1,0 @@
-{
-  "source": "https://llama.developer.meta.com/docs/api-reference/responses/schemas.md",
-  "head": "---\nmeta:\n  title: Responses schemas\n  description: Full schema and model definitions referenced by the Responses API endpoints.\n  keywords: Responses API, schemas, models, types, API reference, schema reference\ncms:\n  layout: large\n  alias: /model-api/docs/api-reference/responses/schemas\n  target: aidmc\n---\n\n"
-}

@@ -1,4 +1,0 @@
-{
-  "source": "https://llama.developer.meta.com/docs/api-reference/responses/retrieve-response.md",
-  "head": "---\nmeta:\n  title: Retrieve a response\n  description: API reference for retrieving a model response with GET /v1/responses/{response_id}.\n  keywords: Responses API, retrieve response, GET /responses, API reference, endpoint reference\ncms:\n  layout: large\n  alias: /model-api/docs/api-reference/responses/retrieve-response\n  target: aidmc\n---\n\n"
-}

@@ -1,4 +1,0 @@
-{
-  "source": "https://llama.developer.meta.com/docs/tool-search.md",
-  "head": "---\nmeta:\n  title: Tool search\n  description: Let the model discover and load tools on demand to cut token usage and preserve cache across large tool sets.\n  keywords: tool search, deferred tools, defer_loading, namespaces, hosted tool search, token savings\ncms:\n  alias: /model-api/docs/tool-search\n  target: aidmc\n---\n\n"
-}

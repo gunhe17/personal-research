@@ -1,4 +1,0 @@
-{
-  "source": "https://llama.developer.meta.com/docs/prompt-caching.md",
-  "head": "---\nmeta:\n  title: Prompt caching\n  description: Prompt caching is automatic — repeated prompt prefixes are served from cache to cut latency and input-token cost, with no key or setup required.\n  keywords: prompt caching, KV cache, prefix caching, prompt_cache_key, cached_tokens, latency\ncms:\n  alias: /model-api/docs/prompt-caching\n  target: aidmc\n---\n\n"
-}

@@ -1,4 +1,0 @@
-{
-  "source": "https://llama.developer.meta.com/docs/api-reference/responses/delete-response.md",
-  "head": "---\nmeta:\n  title: Delete a response\n  description: API reference for deleting a model response with DELETE /v1/responses/{response_id}.\n  keywords: Responses API, delete response, DELETE /responses, API reference, endpoint reference\ncms:\n  layout: large\n  alias: /model-api/docs/api-reference/responses/delete-response\n  target: aidmc\n---\n\n"
-}

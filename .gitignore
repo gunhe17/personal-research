@@ -2,5 +2,5 @@
 __pycache__/
 .env/.env.develop
 .env/.env.production
-personal-research/api/data/database/
-personal-research/api/data/log/
+personal-research/api/database/
+personal-research/api/data/

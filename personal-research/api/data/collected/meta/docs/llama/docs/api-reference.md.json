@@ -1,4 +1,0 @@
-{
-  "source": "https://llama.developer.meta.com/docs/api-reference.md",
-  "head": "---\nmeta:\n  title: API reference — Meta Model API\n  description: The Meta Model API HTTP reference — base URL, authentication, and the Responses, Chat Completions, Messages, Files, Models, and Status resources.\n  keywords: Meta Model API, API reference, base URL, authentication, endpoints, Muse Spark\ncms:\n  layout: large\n  alias: /model-api/docs/api-reference\n  target: aidmc\n---\n\n"
-}

@@ -8,7 +8,7 @@ services:
       dockerfile: .docker/Dockerfile.production.api
     restart: unless-stopped
     volumes:
-      - ../personal-research/api/data:/app/personal-research/api/data
+      - ../personal-research/api/database:/app/personal-research/api/database
       - grok-auth:/root/.grok
       - claude-config:/root/.claude
     ports:

@@ -1,8 +1,0 @@
-{
-  "source": "https://github.com/future-agi/future-agi",
-  "description": "Open-source, end-to-end platform for evaluating, observing, and improving LLM and AI agent applications. Tracing · Evals · Simulations · Datasets · Gateway · Guardrails. Self-hostable. Apache 2.0.",
-  "default_branch": "main",
-  "language": "Python",
-  "stars": 1592,
-  "updated_upstream": "2026-08-05T06:40:21Z"
-}

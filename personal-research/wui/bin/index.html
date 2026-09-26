@@ -49,11 +49,28 @@
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style type="text/tailwindcss">
     html { font-synthesis: none; text-rendering: optimizeLegibility; }
+    body, body * { -webkit-user-select: text; user-select: text; }
+    ::selection { background-color: #b3d7ff; color: #1d1d1f; }
     body { letter-spacing: -0.016em; }
     @keyframes fade-in { from { opacity: 0; } }
     @keyframes modal-in { from { opacity: 0; transform: scale(0.97) translateY(8px); } }
     @keyframes dropdown-in { from { opacity: 0; transform: translateY(-4px); } }
     @keyframes doc-in { from { opacity: 0; transform: translateY(4px); } }
+    @keyframes step-in { from { opacity: 0; transform: translateY(-4px); } }
+    .step-in { animation: step-in 0.28s cubic-bezier(0.22, 1, 0.36, 1); }
+    @keyframes breathe { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .45; transform: scale(.82); } }
+    .breathe { animation: breathe 1.4s ease-in-out infinite; }
+    @keyframes sweep { to { background-position: 200% 0; } }
+    .sweep {
+      background-image: linear-gradient(90deg, #1d1d1f 0%, #1d1d1f 40%, #0071e3 50%, #1d1d1f 60%, #1d1d1f 100%);
+      background-size: 200% 100%;
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+      animation: sweep 2.2s linear infinite;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .breathe, .sweep, .step-in { animation: none; }
+      .sweep { color: #1d1d1f; }
+    }
     .doc-in { animation: doc-in 0.3s cubic-bezier(0.22, 1, 0.36, 1); }
     @keyframes chat-in { from { opacity: 0; transform: translateX(16px); } }
     @keyframes chat-in-mobile { from { opacity: 0; transform: translateY(16px); } }
@@ -86,10 +103,10 @@
       #doc-content {
         font-size: calc(15px * var(--doc-zoom, 1));
       }
-      #chat-panel {
+      #chat-panel, #home-pane {
         --chat-zoom: 1;
       }
-      #messages {
+      #messages, #home-messages {
         font-size: calc(14px * var(--chat-zoom, 1));
       }
       #citations {
@@ -122,7 +139,7 @@
         padding: 0;
       }
       #doc-content pre.raw-doc { font-size: 0.92em; }
-      /* 언어 세그먼트 컨트롤 */
+      /* language segmented control */
       .seg-btn {
         @apply rounded-full px-3 py-1 text-[12px] text-slate-600 hover:text-slate-900 transition duration-150;
       }
@@ -269,52 +286,53 @@
     }
   </style>
 </head>
-<body class="h-full bg-slate-50 text-slate-900 font-sans antialiased overflow-hidden select-none">
+<body class="h-full bg-slate-50 text-slate-900 font-sans antialiased overflow-hidden select-text">
   <div class="h-full flex flex-col">
     <!-- Global nav bar -->
     <header class="shrink-0 h-11 flex items-center bg-white/90 backdrop-blur border-b border-slate-100 px-4 relative z-40">
       <div class="flex-1 flex items-center">
-        <button type="button" id="btn-toggle-sidebar" title="사이드바 열기/닫기" class="icon-btn">
+        <button type="button" id="btn-toggle-sidebar" title="Toggle sidebar" class="icon-btn">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-[18px] w-[18px]">
             <rect x="3" y="4" width="18" height="16" rx="2" />
             <path d="M9 4v16" />
           </svg>
         </button>
       </div>
-      <div class="text-[13px] font-semibold text-slate-800 select-none">Research</div>
       <div class="flex-1 flex items-center justify-end gap-1">
         <div id="download-dd" class="relative">
-          <button type="button" id="btn-download" title="다운로드" aria-haspopup="menu" aria-expanded="false" class="icon-btn">
+          <button type="button" id="btn-download" title="Download" aria-haspopup="menu" aria-expanded="false" class="icon-btn">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-[18px] w-[18px]">
-              <path d="M12 3v12" />
-              <path d="M7 11l5 5 5-5" />
-              <path d="M4 20h16" />
+              <path d="M12 3v12.5" />
+              <path d="M6.5 10.5L12 16l5.5-5.5" />
+              <path d="M3 21h18" />
             </svg>
           </button>
-          <div id="download-menu" role="menu" aria-label="다운로드" class="hidden absolute right-0 top-full mt-1 z-50 w-64 rounded-xl bg-white shadow-lg p-3 animate-[dropdown-in_0.18s_cubic-bezier(0.22,1,0.36,1)]">
-            <div class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">언어</div>
-            <div id="dl-langs" class="inline-flex items-center rounded-full bg-slate-100 p-0.5 mb-3" role="group" aria-label="언어">
+          <div id="download-menu" role="menu" aria-label="Download" class="hidden absolute right-0 top-full mt-1 z-50 w-64 rounded-xl bg-white shadow-lg p-3 animate-[dropdown-in_0.18s_cubic-bezier(0.22,1,0.36,1)]">
+            <div class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Language</div>
+            <div id="dl-langs" class="inline-flex items-center rounded-full bg-slate-100 p-0.5 mb-3" role="group" aria-label="Language">
               <button type="button" data-dl-lang="orig" class="seg-btn">Eng</button>
               <button type="button" data-dl-lang="trans" class="seg-btn">Korean</button>
               <button type="button" data-dl-lang="both" class="seg-btn">Line by line</button>
             </div>
-            <div class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">형식</div>
-            <div id="dl-fmts" class="inline-flex items-center rounded-full bg-slate-100 p-0.5 mb-3" role="group" aria-label="형식">
+            <div class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Format</div>
+            <div id="dl-fmts" class="inline-flex items-center rounded-full bg-slate-100 p-0.5 mb-3" role="group" aria-label="Format">
               <button type="button" data-dl-fmt="md" class="seg-btn">Markdown</button>
               <button type="button" data-dl-fmt="pdf" class="seg-btn">PDF</button>
             </div>
-            <button type="button" id="dl-go" class="w-full rounded-full bg-apple px-4 py-1.5 text-sm font-normal text-white hover:bg-apple-hover transition duration-150">다운로드</button>
+            <button type="button" id="dl-go" class="w-full rounded-full bg-apple px-4 py-1.5 text-sm font-normal text-white hover:bg-apple-hover transition duration-150">Download</button>
           </div>
         </div>
-        <button type="button" id="btn-settings" title="설정" class="icon-btn">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-[18px] w-[18px]">
-            <circle cx="12" cy="12" r="3.25" />
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        <button type="button" id="btn-settings" title="Settings" class="icon-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="h-[18px] w-[18px]">
+            <g transform="translate(12 12) scale(0.8182) translate(-12 -12)" stroke-width="1.833">
+              <circle cx="12" cy="12" r="3.25" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </g>
           </svg>
         </button>
-        <button type="button" id="btn-toggle-chat" title="채팅 열기/닫기 (⌘N)" class="icon-btn">
+        <button type="button" id="btn-toggle-chat" title="Toggle chat (⌘N)" class="icon-btn">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-[18px] w-[18px]">
-            <path d="M21 12a8 8 0 0 1-8 8H5l-2 2V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z" />
+            <path d="M21 11a8 8 0 0 1-8 8H6.5L3 21V11a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z" />
           </svg>
         </button>
       </div>
@@ -328,33 +346,17 @@
       class="h-full shrink-0 flex flex-col bg-white overflow-hidden transition-all duration-300 ease-spring max-md:absolute max-md:inset-y-0 max-md:left-0 max-md:z-30 max-md:shadow-lg"
       style="width: 18rem"
     >
-      <div id="tree-actions" class="shrink-0 h-11 flex items-center justify-between px-3">
-        <span class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">문서</span>
-        <span class="flex items-center gap-0.5">
-          <button
-            type="button"
-            id="btn-tree-collapse"
-            title="모두 접기"
-            class="icon-btn"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
-              <path d="M7 20l5-5 5 5" />
-              <path d="M7 4l5 5 5-5" />
-            </svg>
-          </button>
-        </span>
-      </div>
-      <div id="tree" class="flex-1 min-h-0 overflow-y-auto px-2 pt-1 pb-2 text-sm"></div>
+      <div id="tree" class="flex-1 min-h-0 overflow-y-auto px-2 pt-2 pb-2 text-sm"></div>
     </aside>
 
-    <!-- 사이드바 폭 조절 -->
+    <!-- sidebar resizer -->
     <div
       id="sidebar-resizer"
-      title="드래그해 크기 조절"
+      title="Drag to resize"
       class="group relative z-20 w-px shrink-0 cursor-col-resize bg-slate-100 hover:bg-slate-300 active:bg-apple transition-colors max-md:!hidden"
       role="separator"
       aria-orientation="vertical"
-      aria-label="사이드바 크기 조절"
+      aria-label="Resize sidebar"
     >
       <div class="absolute inset-y-0 -left-2.5 -right-2.5"></div>
       <div class="pointer-events-none absolute left-1/2 top-1/2 h-10 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-slate-400 opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -362,23 +364,79 @@
 
     <!-- Workspace -->
     <div id="workspace" class="relative flex-1 min-w-0 min-h-0 flex">
+      <!-- Home -->
+      <section id="home-pane" class="relative flex-1 min-w-0 min-h-0 overflow-hidden bg-slate-50">
+        <div id="home-inner" class="mx-auto flex h-full w-full max-w-2xl flex-col justify-center px-6 pb-10">
+          <h1 id="home-title" class="text-center text-[40px] font-semibold tracking-tight text-slate-800" style="letter-spacing: 0.44px">
+            오늘의 research는 무엇인가요?
+          </h1>
+          <div id="home-messages" class="hidden min-h-0 flex-1 space-y-3 overflow-y-auto overflow-x-hidden py-6"></div>
+          <div
+            id="home-bar"
+            class="mt-8 flex items-center gap-2.5 rounded-2xl bg-white px-2.5 py-2.5 ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-apple/20 transition"
+          >
+            <div id="home-mode" class="relative shrink-0 self-center">
+              <button
+                type="button"
+                id="home-mode-btn"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+                class="inline-flex items-center gap-1 rounded-full bg-slate-100 pl-3 pr-2 py-1 text-[13px] text-slate-700 hover:bg-slate-200/70 transition duration-150"
+              >
+                <span id="home-mode-label">ask</span>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5 text-slate-400">
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </button>
+              <div
+                id="home-mode-menu"
+                role="listbox"
+                class="hidden absolute left-0 bottom-full mb-2 z-50 w-56 rounded-xl bg-white p-1 shadow-lg ring-1 ring-slate-200 animate-[dropdown-in_0.18s_cubic-bezier(0.22,1,0.36,1)]"
+              >
+                <button type="button" role="option" data-home-mode="ask" class="block w-full rounded-lg px-3 py-2 text-left hover:bg-slate-50 transition duration-150">
+                  <span class="block text-[13px] font-medium text-slate-800">ask</span>
+                  <span class="block text-[11px] text-slate-500">Answer from collected documents</span>
+                </button>
+                <button type="button" role="option" data-home-mode="collect" class="block w-full rounded-lg px-3 py-2 text-left hover:bg-slate-50 transition duration-150">
+                  <span class="block text-[13px] font-medium text-slate-800">collect</span>
+                  <span class="block text-[11px] text-slate-500">Fetch a URL and translate it</span>
+                </button>
+              </div>
+            </div>
+            <textarea
+              id="home-input"
+              rows="1"
+              style="height: 34px"
+              class="min-w-0 flex-1 self-center resize-none max-h-60 overflow-y-auto bg-transparent py-1 text-[17px] leading-[1.5] text-slate-900 placeholder:text-slate-400 focus:outline-none"
+            ></textarea>
+            <button
+              type="button"
+              id="home-send"
+              title="Send (Enter)"
+              aria-label="Send"
+              class="shrink-0 self-center h-8 w-8 inline-flex items-center justify-center rounded-full bg-apple text-white hover:bg-apple-hover disabled:opacity-40 disabled:cursor-not-allowed transition"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+                <path d="M12 20V4" />
+                <path d="M5 11l7-7 7 7" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </section>
+
       <div id="doc-pane" class="relative flex-1 min-w-0 min-h-0 flex flex-col bg-slate-50">
         <main id="doc-scroll" class="relative flex-1 min-h-0 overflow-y-auto select-text">
           <div id="doc-langbar" class="hidden sticky top-0 z-10 pointer-events-none">
             <div class="max-w-3xl mx-auto px-6 sm:px-10 pt-3 flex justify-end">
-              <div class="pointer-events-auto inline-flex items-center rounded-full bg-slate-100/90 backdrop-blur p-0.5" role="tablist" aria-label="문서 언어">
+              <div class="pointer-events-auto inline-flex items-center rounded-full bg-slate-100/90 backdrop-blur p-0.5" role="tablist" aria-label="Document language">
                 <button type="button" data-lang="orig" class="seg-btn">Eng</button>
                 <button type="button" data-lang="trans" class="seg-btn">Korean</button>
                 <button type="button" data-lang="both" class="seg-btn">Line by line</button>
               </div>
             </div>
           </div>
-          <article id="doc-content" class="max-w-3xl mx-auto px-6 sm:px-10 py-10 pb-16" style="--doc-zoom: 1">
-            <div class="text-center py-32 select-none">
-              <p class="text-[28px] font-semibold text-slate-800 tracking-tight">Research</p>
-              <p class="mt-1 text-[15px] font-light text-slate-500">왼쪽에서 문서를 선택하세요.</p>
-            </div>
-          </article>
+          <article id="doc-content" class="max-w-3xl mx-auto px-6 sm:px-10 py-10 pb-16" style="--doc-zoom: 1"></article>
 
         </main>
       </div>
@@ -386,11 +444,11 @@
       <!-- Horizontal resizer -->
       <div
         id="split-resizer"
-        title="드래그해 크기 조절"
+        title="Drag to resize"
         class="group relative z-20 w-px shrink-0 cursor-col-resize bg-slate-100 hover:bg-slate-300 active:bg-apple transition-colors max-md:!hidden"
         role="separator"
         aria-orientation="vertical"
-        aria-label="문서와 채팅 영역 크기 조절"
+        aria-label="DocumentsResize the chat panel"
       >
         <div class="absolute inset-y-0 -left-2.5 -right-2.5"></div>
         <div class="pointer-events-none absolute left-1/2 top-1/2 h-10 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-slate-400 opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -409,14 +467,14 @@
             <button
               type="button"
               id="btn-history"
-              title="대화 기록"
+              title="Chat history"
               aria-haspopup="listbox"
               aria-expanded="false"
               class="w-full flex items-center gap-1.5 rounded-lg px-2 py-1 text-left hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-apple/20 transition duration-150"
             >
               <div class="min-w-0 flex-1 flex items-baseline gap-1.5">
                 <span class="text-[13px] font-semibold tracking-tight text-slate-900">Agent</span>
-                <span id="chat-sub" class="text-[11px] text-slate-500 truncate">새 대화</span>
+                <span id="chat-sub" class="text-[11px] text-slate-500 truncate">New chat</span>
               </div>
               <svg id="history-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-4 w-4 shrink-0 text-slate-400 transition-transform">
                 <path d="M6 9l6 6 6-6" />
@@ -426,17 +484,17 @@
             <div
               id="history-dropdown"
               role="listbox"
-              aria-label="대화 기록"
+              aria-label="Chat history"
               class="hidden absolute left-0 right-0 top-full mt-1 z-50 overflow-hidden rounded-xl bg-white shadow-lg animate-[dropdown-in_0.18s_cubic-bezier(0.22,1,0.36,1)]"
             >
               <div class="flex items-center px-3 py-2">
-                <span class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">대화 기록</span>
+                <span class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Chat history</span>
               </div>
               <div id="history-list" class="max-h-64 overflow-y-auto py-1"></div>
             </div>
           </div>
 
-          <button type="button" id="btn-new-chat" title="새 대화" class="icon-btn shrink-0">
+          <button type="button" id="btn-new-chat" title="New chat" class="icon-btn shrink-0">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" class="h-4 w-4"><path d="M12 5v14M5 12h14" /></svg>
           </button>
         </div>
@@ -453,15 +511,15 @@
             <textarea
               id="input"
               rows="2"
-              placeholder="질문 입력…"
+              placeholder="Ask a question…"
               class="w-full resize-none min-h-[3rem] max-h-36 bg-transparent px-3.5 pt-3 pb-11 text-slate-900 placeholder:text-slate-400 focus:outline-none disabled:text-slate-500"
             ></textarea>
             <div class="absolute bottom-2 right-2 flex items-center gap-1.5">
               <button
                 type="button"
                 id="btn-send"
-                title="전송 (Enter)"
-                aria-label="전송"
+                title="Send (Enter)"
+                aria-label="Send"
                 class="h-8 w-8 inline-flex items-center justify-center rounded-full bg-apple text-white hover:bg-apple-hover disabled:opacity-40 disabled:cursor-not-allowed transition"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
@@ -481,51 +539,51 @@
   <div id="settings-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-[fade-in_0.2s_ease-out]">
     <div class="w-full max-w-md max-h-[90vh] flex flex-col rounded-3xl bg-white shadow-2xl overflow-hidden animate-[modal-in_0.28s_cubic-bezier(0.22,1,0.36,1)]">
       <div class="shrink-0 flex items-center gap-2 px-5 pt-5 pb-3">
-        <h3 class="text-sm font-semibold text-slate-900 flex-1">설정</h3>
-        <button type="button" id="btn-close-settings" class="icon-btn shrink-0" title="닫기">
+        <h3 class="text-sm font-semibold text-slate-900 flex-1">Settings</h3>
+        <button type="button" id="btn-close-settings" class="icon-btn shrink-0" title="Close">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" class="h-4 w-4"><path d="M6 6l12 12M18 6L6 18" /></svg>
         </button>
       </div>
       <div class="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-5">
         <!-- Document font size -->
         <section>
-          <h4 class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">문서 글자 크기</h4>
-          <p class="text-[11px] text-slate-400 mb-2">원문 뷰어 · 단축키 ⌘+ / ⌘− / ⌘0</p>
+          <h4 class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Document text size</h4>
+          <p class="text-[11px] text-slate-400 mb-2">Document viewer · ⌘+ / ⌘− / ⌘0</p>
           <div class="flex items-center gap-2">
-            <button type="button" id="btn-doc-font-down" class="h-9 w-9 rounded-full border border-slate-200 text-slate-800 hover:bg-slate-50 font-semibold text-sm" aria-label="문서 글자 작게">A−</button>
+            <button type="button" id="btn-doc-font-down" class="h-9 w-9 rounded-full border border-slate-200 text-slate-800 hover:bg-slate-50 font-semibold text-sm" aria-label="Smaller document text">A−</button>
             <span id="doc-font-label" class="min-w-[3.5rem] text-center font-mono text-sm font-semibold text-slate-800 tabular-nums">100%</span>
-            <button type="button" id="btn-doc-font-up" class="h-9 w-9 rounded-full border border-slate-200 text-slate-800 hover:bg-slate-50 font-semibold text-sm" aria-label="문서 글자 크게">A+</button>
-            <button type="button" id="btn-doc-font-reset" class="ml-1 rounded-full border border-slate-200 px-3 h-9 text-[11px] font-medium text-slate-600 hover:bg-slate-50" aria-label="문서 기본 크기">기본값</button>
+            <button type="button" id="btn-doc-font-up" class="h-9 w-9 rounded-full border border-slate-200 text-slate-800 hover:bg-slate-50 font-semibold text-sm" aria-label="Larger document text">A+</button>
+            <button type="button" id="btn-doc-font-reset" class="ml-1 rounded-full border border-slate-200 px-3 h-9 text-[11px] font-medium text-slate-600 hover:bg-slate-50" aria-label="Default document size">Default</button>
           </div>
         </section>
 
         <!-- Chat font size -->
         <section>
-          <h4 class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">채팅 글자 크기</h4>
-          <p class="text-[11px] text-slate-400 mb-2">메시지 · 입력창 · 인용</p>
+          <h4 class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Chat text size</h4>
+          <p class="text-[11px] text-slate-400 mb-2">messages, composer and quotes</p>
           <div class="flex items-center gap-2">
-            <button type="button" id="btn-chat-font-down" class="h-9 w-9 rounded-full border border-slate-200 text-slate-800 hover:bg-slate-50 font-semibold text-sm" aria-label="채팅 글자 작게">A−</button>
+            <button type="button" id="btn-chat-font-down" class="h-9 w-9 rounded-full border border-slate-200 text-slate-800 hover:bg-slate-50 font-semibold text-sm" aria-label="Smaller chat text">A−</button>
             <span id="chat-font-label" class="min-w-[3.5rem] text-center font-mono text-sm font-semibold text-slate-800 tabular-nums">100%</span>
-            <button type="button" id="btn-chat-font-up" class="h-9 w-9 rounded-full border border-slate-200 text-slate-800 hover:bg-slate-50 font-semibold text-sm" aria-label="채팅 글자 크게">A+</button>
-            <button type="button" id="btn-chat-font-reset" class="ml-1 rounded-full border border-slate-200 px-3 h-9 text-[11px] font-medium text-slate-600 hover:bg-slate-50" aria-label="채팅 기본 크기">기본값</button>
+            <button type="button" id="btn-chat-font-up" class="h-9 w-9 rounded-full border border-slate-200 text-slate-800 hover:bg-slate-50 font-semibold text-sm" aria-label="Larger chat text">A+</button>
+            <button type="button" id="btn-chat-font-reset" class="ml-1 rounded-full border border-slate-200 px-3 h-9 text-[11px] font-medium text-slate-600 hover:bg-slate-50" aria-label="Default chat size">Default</button>
           </div>
         </section>
       </div>
       <div class="shrink-0 flex justify-end gap-2 px-5 py-3 bg-slate-50/80">
-        <button type="button" id="btn-cancel-settings" class="rounded-full border border-slate-200 px-4 py-1.5 text-sm font-normal text-slate-700 hover:bg-slate-50 transition duration-150">취소</button>
-        <button type="button" id="btn-save-settings" class="rounded-full bg-apple px-4 py-1.5 text-sm font-normal text-white hover:bg-apple-hover">저장</button>
+        <button type="button" id="btn-cancel-settings" class="rounded-full border border-slate-200 px-4 py-1.5 text-sm font-normal text-slate-700 hover:bg-slate-50 transition duration-150">Cancel</button>
+        <button type="button" id="btn-save-settings" class="rounded-full bg-apple px-4 py-1.5 text-sm font-normal text-white hover:bg-apple-hover">Save</button>
       </div>
     </div>
   </div>
 
   <div id="toast" class="pointer-events-none fixed bottom-5 left-1/2 z-[60] -translate-x-1/2 translate-y-1 rounded-full bg-white px-4 py-2 text-sm text-slate-800 shadow-lg opacity-0 transition-all duration-300 ease-spring"></div>
   <div id="sel-bar" class="hidden fixed z-[55] items-center gap-0.5 rounded-full border border-slate-200 bg-white p-0.5">
-    <button type="button" id="sel-chat" title="채팅에 인용 (⇧ 누른 채 선택하면 추가)" class="icon-btn rounded-full">
+    <button type="button" id="sel-chat" title="Quote in chat (hold ⇧ while selecting to append)" class="icon-btn rounded-full">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-[16px] w-[16px]">
         <path d="M21 12a8 8 0 0 1-8 8H5l-2 2V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z" />
       </svg>
     </button>
-    <button type="button" id="sel-copy" title="복사" class="icon-btn rounded-full">
+    <button type="button" id="sel-copy" title="Copy" class="icon-btn rounded-full">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-[16px] w-[16px]">
         <rect x="9" y="9" width="11" height="11" rx="2" />
         <path d="M5 15V6a2 2 0 0 1 2-2h8" />
@@ -536,13 +594,17 @@
   <script>
     const $ = (s) => document.querySelector(s);
     const state = {
-      sidebarOpen: localStorage.getItem("sidebarOpen") !== "0",
+      sidebarOpen: false,
       sidebarWidth: clampSidebar(parseFloat(localStorage.getItem("sidebarWidth") || "288") || 288),
       resizingSidebar: false,
       chatOpen: localStorage.getItem("chatOpen") !== "0",
       chatWidthPct: clampChatWidth(parseFloat(localStorage.getItem("chatWidthPct") || "50") || 50),
       tree: [],
       currentPath: null,
+      currentId: null,
+      view: "home",
+      related: [],
+      homeMode: localStorage.getItem("homeMode") || "ask",
       currentTitle: null,
       currentText: "",
       citations: [],
@@ -556,7 +618,7 @@
       dlFmt: localStorage.getItem("dlFmt") || "md",
       docPair: null,
       pairTexts: null,
-      pathSet: new Set(),
+      nodeById: new Map(),
       docZoom: clampZoom(parseFloat(localStorage.getItem("docZoom") || "1") || 1),
       chatZoom: clampZoom(parseFloat(localStorage.getItem("chatZoom") || "1") || 1),
       resizingSplit: false,
@@ -598,12 +660,19 @@
     }
 
     function applyChatZoom() {
-      const panel = $("#chat-panel");
-      if (panel) panel.style.setProperty("--chat-zoom", String(state.chatZoom));
+      for (const id of ["#chat-panel", "#home-pane"]) {
+        const el = $(id);
+        if (el) el.style.setProperty("--chat-zoom", String(state.chatZoom));
+      }
       const label = $("#chat-font-label");
       if (label) label.textContent = Math.round(state.chatZoom * 100) + "%";
       localStorage.setItem("chatZoom", String(state.chatZoom));
       wireZoomButtons("#btn-chat-font-down", "#btn-chat-font-up", state.chatZoom);
+    }
+
+    function markSettings(open) {
+      const btn = $("#btn-settings");
+      if (btn) btn.classList.toggle("text-apple", open);
     }
 
     function openSettings() {
@@ -612,12 +681,14 @@
       const m = $("#settings-modal");
       m.classList.remove("hidden");
       m.classList.add("flex");
+      markSettings(true);
     }
 
     function closeSettings() {
       const m = $("#settings-modal");
       m.classList.add("hidden");
       m.classList.remove("flex");
+      markSettings(false);
     }
 
     function setDocZoom(z) {
@@ -660,9 +731,10 @@
         sb.style.width = "0px";
         sb.style.opacity = "0";
       }
+      const navBtn = $("#btn-toggle-sidebar");
+      if (navBtn) navBtn.classList.toggle("text-apple", state.sidebarOpen);
       if (rz) rz.style.display = state.sidebarOpen ? "" : "none";
       $("#sidebar-scrim").classList.toggle("hidden", !state.sidebarOpen);
-      localStorage.setItem("sidebarOpen", state.sidebarOpen ? "1" : "0");
       localStorage.setItem("sidebarWidth", String(state.sidebarWidth));
     }
 
@@ -694,14 +766,14 @@
           const btn = document.createElement("button");
           btn.type = "button";
           btn.style.paddingLeft = `${8 + depth * 12 + 14}px`;
-          const active = state.currentPath === n.path;
+          const active = state.currentId === n.id;
           btn.className = active
             ? "w-full rounded-lg px-2 py-1.5 text-left text-sm bg-apple text-white font-medium mb-0.5 transition duration-150"
             : "w-full rounded-lg px-2 py-1.5 text-left text-sm text-slate-600 hover:bg-slate-50 mb-0.5 transition duration-150";
           btn.innerHTML = `<span class="truncate block">${escapeHtml(n.name)}</span>`;
           btn.title = n.path;
           btn.addEventListener("click", () => {
-            openFile(n.path);
+            openFile(n.id);
             if (window.matchMedia("(max-width: 767px)").matches) {
               state.sidebarOpen = false;
               applySidebar();
@@ -713,14 +785,114 @@
       return frag;
     }
 
+    function sectionLabel(name, action) {
+      const el = document.createElement("div");
+      el.className = "flex items-center justify-between px-2 pt-3 pb-1";
+      el.innerHTML = `<span class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">${escapeHtml(name)}</span>`;
+      if (action) el.appendChild(action);
+      return el;
+    }
+
+    function collapseButton() {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.title = "Collapse all";
+      btn.className = "h-5 w-5 inline-flex items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition duration-150";
+      btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5">
+        <path d="M7 20l5-5 5 5" /><path d="M7 4l5 5 5-5" /></svg>`;
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        collapseAllDirs(state.tree);
+        renderTree();
+      });
+      return btn;
+    }
+
+    function sinceLabel(iso) {
+      if (!iso) return "";
+      const then = new Date(iso);
+      if (isNaN(then)) return "";
+      const minutes = Math.floor((Date.now() - then.getTime()) / 60000);
+      if (minutes < 1) return "just now";
+      if (minutes < 60) return `${minutes}m ago`;
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) return `${hours}h ago`;
+      const days = Math.floor(hours / 24);
+      if (days < 7) return `${days}d ago`;
+      return then.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    }
+
+    function sidebarRow({ label, active, icon, onClick, indent = 8, title, meta }) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.style.paddingLeft = `${indent}px`;
+      btn.className = active
+        ? "w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm bg-apple text-white font-medium mb-0.5 transition duration-150"
+        : "w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-slate-600 hover:bg-slate-50 mb-0.5 transition duration-150";
+      btn.innerHTML = `${icon || ""}<span class="truncate block flex-1 min-w-0">${escapeHtml(label)}</span>${
+        meta ? `<span class="shrink-0 text-[10px] ${active ? "text-white/70" : "text-slate-400"}">${escapeHtml(meta)}</span>` : ""
+      }`;
+      if (title) btn.title = title;
+      btn.addEventListener("click", onClick);
+      return btn;
+    }
+
+    const HOME_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0">
+      <path d="M3 11.5L12 3l9 8.5" /><path d="M5.5 10v10h13V10" /></svg>`;
+
+    const COLLECTED_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0">
+      <path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4l2 2.5h9A1.5 1.5 0 0 1 21 10v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18z" /></svg>`;
+
     function renderTree() {
       const tree = $("#tree");
       tree.innerHTML = "";
+      tree.appendChild(sidebarRow({
+        label: "Home",
+        active: state.view === "home",
+        icon: HOME_ICON,
+        onClick: () => openHome(),
+      }));
+      tree.appendChild(sidebarRow({
+        label: "Collected",
+        active: state.view === "collected",
+        icon: COLLECTED_ICON,
+        onClick: () => openCollected(),
+      }));
+
+      const under = document.createElement("div");
+      under.className = "ml-3 border-l border-slate-100 pl-1";
+      tree.appendChild(under);
+
+      if (state.related.length) {
+        under.appendChild(sectionLabel("Related"));
+        for (const item of state.related.slice(0, 5)) {
+          under.appendChild(sidebarRow({
+            label: item.path.split("/").pop(),
+            active: state.currentId === item.id,
+            title: item.path,
+            meta: sinceLabel(item.opened_at),
+            onClick: () => openFile(item.id),
+          }));
+        }
+      }
+
+      under.appendChild(sectionLabel("List", collapseButton()));
       if (!state.tree.length) {
-        tree.innerHTML = `<div class="p-3 text-xs text-slate-500">collected/ 가 비어 있거나 서버에 연결되지 않음</div>`;
+        under.insertAdjacentHTML("beforeend", `<div class="px-2 py-2 text-xs text-slate-500">Nothing collected, or the server is unreachable</div>`);
         return;
       }
-      tree.appendChild(renderTreeNodes(state.tree));
+      under.appendChild(renderTreeNodes(state.tree));
+    }
+
+    async function loadRelated(id) {
+      try {
+        const res = await fetch("/api/related" + (id ? "?id=" + encodeURIComponent(id) : ""));
+        if (!res.ok) return;
+        state.related = (await res.json()).items || [];
+      } catch {
+        state.related = [];
+      }
+      renderTree();
     }
 
     function collapseAllDirs(nodes) {
@@ -736,14 +908,13 @@
       if (!res.ok) throw new Error("tree failed");
       const data = await res.json();
       state.tree = data.tree || [];
-      for (const n of state.tree) if (n.type === "dir") n._open = true;
-      state.pathSet = new Set();
+      collapseAllDirs(state.tree);
+      state.nodeById = new Map();
       (function collect(nodes) {
         for (const n of nodes) {
           if (n.type === "dir") collect(n.children || []);
           else {
-            state.pathSet.add(n.path);
-            if (n.trans) state.pathSet.add(n.trans);
+            state.nodeById.set(n.id, n);
           }
         }
       })(state.tree);
@@ -751,38 +922,36 @@
     }
 
     // i18n
-    function translationOf(path) {
-      if (!path || !/\.(md|markdown|mdx)$/i.test(path)) return null;
-      if (path.startsWith("kor/")) {
-        const orig = "eng/" + path.slice(4);
-        return state.pathSet.has(orig) ? { orig, trans: path } : null;
-      }
-      if (path.startsWith("eng/")) {
-        const trans = "kor/" + path.slice(4);
-        return state.pathSet.has(trans) ? { orig: path, trans } : null;
-      }
-      return null;
+    function translationOf(id) {
+      const node = state.nodeById.get(id);
+      if (!node || !/\.(md|markdown|mdx)$/i.test(node.path)) return null;
+      return node.languages.includes("kor") ? { orig: "eng", trans: "kor" } : null;
     }
 
-    async function fetchMeta(path) {
-      if (!path.startsWith("eng/")) return null;
+    async function fetchMeta(id) {
       try {
-        return JSON.parse((await fetchFile("meta/" + path.slice(4) + ".json")).content);
+        const res = await fetch("/api/meta?id=" + encodeURIComponent(id));
+        if (!res.ok) return null;
+        return res.json();
       } catch {
         return null;
       }
     }
 
     function sourceLine() {
-      const src = state.currentMeta && state.currentMeta.source;
+      const src = state.currentMeta && state.currentMeta.url;
       if (!src) return "";
-      return `<p class="doc-in mb-4 text-[12px] text-slate-500 break-all">출처 <a href="${escapeHtml(src)}" target="_blank" rel="noopener" class="text-apple-link hover:underline">${escapeHtml(src)}</a></p>`;
+      return `<p class="doc-in mb-4 text-[12px] text-slate-500 break-all">Source <a href="${escapeHtml(src)}" target="_blank" rel="noopener" class="text-apple-link hover:underline">${escapeHtml(src)}</a></p>`;
     }
 
-    async function fetchFile(path) {
-      const res = await fetch("/api/file?path=" + encodeURIComponent(path));
+    async function fetchFile(id, language) {
+      const res = await fetch("/api/file?id=" + encodeURIComponent(id) + "&language=" + language);
       if (!res.ok) throw new Error(await res.text());
       return res.json();
+    }
+
+    function rawUrl(id, language) {
+      return "/api/raw?id=" + encodeURIComponent(id) + "&language=" + language;
     }
 
     function splitSentences(text) {
@@ -824,7 +993,7 @@
 
     function updateLangbar() {
       const bar = $("#doc-langbar");
-      const show = !!state.docPair;
+      const show = state.view === "collected" && !!state.docPair;
       bar.classList.toggle("hidden", !show);
       if (!show) return;
       bar.querySelectorAll(".seg-btn").forEach((b) => {
@@ -832,15 +1001,177 @@
       });
     }
 
+    // #
+    // home
+
+
+    function applyView() {
+      const home = state.view === "home";
+      $("#home-pane").classList.toggle("hidden", !home);
+      $("#doc-pane").classList.toggle("hidden", home);
+      applyChatSplit();
+      updateLangbar();
+      updateDownload();
+      renderTree();
+      renderMessages();
+    }
+
+    function openCollected() {
+      if (state.currentId && state.nodeById.has(state.currentId)) {
+        openFile(state.currentId);
+        return;
+      }
+      state.view = "collected";
+      state.currentId = null;
+      state.currentPath = null;
+      state.currentTitle = null;
+      state.currentText = "";
+      state.docPair = null;
+      applyView();
+      $("#doc-content").innerHTML = `
+        <div class="doc-in py-24 text-center">
+          <p class="text-[21px] font-semibold tracking-tight text-slate-800">Collected</p>
+          <p class="mt-2 text-[15px] font-light text-slate-500">Pick a document from Related or List.</p>
+        </div>`;
+    }
+
+    function openHome() {
+      state.view = "home";
+      state.currentId = null;
+      state.currentPath = null;
+      state.currentTitle = null;
+      state.currentText = "";
+      state.docPair = null;
+      const url = new URL(location.href);
+      url.searchParams.delete("doc");
+      history.replaceState(null, "", url);
+      applyView();
+      applyHomeMode();
+      if (!state.related.length) loadRelated(null);
+      setTimeout(() => $("#home-input").focus(), 60);
+    }
+
+    function applyHomeMode() {
+      const ask = state.homeMode === "ask";
+      $("#home-mode-label").textContent = state.homeMode;
+      $("#home-mode-menu").querySelectorAll("[data-home-mode]").forEach((b) => {
+        b.setAttribute("aria-selected", String(b.dataset.homeMode === state.homeMode));
+      });
+      $("#home-input").placeholder = ask ? "Ask anything" : "Paste a URL…";
+      localStorage.setItem("homeMode", state.homeMode);
+    }
+
+    function setHomeModeOpen(open) {
+      $("#home-mode-menu").classList.toggle("hidden", !open);
+      $("#home-mode-btn").setAttribute("aria-expanded", String(open));
+    }
+
+    function setHomeMode(mode) {
+      state.homeMode = mode;
+      applyHomeMode();
+      setHomeModeOpen(false);
+      $("#home-input").focus();
+    }
+
+    function autoResizeHome() {
+      const ta = $("#home-input");
+      ta.style.height = "auto";
+      ta.style.height = Math.min(240, Math.max(34, ta.scrollHeight)) + "px";
+    }
+
+    async function runHome() {
+      const box = $("#home-input");
+      const value = box.value.trim();
+      if (!value || state.sending) return;
+      const collecting = state.homeMode === "collect";
+      if (collecting && !/^https?:\/\//i.test(value) && !/^\d{4}\.\d{4,5}/.test(value)) {
+        toast("Give a URL or an arXiv id");
+        return;
+      }
+      box.value = "";
+      autoResizeHome();
+      openChat(true);
+
+      state.messages.push({ role: "user", content: value, mode: state.homeMode });
+      const assistant = { role: "assistant", content: "", streaming: true };
+      state.messages.push(assistant);
+      renderMessages();
+      setSending(true);
+
+      try {
+        const res = await fetch(collecting ? "/api/collect" : "/api/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(collecting ? { input: value } : { question: value }),
+        });
+        if (!res.ok || !res.body) throw new Error(await res.text());
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let answered = false;
+        for (;;) {
+          const { value: chunk, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(chunk, { stream: true });
+          const parts = buffer.split("\n\n");
+          buffer = parts.pop() || "";
+          for (const part of parts) {
+            const line = part.trim();
+            if (!line.startsWith("data:")) continue;
+            const raw = line.slice(5).trim();
+            if (raw === "[DONE]") continue;
+            let ev;
+            try { ev = JSON.parse(raw); } catch { continue; }
+            if (ev.type === "step") {
+              assistant.steps = assistant.steps || [];
+              const now = performance.now();
+              const at = assistant.steps.findIndex((s) => s.key === ev.key);
+              if (at >= 0) {
+                const was = assistant.steps[at];
+                assistant.steps[at] = { ...was, text: ev.text, state: ev.state || "running", took: now - was.at };
+              } else {
+                assistant.steps.push({ key: ev.key, text: ev.text, state: ev.state || "running", at: now, took: null });
+              }
+            } else if (ev.type === "terms") {
+              assistant.note = `Keywords ${ev.terms.join(", ")}`;
+            } else if (ev.type === "hits") {
+              assistant.sources = ev.hits;
+              state.related = ev.hits;
+              renderTree();
+            } else if (ev.type === "collected") {
+              assistant.sources = [{ id: ev.id, path: ev.path }];
+            } else if (ev.type === "delta") {
+              if (!answered) { answered = true; assistant.content = ""; }
+              assistant.content += ev.text;
+            } else if (ev.type === "done") {
+              if (ev.text) assistant.content = ev.text;
+              if (ev.id) assistant.sources = [{ id: ev.id, path: state.nodeById.get(ev.id)?.path || ev.id }];
+            } else if (ev.type === "error") {
+              assistant.content = (assistant.content ? assistant.content + "\n\n" : "") + `Error: ${ev.error}`;
+            }
+            renderMessages();
+          }
+        }
+      } catch (e) {
+        assistant.content = `Error: ${e.message || e}`;
+      }
+      assistant.streaming = false;
+      setSending(false);
+      renderMessages();
+      persistConversation();
+      if (collecting) loadTree();
+    }
+
     async function renderDoc(opts = {}) {
+      if (state.view !== "collected") return;
       const { preserveScroll = false } = opts;
       const pair = state.docPair;
       const lang = pair ? state.docLang : "orig";
       if (pair && lang !== "orig" && state.pairTexts.trans == null) {
         try {
-          state.pairTexts.trans = (await fetchFile(pair.trans)).content;
+          state.pairTexts.trans = (await fetchFile(state.currentId, "kor")).content;
         } catch (e) {
-          toast("번역본을 불러오지 못함");
+          toast("Could not load the translation");
           state.docLang = "orig";
           return renderDoc(opts);
         }
@@ -850,17 +1181,16 @@
       clearActiveDocSelection();
       let inner;
       if (/\.html?$/i.test(state.currentPath)) {
-        const korPath = state.currentPath.startsWith("eng/") ? "kor/" + state.currentPath.slice(4) : null;
-        const hasKor = korPath && state.pathSet.has(korPath);
+        const hasKor = !!state.docPair;
         inner = `
-          <div class="doc-in text-center py-24 select-none">
+          <div class="doc-in text-center py-24">
             <p class="text-[21px] font-semibold tracking-tight text-slate-800 break-all px-6">${escapeHtml(state.currentTitle || "")}</p>
-            <p class="mt-2 text-[14px] font-light text-slate-500">조판을 그대로 보존한 HTML 문서예요. 새 탭에서 원본 그대로 열립니다.</p>
+            <p class="mt-2 text-[14px] font-light text-slate-500">An HTML document with its original typesetting. Opens as is in a new tab.</p>
             <div class="mt-6 flex items-center justify-center gap-2">
-              <a href="/api/raw?path=${encodeURIComponent(state.currentPath)}" target="_blank" rel="noopener"
-                 class="rounded-full bg-apple px-4 py-1.5 text-sm text-white hover:bg-apple-hover transition duration-150">원문 열기</a>
-              ${hasKor ? `<a href="/api/raw?path=${encodeURIComponent(korPath)}" target="_blank" rel="noopener"
-                 class="rounded-full border border-apple-link px-4 py-1.5 text-sm text-apple-link hover:bg-apple-link/5 transition duration-150">한국어판 열기</a>` : ""}
+              <a href="${rawUrl(state.currentId, "eng")}" target="_blank" rel="noopener"
+                 class="rounded-full bg-apple px-4 py-1.5 text-sm text-white hover:bg-apple-hover transition duration-150">Open original</a>
+              ${hasKor ? `<a href="${rawUrl(state.currentId, "kor")}" target="_blank" rel="noopener"
+                 class="rounded-full border border-apple-link px-4 py-1.5 text-sm text-apple-link hover:bg-apple-link/5 transition duration-150">Open Korean</a>` : ""}
             </div>
           </div>`;
       } else if (!isMd) {
@@ -879,49 +1209,46 @@
       if (!preserveScroll) $("#doc-scroll").scrollTop = 0;
     }
 
-    async function openFile(path, opts = {}) {
-      const { preserveScroll = false, skipIfSame = false } = opts;
-      if (!path) return false;
-      const pair = translationOf(path);
-      const target = pair ? pair.orig : path;
-      if (skipIfSame && state.currentPath === target && state.currentText) {
-        return true;
-      }
-      state.currentPath = target;
-      state.docPair = pair;
-      state.currentMeta = null;
+    async function openFile(id, opts = {}) {
+      const { skipIfSame = false, preserveScroll = false } = opts;
+      const node = state.nodeById.get(id);
+      if (!node) return false;
+      if (skipIfSame && state.currentId === id && state.currentText) return true;
+
+      const wasHome = state.view === "home";
+      state.view = "collected";
+      if (wasHome) applyView();
+      state.currentId = id;
+      state.currentPath = node.path;
+      state.currentTitle = node.name;
+      state.docPair = translationOf(id);
+      state.docLang = state.docPair ? state.docLang : "orig";
+      state.pairTexts = { orig: null, trans: null };
+
       const url = new URL(location.href);
-      url.searchParams.set("doc", target);
+      url.searchParams.set("doc", id);
       history.replaceState(null, "", url);
-      if (pair && path === pair.trans) state.docLang = "trans";
+
       renderTree();
-      $("#doc-content").innerHTML = `<div class="text-center text-slate-500 py-20 text-sm">불러오는 중…</div>`;
       try {
-        if (/\.html?$/i.test(target)) {
-          state.pairTexts = { orig: "", trans: null };
-          state.currentTitle = target.split("/").pop();
-          state.currentMeta = await fetchMeta(target);
-          await renderDoc({ preserveScroll });
-          return true;
-        }
-        const [data, meta] = await Promise.all([fetchFile(target), fetchMeta(target)]);
-        state.pairTexts = { orig: data.content || "", trans: null };
+        const [data, meta] = await Promise.all([fetchFile(id, "eng"), fetchMeta(id)]);
+        state.pairTexts.orig = data.content;
         state.currentMeta = meta;
-        state.currentTitle = data.name || target;
-        await renderDoc({ preserveScroll });
-        return true;
       } catch (e) {
-        state.currentText = "";
-        state.docPair = null;
-        state.pairTexts = null;
-        clearActiveDocSelection();
-        updateLangbar();
-        $("#doc-content").innerHTML = `<div class="text-center py-20 text-sm text-slate-700">문서를 불러오지 못함: ${escapeHtml(e.message)}</div>`;
+        toast("Could not load the document");
         return false;
       }
+      await renderDoc({ preserveScroll });
+      updateDownload();
+      fetch("/api/opened", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      }).catch(() => {}).finally(() => loadRelated(id));
+
+      return true;
     }
 
-    // Scroll restore
     let scrollSaveTimer = null;
 
     function saveDocScroll() {
@@ -955,8 +1282,11 @@
 
     async function openDocFromUrl() {
       const doc = new URLSearchParams(location.search).get("doc");
-      if (!doc || !state.pathSet.has(doc)) return;
-      if (await openFile(doc)) restoreDocScroll(doc);
+      if (doc && state.nodeById.has(doc)) {
+        if (await openFile(doc)) restoreDocScroll(doc);
+        return;
+      }
+      openHome();
     }
 
     function findTextRangeInDoc(needle) {
@@ -1062,7 +1392,7 @@
       if (path) {
         const ok = await openFile(path, { skipIfSame: true, preserveScroll: true });
         if (!ok) {
-          toast("문서를 열 수 없음");
+          toast("Documents could not be opened");
           return;
         }
       }
@@ -1071,12 +1401,12 @@
         if (range) {
           setActiveDocSelection(range);
           scrollRangeIntoDocView(range);
-          toast("인용 위치로 이동됨");
+          toast("Jumped to the quote");
         } else if (path) {
           clearActiveDocSelection();
-          toast("문서 열림 · 구절을 찾지 못함");
+          toast("Documents opened, but the passage was not found");
         } else {
-          toast("인용 경로 없음");
+          toast("The quote has no document");
         }
       });
     }
@@ -1233,7 +1563,7 @@
         document.execCommand("copy");
       }
       hideSelBar();
-      toast("복사됨");
+      toast("Copied");
     }
 
     function addCitation(text, multi) {
@@ -1247,7 +1577,7 @@
       }
       renderCitations();
       if (!state.chatOpen) openChat(true);
-      toast(multi ? "인용 추가됨" : "인용됨");
+      toast(multi ? "Quote added" : "Quoted");
     }
 
     function renderCitations() {
@@ -1266,7 +1596,7 @@
           <button
             type="button"
             class="cite-open min-w-0 flex-1 flex items-start gap-2 px-2.5 py-1.5 hover:bg-slate-50"
-            title="원문 문서 열기"
+            title="Open the original document"
             data-cite-path="${encodeURIComponent(c.path || "")}"
             data-cite-text="${encodeURIComponent(c.text || "")}"
           >
@@ -1276,7 +1606,7 @@
               <div class="line-clamp-2 font-medium text-slate-800">${escapeHtml(c.text)}</div>
             </div>
           </button>
-          <button type="button" data-cid="${c.id}" class="cite-remove icon-btn shrink-0 m-1" title="인용 제거">
+          <button type="button" data-cid="${c.id}" class="cite-remove icon-btn shrink-0 m-1" title="Remove quote">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" class="h-3 w-3 pointer-events-none"><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
         </div>`
@@ -1301,6 +1631,20 @@
       const panel = $("#chat-panel");
       const resizer = $("#split-resizer");
       const navBtn = $("#btn-toggle-chat");
+      if (state.view === "home") {
+        panel.style.display = "none";
+        resizer.style.display = "none";
+        if (navBtn) {
+          navBtn.classList.add("text-apple");
+          navBtn.disabled = true;
+          navBtn.title = "Home is the chat";
+        }
+        return;
+      }
+      if (navBtn) {
+        navBtn.disabled = false;
+        navBtn.title = "Toggle chat (⌘N)";
+      }
       if (state.chatOpen) {
         panel.classList.remove("hidden");
         panel.style.display = "flex";
@@ -1402,7 +1746,7 @@
     function newConversation() {
       state.conversation = {
         id: uid(),
-        title: "새 대화",
+        title: "New chat",
         createdAt: null,
         updatedAt: null,
         messages: [],
@@ -1411,7 +1755,33 @@
       state.citations = [];
       renderCitations();
       renderMessages();
-      $("#chat-sub").textContent = "새 대화";
+      $("#chat-sub").textContent = "New chat";
+    }
+
+    const STEP_MARK = {
+      running: `<span class="breathe block h-[7px] w-[7px] rounded-full bg-apple"></span>`,
+      done: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="h-[11px] w-[11px] text-slate-400"><path d="M4 12.5l5 5L20 6.5" /></svg>`,
+      skip: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" class="h-[11px] w-[11px] text-slate-300"><path d="M5 12h14" /></svg>`,
+      error: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" class="h-[11px] w-[11px] text-red-500"><path d="M6 6l12 12" /><path d="M18 6L6 18" /></svg>`,
+    };
+
+    function stepDuration(took) {
+      if (took == null || took < 1000) return "";
+      return `${(took / 1000).toFixed(1)}s`;
+    }
+
+    function stepsHtml(steps) {
+      return `<div class="mb-2">${steps.map((s, i) => {
+        const last = i === steps.length - 1;
+        const tone = s.state === "skip" ? "text-slate-400" : s.state === "running" ? "" : "text-slate-500";
+        return `
+        <div class="step-in relative flex gap-2.5 ${last ? "" : "pb-2.5"}">
+          ${last ? "" : `<span class="absolute left-[5px] top-[15px] bottom-0 w-px bg-slate-200"></span>`}
+          <span class="relative z-10 mt-[4px] flex h-[11px] w-[11px] shrink-0 items-center justify-center rounded-full bg-white">${STEP_MARK[s.state] || STEP_MARK.running}</span>
+          <span class="min-w-0 flex-1 text-[12px] ${tone} ${s.state === "running" ? "sweep" : ""}">${escapeHtml(s.text)}</span>
+          <span class="shrink-0 pt-px font-mono text-[10px] tabular-nums text-slate-300">${stepDuration(s.took)}</span>
+        </div>`;
+      }).join("")}</div>`;
     }
 
     function renderChatMarkdown(src) {
@@ -1451,16 +1821,16 @@
         return `<div class="mb-2 space-y-1">${cites
           .map(
             (c) =>
-              `<button type="button" class="cite-open block w-full rounded-lg bg-slate-800/90 px-2 py-1.5 text-[10px] text-slate-100 border border-slate-600/80 hover:bg-slate-700" title="원문 문서 열기" data-cite-path="${encodeURIComponent(c.path || "")}" data-cite-text="${encodeURIComponent(c.text || "")}"><span class="font-mono text-slate-400">${escapeHtml(c.path || "")}</span><div class="line-clamp-2 text-slate-50 text-left mt-0.5">${escapeHtml(c.text)}</div></button>`
+              `<button type="button" class="cite-open block w-full rounded-lg bg-slate-800/90 px-2 py-1.5 text-[10px] text-slate-100 border border-slate-600/80 hover:bg-slate-700" title="Open the original document" data-cite-path="${encodeURIComponent(c.path || "")}" data-cite-text="${encodeURIComponent(c.text || "")}"><span class="font-mono text-slate-400">${escapeHtml(c.path || "")}</span><div class="line-clamp-2 text-slate-50 text-left mt-0.5">${escapeHtml(c.text)}</div></button>`
           )
           .join("")}</div>`;
       }
       return `<div class="mt-2.5 pt-2 border-t border-slate-100 space-y-1">
-        <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">인용 원문</div>
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Quoted source</div>
         ${cites
           .map(
             (c, i) =>
-              `<button type="button" class="cite-open flex w-full items-start gap-2 rounded-lg bg-slate-50 px-2 py-1.5 text-left text-[11px] hover:bg-slate-100" title="원문 문서 열기" data-cite-path="${encodeURIComponent(c.path || "")}" data-cite-text="${encodeURIComponent(c.text || "")}">
+              `<button type="button" class="cite-open flex w-full items-start gap-2 rounded-lg bg-slate-50 px-2 py-1.5 text-left text-[11px] hover:bg-slate-100" title="Open the original document" data-cite-path="${encodeURIComponent(c.path || "")}" data-cite-text="${encodeURIComponent(c.text || "")}">
                 <span class="shrink-0 font-mono font-semibold text-slate-500">#${i + 1}</span>
                 <span class="min-w-0 flex-1">
                   <span class="block font-mono text-[10px] text-slate-400 truncate">${escapeHtml(c.path || "")}</span>
@@ -1472,14 +1842,27 @@
       </div>`;
     }
 
+    function messageBox() {
+      return state.view === "home" ? $("#home-messages") : $("#messages");
+    }
+
     function renderMessages() {
-      const box = $("#messages");
-      if (!state.messages.length) {
+      const home = state.view === "home";
+      const box = messageBox();
+      if (home) {
+        const any = state.messages.length > 0;
+        $("#home-messages").classList.toggle("hidden", !any);
+        $("#home-title").classList.toggle("hidden", any);
+        $("#home-inner").classList.toggle("justify-center", !any);
+        box.innerHTML = "";
+        if (!any) return;
+      }
+      if (!home && !state.messages.length) {
         box.innerHTML = `
-          <div class="h-full min-h-[12rem] flex flex-col items-center justify-center text-center px-4 py-10 select-none">
+          <div class="h-full min-h-[12rem] flex flex-col items-center justify-center text-center px-4 py-10">
             <p class="text-[17px] font-semibold tracking-tight text-slate-800">Agent</p>
-            <p class="mt-1 text-[13px] font-light text-slate-500">질문을 입력하거나 원문을 드래그해 인용하세요.</p>
-            <p class="mt-0.5 text-[12px] font-light text-slate-400">Enter 전송 · ⇧Enter 줄바꿈</p>
+            <p class="mt-1 text-[13px] font-light text-slate-500">Ask a question, or drag text in a document to quote it.</p>
+            <p class="mt-0.5 text-[12px] font-light text-slate-400">Enter to send · ⇧Enter for a new line</p>
           </div>`;
         return;
       }
@@ -1506,25 +1889,42 @@
           const empty = !(m.content && String(m.content).trim());
           // Agent
           el.className = "mr-2 min-w-0 max-w-full rounded-2xl rounded-bl-md bg-white px-3.5 py-2.5 text-slate-900 overflow-hidden";
+          const note = m.note
+            ? `<div class="mb-1.5 text-[11px] text-slate-500">${escapeHtml(m.note)}</div>`
+            : "";
+          const steps = (m.steps || []).length ? stepsHtml(m.steps) : "";
+          const sources = (m.sources || []).length
+            ? `<div class="mt-2.5 border-t border-slate-100 pt-2">
+                 <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Sources</div>
+                 ${m.sources.map((s) => `<button type="button" data-open-id="${escapeHtml(s.id)}"
+                    class="block w-full truncate rounded px-1 py-0.5 text-left text-[11px] text-apple-link hover:bg-slate-50 transition duration-150">${escapeHtml(s.path)}</button>`).join("")}
+               </div>`
+            : "";
           let body = "";
           if (streaming && empty) {
             body = `
               <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Agent</div>
-              <div class="flex items-center gap-2 py-0.5" aria-live="polite" aria-label="응답 생성 중">
+              ${note}${steps}
+              <div class="flex items-center gap-2 py-0.5" aria-live="polite" aria-label="Generating">
                 <div class="typing-dots" aria-hidden="true"><span></span><span></span><span></span></div>
               </div>`;
           } else if (streaming) {
             body = `
               <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">Agent</div>
+              ${note}${steps}
               <div class="md-chat min-w-0">${renderChatMarkdown(m.content || "")}<span class="stream-cursor" aria-hidden="true"></span></div>
-              ${citeChipsHtml(lastUserCites, "agent")}`;
+              ${citeChipsHtml(lastUserCites, "agent")}${sources}`;
           } else {
             body = `
               <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">Agent</div>
+              ${note}${steps}
               <div class="md-chat min-w-0">${renderChatMarkdown(m.content || "")}</div>
-              ${citeChipsHtml(lastUserCites, "agent")}`;
+              ${citeChipsHtml(lastUserCites, "agent")}${sources}`;
           }
           el.innerHTML = body;
+          el.querySelectorAll("[data-open-id]").forEach((b) => {
+            b.addEventListener("click", () => openFile(b.dataset.openId));
+          });
         }
         bindCiteButtons(el);
         box.appendChild(el);
@@ -1533,9 +1933,9 @@
     }
 
     function buildSystemPrompt() {
-      return `당신은 document/ 기반 학습 에이전트입니다.
+      return `당신은 수집된 문서를 근거로 답하는 학습 에이전트입니다.
 사용자가 연 문서와 인용 구절을 우선 근거로 답하세요.
-문서·인용에 없으면 추측하지 말고 부족하다고 말하세요.
+Documents·인용에 없으면 추측하지 말고 부족하다고 말하세요.
 쉬운 한국어, 핵심 용어는 영문 병기.
 도구/파일 탐색 없이 제공된 컨텍스트만으로 답하세요.`;
     }
@@ -1543,9 +1943,9 @@
     async function persistConversation() {
       if (!state.conversation) return;
       const title =
-        state.conversation.title && state.conversation.title !== "새 대화"
+        state.conversation.title && state.conversation.title !== "New chat"
           ? state.conversation.title
-          : (state.messages.find((m) => m.role === "user")?.content || "새 대화").slice(0, 48);
+          : (state.messages.find((m) => m.role === "user")?.content || "New chat").slice(0, 48);
       const payload = {
         id: state.conversation.id,
         title,
@@ -1664,7 +2064,7 @@
                 try { reader.cancel(); } catch (_) {}
                 break;
               } else if (j.type === "error") {
-                assistant.content = (assistant.content ? assistant.content + "\n\n" : "") + "오류: " + (j.error || "") + (j.stderr ? "\n" + j.stderr : "");
+                assistant.content = (assistant.content ? assistant.content + "\n\n" : "") + "Error: " + (j.error || "") + (j.stderr ? "\n" + j.stderr : "");
                 renderMessages();
                 finishUnlock();
                 streamDone = true;
@@ -1675,10 +2075,10 @@
           }
         }
         clearTimeout(hangTimer);
-        if (!assistant.content) assistant.content = "(응답 없음)";
+        if (!assistant.content) assistant.content = "(no response)";
       } catch (e) {
-        const msg = e && e.name === "AbortError" ? "응답 대기 시간 초과" : e.message;
-        assistant.content = (assistant.content ? assistant.content + "\n\n" : "") + "오류: " + msg;
+        const msg = e && e.name === "AbortError" ? "The response timed out" : e.message;
+        assistant.content = (assistant.content ? assistant.content + "\n\n" : "") + "Error: " + msg;
       } finally {
         finishUnlock();
         renderMessages();
@@ -1712,7 +2112,7 @@
         b.disabled = off;
         b.classList.toggle("opacity-40", off);
         b.classList.toggle("cursor-not-allowed", off);
-        b.title = off ? "이 문서에는 번역본이 없습니다" : "";
+        b.title = off ? "This document has no translation" : "";
         b.setAttribute("aria-selected", b.dataset.dlLang === state.dlLang ? "true" : "false");
       });
       $("#dl-fmts").querySelectorAll("[data-dl-fmt]").forEach((b) => {
@@ -1720,14 +2120,14 @@
         b.disabled = off;
         b.classList.toggle("opacity-40", off);
         b.classList.toggle("cursor-not-allowed", off);
-        b.title = off ? "원문 열기로 연 새 탭에서 인쇄하세요" : "";
+        b.title = off ? "Open originalPrint from the new tab" : "";
         if (b.dataset.dlFmt === "md") b.textContent = isHtml ? "HTML" : "Markdown";
         b.setAttribute("aria-selected", b.dataset.dlFmt === state.dlFmt ? "true" : "false");
       });
     }
 
     function updateDownload() {
-      const has = !!state.currentPath;
+      const has = state.view === "collected" && !!state.currentPath;
       const btn = $("#btn-download");
       btn.disabled = !has;
       btn.classList.toggle("opacity-40", !has);
@@ -1792,7 +2192,7 @@
   }
 </style></head><body class="font-sans antialiased bg-white text-slate-900"><article class="doc-print">${body}</article></body></html>`);
       win.document.close();
-      toast("인쇄 창에서 대상을 'PDF로 저장'으로 바꾸세요");
+      toast("In the print dialog, set the destination to 'PDFSave as'");
       const go = () => {
         win.focus();
         win.print();
@@ -1808,26 +2208,25 @@
 
       if (fmt === "pdf") {
         const win = window.open("", "_blank");
-        if (!win) return toast("팝업이 막혀 인쇄 창을 열지 못했습니다");
+        if (!win) return toast("Could not open the print window. Allow pop-ups.");
         if (pair && state.docLang !== lang) await setDocLang(lang);
         return printDoc(win);
       }
       if (lang === "both" && pair) {
         try {
           if (state.pairTexts.trans == null) {
-            state.pairTexts.trans = (await fetchFile(pair.trans)).content;
+            state.pairTexts.trans = (await fetchFile(state.currentId, "kor")).content;
           }
         } catch (e) {
-          return toast("번역본을 불러오지 못함");
+          return toast("Could not load the translation");
         }
         const base = state.currentPath.split("/").pop().replace(/\.[^.]+$/, "");
         saveBlob(buildBilingualMd(state.pairTexts.orig, state.pairTexts.trans), base + "-bilingual.md");
-        return toast(base + "-bilingual.md 내려받음");
+        return toast(base + "-bilingual.md downloaded");
       }
-      const path = lang === "trans" && pair ? pair.trans : state.currentPath;
-      const name = path.split("/").pop();
-      triggerSave("/api/raw?path=" + encodeURIComponent(path), name);
-      toast(name + " 내려받음");
+      const name = state.currentPath.split("/").pop();
+      triggerSave(rawUrl(state.currentId, lang === "trans" && pair ? "kor" : "eng"), name);
+      toast(name + " downloaded");
     }
 
     // History dropdown
@@ -1869,14 +2268,14 @@
 
     async function refreshHistoryList() {
       const list = $("#history-list");
-      list.innerHTML = `<div class="px-3 py-4 text-center text-xs text-slate-400">불러오는 중…</div>`;
+      list.innerHTML = `<div class="px-3 py-4 text-center text-xs text-slate-400">Loading…</div>`;
       try {
         const res = await fetch("/api/conversations");
         const data = await res.json();
         const items = data.items || [];
         const currentId = state.conversation && state.conversation.id;
         if (!items.length) {
-          list.innerHTML = `<div class="px-3 py-5 text-center text-xs text-slate-400">저장된 대화 없음</div>`;
+          list.innerHTML = `<div class="px-3 py-5 text-center text-xs text-slate-400">No saved chats</div>`;
           return;
         }
         list.innerHTML = items
@@ -1894,13 +2293,13 @@
                 data-open="${escapeHtml(it.id)}"
                 class="min-w-0 flex-1 rounded-lg px-2 py-1.5 text-left hover:bg-slate-50 transition duration-150 ${active ? "hover:bg-slate-100" : ""}"
               >
-                <div class="text-[13px] font-medium text-slate-900 truncate">${escapeHtml(it.title || "제목 없음")}</div>
-                <div class="text-[10px] text-slate-400 tabular-nums">${escapeHtml(formatHistoryTime(it.updatedAt))} · 메시지 ${it.messageCount || 0}개</div>
+                <div class="text-[13px] font-medium text-slate-900 truncate">${escapeHtml(it.title || "Untitled")}</div>
+                <div class="text-[10px] text-slate-400 tabular-nums">${escapeHtml(formatHistoryTime(it.updatedAt))} · messages ${it.messageCount || 0}</div>
               </button>
               <button
                 type="button"
                 data-del="${escapeHtml(it.id)}"
-                title="삭제"
+                title="Delete"
                 class="icon-btn shrink-0"
               ><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" class="h-3 w-3 pointer-events-none"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
             </div>`;
@@ -1920,13 +2319,13 @@
             await fetch("/api/conversations/" + encodeURIComponent(id), { method: "DELETE" });
             if (state.conversation && state.conversation.id === id) {
               newConversation();
-              toast("대화 삭제됨");
+              toast("Chat deleted");
             }
             await refreshHistoryList();
           });
         });
       } catch (e) {
-        list.innerHTML = `<div class="px-3 py-4 text-center text-xs text-red-500">목록을 불러오지 못함</div>`;
+        list.innerHTML = `<div class="px-3 py-4 text-center text-xs text-red-500">Could not load the list</div>`;
       }
     }
 
@@ -1941,23 +2340,19 @@
 
     async function loadConversation(id) {
       const res = await fetch("/api/conversations/" + encodeURIComponent(id));
-      if (!res.ok) return toast("대화를 열 수 없음");
+      if (!res.ok) return toast("Could not open the chat");
       const data = await res.json();
       state.conversation = data;
       state.messages = (data.messages || []).map((m) => ({ ...m }));
       state.citations = [];
       renderCitations();
       renderMessages();
-      $("#chat-sub").textContent = data.title || "대화";
+      $("#chat-sub").textContent = data.title || "chats";
       setHistoryOpen(false);
       openChat(true);
     }
 
     // Events
-    $("#btn-tree-collapse").addEventListener("click", () => {
-      collapseAllDirs(state.tree);
-      renderTree();
-    });
     $("#btn-toggle-sidebar").addEventListener("click", () => {
       state.sidebarOpen = !state.sidebarOpen;
       applySidebar();
@@ -1970,7 +2365,7 @@
     $("#btn-new-chat").addEventListener("click", () => {
       newConversation();
       setHistoryOpen(false);
-      toast("새 대화 시작됨");
+      toast("Started a new chat");
     });
     $("#btn-history").addEventListener("click", (e) => {
       e.stopPropagation();
@@ -2008,6 +2403,29 @@
       const next = Math.min(144, Math.max(48, ta.scrollHeight));
       ta.style.height = next + "px";
     }
+    $("#home-send").addEventListener("click", runHome);
+    $("#home-input").addEventListener("input", autoResizeHome);
+    $("#home-input").addEventListener("keydown", (e) => {
+      if (e.key === "Tab") {
+        e.preventDefault();
+        setHomeMode(state.homeMode === "ask" ? "collect" : "ask");
+        return;
+      }
+      if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+        e.preventDefault();
+        runHome();
+      }
+    });
+    $("#home-mode-btn").addEventListener("click", (e) => {
+      e.stopPropagation();
+      setHomeModeOpen($("#home-mode-menu").classList.contains("hidden"));
+    });
+    $("#home-mode-menu").querySelectorAll("[data-home-mode]").forEach((b) => {
+      b.addEventListener("click", () => setHomeMode(b.dataset.homeMode));
+    });
+    document.addEventListener("click", (e) => {
+      if (!$("#home-mode").contains(e.target)) setHomeModeOpen(false);
+    });
     $("#btn-send").addEventListener("click", sendChat);
     $("#input").addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.shiftKey) {
@@ -2083,7 +2501,7 @@
     });
     $("#btn-save-settings").addEventListener("click", () => {
       closeSettings();
-      toast("설정 저장됨");
+      toast("Settings saved");
     });
 
     // init
@@ -2092,6 +2510,9 @@
       state.chatOpen = false;
     }
     applySidebar();
+    applyView();
+    applyHomeMode();
+    autoResizeHome();
     updateDownload();
     applyDocZoom();
     applyChatZoom();
@@ -2100,7 +2521,7 @@
     initSplitResizer();
     newConversation();
     loadTree().then(openDocFromUrl, (e) => {
-      $("#tree").innerHTML = `<div class="p-3 text-xs text-slate-600">문서 목록을 불러오지 못함. <code class="bg-slate-100 px-1 rounded">python3 server.py</code> 실행 여부를 확인하세요.<br/>${escapeHtml(e.message)}</div>`;
+      $("#tree").innerHTML = `<div class="p-3 text-xs text-slate-600">Could not load the document list. <code class="bg-slate-100 px-1 rounded">python3 server.py</code> Check that the server is running.<br/>${escapeHtml(e.message)}</div>`;
     });
   </script>
 </body>

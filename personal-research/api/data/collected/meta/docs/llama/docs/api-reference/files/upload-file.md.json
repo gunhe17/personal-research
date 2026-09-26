@@ -1,4 +1,0 @@
-{
-  "source": "https://llama.developer.meta.com/docs/api-reference/files/upload-file.md",
-  "head": "---\nmeta:\n  title: Upload a file\n  description: API reference for uploading a file with POST /v1/files.\n  keywords: files, upload file, POST /files, API reference, endpoint reference\ncms:\n  layout: large\n  alias: /model-api/docs/api-reference/files/upload-file\n  target: aidmc\n---\n\n"
-}

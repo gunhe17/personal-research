@@ -1,4 +1,0 @@
-{
-  "source": "https://llama.developer.meta.com/docs/api-reference/files/retrieve-file-content.md",
-  "head": "---\nmeta:\n  title: Retrieve file content\n  description: API reference for downloading a file's contents with GET /v1/files/{file_id}/content.\n  keywords: files, file content, download file, GET /files content, API reference, endpoint reference\ncms:\n  layout: large\n  alias: /model-api/docs/api-reference/files/retrieve-file-content\n  target: aidmc\n---\n\n"
-}

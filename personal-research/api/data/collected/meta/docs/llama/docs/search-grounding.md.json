@@ -1,4 +1,0 @@
-{
-  "source": "https://llama.developer.meta.com/docs/search-grounding.md",
-  "head": "---\nmeta:\n  title: Search grounding\n  description: Ground model responses in real-time web search results with inline citations.\n  keywords: search grounding, web search, grounded answers, citations, real-time data\ncms:\n  alias: /model-api/docs/search-grounding\n  target: aidmc\n---\n\n"
-}

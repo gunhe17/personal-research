@@ -1,4 +1,0 @@
-{
-  "source": "https://llama.developer.meta.com/docs/api-reference/models/retrieve-model.md",
-  "head": "---\nmeta:\n  title: Retrieve a model\n  description: API reference for retrieving a single model's metadata with GET /v1/models/{model}.\n  keywords: models, retrieve model, GET /models, API reference, endpoint reference\ncms:\n  layout: large\n  alias: /model-api/docs/api-reference/models/retrieve-model\n  target: aidmc\n---\n\n"
-}

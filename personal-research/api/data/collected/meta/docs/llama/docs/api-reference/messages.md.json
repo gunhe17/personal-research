@@ -1,4 +1,0 @@
-{
-  "source": "https://llama.developer.meta.com/docs/api-reference/messages.md",
-  "head": "---\nmeta:\n  title: Messages API reference\n  description: API reference for the Anthropic-compatible /v1/messages endpoints.\n  keywords: Messages API, Anthropic Messages, API reference, /v1/messages, endpoint reference\ncms:\n  layout: large\n  alias: /model-api/docs/api-reference/messages\n  target: aidmc\n  in_page_nav: false\n---\n\n"
-}

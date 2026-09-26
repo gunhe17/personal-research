@@ -1,4 +1,0 @@
-{
-  "source": "https://llama.developer.meta.com/docs/api-reference/responses/count-input-tokens.md",
-  "head": "---\nmeta:\n  title: Count input tokens\n  description: API reference for counting input tokens with POST /v1/responses/input_tokens.\n  keywords: Responses API, count input tokens, token counting, POST /responses input_tokens, API reference, endpoint reference\ncms:\n  layout: large\n  alias: /model-api/docs/api-reference/responses/count-input-tokens\n  target: aidmc\n---\n\n"
-}

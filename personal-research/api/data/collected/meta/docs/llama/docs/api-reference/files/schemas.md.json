@@ -1,4 +1,0 @@
-{
-  "source": "https://llama.developer.meta.com/docs/api-reference/files/schemas.md",
-  "head": "---\nmeta:\n  title: Files schemas\n  description: Full schema and model definitions referenced by the Files API endpoints.\n  keywords: files, schemas, models, types, API reference, schema reference\ncms:\n  layout: large\n  alias: /model-api/docs/api-reference/files/schemas\n  target: aidmc\n---\n\n"
-}

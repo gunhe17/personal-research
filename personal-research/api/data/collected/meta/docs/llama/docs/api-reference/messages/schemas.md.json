@@ -1,4 +1,0 @@
-{
-  "source": "https://llama.developer.meta.com/docs/api-reference/messages/schemas.md",
-  "head": "---\nmeta:\n  title: Messages schemas\n  description: Full schema and model definitions referenced by the Anthropic-compatible Messages API endpoints.\n  keywords: Messages API, Anthropic Messages, schemas, models, types, API reference, schema reference\ncms:\n  layout: large\n  alias: /model-api/docs/api-reference/messages/schemas\n  target: aidmc\n---\n\n"
-}

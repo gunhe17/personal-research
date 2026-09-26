@@ -1,4 +1,0 @@
-{
-  "source": "https://llama.developer.meta.com/docs/api-reference/status.md",
-  "head": "---\nmeta:\n  title: Status API reference\n  description: API reference for the unauthenticated /v1/status service-health endpoint.\n  keywords: status, health, service status, model availability, /v1/status, endpoint reference\ncms:\n  layout: large\n  alias: /model-api/docs/api-reference/status\n  target: aidmc\n---\n\n"
-}

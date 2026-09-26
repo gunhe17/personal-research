@@ -1,4 +1,0 @@
-{
-  "source": "https://llama.developer.meta.com/docs/sdks.md",
-  "head": "---\nmeta:\n  title: SDKs and libraries\n  description: Use the OpenAI SDK (Python or TypeScript) or the Anthropic SDK with Meta Model API. No custom client required.\n  keywords: SDKs, OpenAI SDK, Anthropic SDK, Python SDK, TypeScript SDK, Messages API, libraries\ncms:\n  alias: /model-api/docs/sdks\n  target: aidmc\n---\n\n"
-}

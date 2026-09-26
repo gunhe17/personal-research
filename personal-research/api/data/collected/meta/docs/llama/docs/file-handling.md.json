@@ -1,4 +1,0 @@
-{
-  "source": "https://llama.developer.meta.com/docs/file-handling.md",
-  "head": "---\nmeta:\n  title: File handling\n  description: Send files to the model inline in a Responses or chat completion request, or upload them once with the Files API and reference them by ID.\n  keywords: file handling, file upload, files API, inline files, input_file, multimodal inputs\ncms:\n  alias: /model-api/docs/file-handling\n  target: aidmc\n---\n\n"
-}

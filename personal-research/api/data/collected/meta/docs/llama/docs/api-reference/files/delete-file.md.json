@@ -1,4 +1,0 @@
-{
-  "source": "https://llama.developer.meta.com/docs/api-reference/files/delete-file.md",
-  "head": "---\nmeta:\n  title: Delete a file\n  description: API reference for deleting an uploaded file with DELETE /v1/files/{file_id}.\n  keywords: files, delete file, DELETE /files, API reference, endpoint reference\ncms:\n  layout: large\n  alias: /model-api/docs/api-reference/files/delete-file\n  target: aidmc\n---\n\n"
-}

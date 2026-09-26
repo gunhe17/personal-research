@@ -1,4 +1,0 @@
-{
-  "source": "https://llama.developer.meta.com/docs/protocols/chat-completions.md",
-  "head": "---\nmeta:\n  title: Chat completion\n  description: Send messages and receive model-generated responses using the chat completions endpoint.\n  keywords: chat completion, messages, conversation, OpenAI compatibility, developer message, instructions\ncms:\n  alias: /model-api/docs/protocols/chat-completions\n  target: aidmc\n---\n\n"
-}

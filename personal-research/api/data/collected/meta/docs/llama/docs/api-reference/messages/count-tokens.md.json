@@ -1,4 +1,0 @@
-{
-  "source": "https://llama.developer.meta.com/docs/api-reference/messages/count-tokens.md",
-  "head": "---\nmeta:\n  title: Count tokens\n  description: API reference for counting input tokens with POST /v1/messages/count_tokens.\n  keywords: Messages API, Anthropic Messages, count tokens, token counting, POST /messages count_tokens, API reference, endpoint reference\ncms:\n  layout: large\n  alias: /model-api/docs/api-reference/messages/count-tokens\n  target: aidmc\n---\n\n"
-}

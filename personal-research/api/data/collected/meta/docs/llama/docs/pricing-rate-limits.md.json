@@ -1,4 +1,0 @@
-{
-  "source": "https://llama.developer.meta.com/docs/pricing-rate-limits.md",
-  "head": "---\nmeta:\n  title: Pricing and rate limits\n  description: Pay-as-you-go pricing and the free and paid rate-limit tiers for Meta Model API.\n  keywords: pricing, pay-as-you-go, per-token pricing, cost, rate limits, requests per minute, tokens per minute, throttling, background\ncms:\n  alias: /model-api/docs/pricing-rate-limits\n  target: aidmc\n---\n\n"
-}

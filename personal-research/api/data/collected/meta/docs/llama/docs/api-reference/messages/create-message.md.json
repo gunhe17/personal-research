@@ -1,4 +1,0 @@
-{
-  "source": "https://llama.developer.meta.com/docs/api-reference/messages/create-message.md",
-  "head": "---\nmeta:\n  title: Create a message\n  description: API reference for generating an Anthropic-compatible message with POST /v1/messages.\n  keywords: Messages API, Anthropic Messages, create message, POST /messages, API reference, endpoint reference\ncms:\n  layout: large\n  alias: /model-api/docs/api-reference/messages/create-message\n  target: aidmc\n---\n\n"
-}

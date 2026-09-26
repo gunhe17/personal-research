@@ -1,4 +1,0 @@
-{
-  "source": "https://llama.developer.meta.com/docs/api-reference/models.md",
-  "head": "---\nmeta:\n  title: Models API reference\n  description: API reference for the /v1/models endpoints.\n  keywords: models, API reference, /v1/models, endpoint reference\ncms:\n  layout: large\n  alias: /model-api/docs/api-reference/models\n  target: aidmc\n  in_page_nav: false\n---\n\n"
-}

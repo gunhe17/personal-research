@@ -21,7 +21,8 @@ ENV PATH="/root/.local/bin:${PATH}" \
 WORKDIR /app
 
 COPY personal-research/api/bin ./personal-research/api/bin
-COPY personal-research/api/script ./personal-research/api/script
+COPY personal-research/api/usecase ./personal-research/api/usecase
+COPY personal-research/api/common ./personal-research/api/common
 COPY personal-research/wui ./personal-research/wui
 
 CMD ["python", "personal-research/api/bin/server.py"]

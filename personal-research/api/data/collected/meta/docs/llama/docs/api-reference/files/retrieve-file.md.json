@@ -1,4 +1,0 @@
-{
-  "source": "https://llama.developer.meta.com/docs/api-reference/files/retrieve-file.md",
-  "head": "---\nmeta:\n  title: Retrieve a file\n  description: API reference for retrieving a file's metadata with GET /v1/files/{file_id}.\n  keywords: files, retrieve file, GET /files, API reference, endpoint reference\ncms:\n  layout: large\n  alias: /model-api/docs/api-reference/files/retrieve-file\n  target: aidmc\n---\n\n"
-}

@@ -1,4 +1,0 @@
-{
-  "source": "https://llama.developer.meta.com/docs/video-understanding.md",
-  "head": "---\nmeta:\n  title: Video and audio understanding\n  description: Analyze video and audio with text prompts—summarize clips, answer questions about footage, and transcribe speech—on the Responses API and Chat Completions.\n  keywords: video understanding, video analysis, audio understanding, speech transcription, multimodal, mp4, wav, mp3, file upload, audio\ncms:\n  alias: /model-api/docs/video-understanding\n  target: aidmc\n---\n\n"
-}

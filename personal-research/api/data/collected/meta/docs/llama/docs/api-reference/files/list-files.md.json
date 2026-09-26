@@ -1,4 +1,0 @@
-{
-  "source": "https://llama.developer.meta.com/docs/api-reference/files/list-files.md",
-  "head": "---\nmeta:\n  title: List files\n  description: API reference for listing uploaded files with GET /v1/files.\n  keywords: files, list files, GET /files, API reference, endpoint reference\ncms:\n  layout: large\n  alias: /model-api/docs/api-reference/files/list-files\n  target: aidmc\n---\n\n"
-}
