@@ -124,7 +124,7 @@
         <div data-settings-pane="${p.id}" data-auth="${p.auth}" class="space-y-6" hidden>
           <div>
             <h3 class="text-[21px] font-semibold tracking-tight text-slate-900">${p.label}</h3>
-            <div class="mt-1 flex items-center gap-1.5 text-[12px] text-slate-500"><span>${p.cli}</span><span>·</span><span data-pane-dot class="h-1.5 w-1.5 rounded-full bg-slate-300"></span><span data-state>Checking…</span></div>
+            <div class="mt-1 flex items-center gap-1.5 text-[12px] text-slate-500"><span data-pane-dot class="h-1.5 w-1.5 rounded-full bg-slate-300"></span><span data-state>Checking…</span></div>
           </div>
           <section class="space-y-2">
             <h4 class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Access</h4>
