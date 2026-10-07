@@ -211,7 +211,7 @@
       tree.appendChild(folderRow({ key: "spaces", label: "Space", icon: SPACE_ICON, open: spacesOpen, depth: 0, bare: true, onToggle: () => expandSpace("spaces", !spacesOpen) }));
       if (!spacesOpen) return;
       const box = document.createElement("div");
-      box.className = "ml-3 border-l border-slate-100 pl-1";
+      box.className = "ml-3 mt-1.5 border-l border-slate-100 pl-1";
       box.dataset.children = "spaces";
       tree.appendChild(box);
       if (!state.spaces.length) box.insertAdjacentHTML("beforeend", `<div class="px-2 py-1.5 text-xs text-slate-400">Nothing yet</div>`);
