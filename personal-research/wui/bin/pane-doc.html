@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+{{include partial/head.html}}
+<style>
+  .embed #sidebar, .embed #sidebar-resizer, .embed #sidebar-scrim, .embed #btn-toggle-sidebar { display: none !important; }
+  .embed header { height: 2.25rem; background: transparent; border: 0; backdrop-filter: none; }
+</style>
+</head>
+<body data-page="collected" class="embed booting h-full bg-slate-50 text-slate-900 font-sans antialiased overflow-hidden select-text">
+  <div class="h-full flex flex-col">
+{{include partial/header.html}}
+    <div class="flex-1 min-h-0 flex relative">
+{{include partial/sidebar.html}}
+      <div id="doc-pane" class="relative flex-1 min-w-0 min-h-0 flex flex-col bg-slate-50">
+        <main id="doc-scroll" class="relative flex-1 min-h-0 overflow-y-auto select-text">
+          <div id="doc-langbar" class="hidden sticky top-0 z-10 pointer-events-none">
+            <div class="max-w-3xl mx-auto px-6 sm:px-10 pt-1 flex justify-end">
+              <div class="pointer-events-auto inline-flex items-center rounded-full bg-slate-100/90 backdrop-blur p-0.5" role="tablist" aria-label="Document language">
+                <button type="button" data-lang="orig" class="seg-btn">Eng</button>
+                <button type="button" data-lang="trans" class="seg-btn">Korean</button>
+                <button type="button" data-lang="both" class="seg-btn">Line by line</button>
+              </div>
+            </div>
+          </div>
+          <article id="doc-content" class="max-w-3xl mx-auto px-6 sm:px-10 py-8 pb-16" style="--doc-zoom: 1"></article>
+        </main>
+      </div>
+    </div>
+  </div>
+{{include partial/overlay.html}}
+  <script src="/viewer/app.js"></script>
+  <script>
+    window.addEventListener("research:quote", (e) => window.parent.workbench?.quote(e.detail));
+    window.addEventListener("research:doc", (e) => window.parent.workbench?.viewed(window.frameElement, e.detail));
+  </script>
+</body>
+</html>

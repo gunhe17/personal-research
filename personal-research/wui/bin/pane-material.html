@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ko" class="h-full">
+<head>
+{{include partial/head.html}}
+<link rel="stylesheet" href="/viewer/space.css" />
+</head>
+<body class="h-full bg-slate-50 text-slate-900 font-sans antialiased select-text">
+  <main id="doc-pane" class="h-full overflow-y-auto">
+    <article id="material" class="mx-auto max-w-3xl px-6 sm:px-10 py-8 pb-16"></article>
+  </main>
+  <script type="module">
+    import { blocks } from "/viewer/blocks.js";
+    const KIND = { lesson: "수업", note: "노트", log: "기록", plan: "목적" };
+    const box = document.getElementById("material");
+    const id = new URLSearchParams(location.search).get("id");
+    const response = await fetch(`/api/materials/${encodeURIComponent(id)}`);
+    const material = await response.json();
+    if (!response.ok) {
+      box.textContent = material.error || "자료를 찾을 수 없습니다.";
+    } else {
+      window.parent.workbench?.titled(window.frameElement, { title: material.title });
+      const kind = document.createElement("p");
+      kind.className = "mb-2 text-[12px] text-slate-400";
+      kind.textContent = KIND[material.kind] || material.kind;
+      const content = document.createElement("div");
+      content.className = "article-content";
+      if (material.kind === "lesson") {
+        blocks(content, material.content, { key: material.id, onContext: () => {} });
+      } else {
+        const title = document.createElement("h2");
+        title.textContent = material.title;
+        const md = document.createElement("div");
+        md.className = "md-chat";
+        md.innerHTML = window.marked ? marked.parse(material.content || "") : "";
+        content.append(title, md);
+      }
+      box.append(kind, content);
+    }
+  </script>
+</body>
+</html>

@@ -103,91 +103,33 @@ function renderHeader() {
   $('space-title').textContent = scope.domain === 'agent' ? 'Agent' : scope.space?.title || '새 space';
   $('conversation-title').textContent = chat?.title || '새 대화';
   $('space-empty').hidden = Boolean(chat?.messages.length);
+  research.titled?.({ kind: scope.domain === 'agent' ? 'agent' : 'chat', title: chat?.title || '새 대화', space: scope.space?.id || '', conversation: chat?.id || '', agent: scope.domain === 'agent' ? chat?.id || '' : '' });
   $('space-banner').hidden = !chat || chat.codex_available;
   if (chat && !chat.codex_available) $('space-banner').textContent = '서버에서 codex CLI 를 찾지 못했습니다. 컨테이너에서 codex login --device-auth 를 확인해 주세요.';
 }
 
-const ICON = window.RESEARCH_ICON;
-const KIND = { lesson: '수업', note: '노트', log: '기록' };
-let detail = null, shown = null;
-let folders = {};
-try { folders = JSON.parse(localStorage.getItem('space-folders') || '{}') || {}; } catch (_) {}
+const ICON = window.parent.RESEARCH_ICON || {};
 
-function icon(name) {
-  const span = el('span', 'tree-icon');
-  span.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${ICON[name] || ICON.docs}</svg>`;
-  return span;
+function chip(kind, label, title, onOpen, onDrop) {
+  const box = el('span', 'source-chip');
+  const link = button('', 'source-open', onOpen);
+  link.title = title;
+  link.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${ICON[kind] || ICON.docs || ''}</svg>`;
+  link.append(el('span', '', label));
+  box.append(link);
+  if (onDrop) box.append(button('×', 'source-drop', onDrop));
+  return box;
 }
-
-function folder(parent, key, name, count, depth, fill) {
-  const open = folders[key] !== false;
-  const head = button('', 'tree-folder', () => { folders[key] = !open; try { localStorage.setItem('space-folders', JSON.stringify(folders)); } catch (_) {} renderLinks(); });
-  head.style.paddingLeft = `${8 + depth * 14}px`;
-  head.append(el('span', open ? 'tree-chevron open' : 'tree-chevron', '›'), icon('folder'), el('span', 'tree-name', name), el('span', 'tree-count', String(count)));
-  parent.append(head);
-  if (open) fill();
-}
-
-function item(parent, { id, label, kind, title, depth, active, badge, onOpen, onDrop }) {
-  const row = el('div', active ? 'tree-item active' : 'tree-item');
-  row.style.paddingLeft = `${22 + depth * 14}px`;
-  const link = button('', 'tree-open', onOpen);
-  link.title = title || label;
-  link.append(icon(kind), el('span', 'tree-name', label));
-  if (badge) link.append(el('span', 'tree-badge', badge));
-  row.append(link);
-  if (onDrop) row.append(button('×', 'tree-drop', onDrop));
-  parent.append(row);
-}
-
-function short(path) { return path.split('/').slice(2).join('/') || path; }
 
 function renderLinks() {
-  const box = $('links-menu'); box.replaceChildren();
-  const own = new Set((chat?.documents || []).map(d => d.id));
-  const roots = detail ? detail.collected : chat?.collected_id ? [{ id: chat.collected_id, path: chat.documents[0]?.path || '', documents: chat.documents }] : [];
-  folder(box, 'collected', 'Collected', roots.length, 0, () => {
-    if (!roots.length) box.append(el('div', 'tree-empty', '대화의 출발 문서가 여기에 모입니다'));
-    roots.forEach(root => {
-      const drop = chat && root.id === chat.collected_id ? () => relink('') : null;
-      const badge = root.id === chat?.collected_id ? '이 대화' : '';
-      const open = d => () => { shown = null; research.openFile(d.id); };
-      if ((root.documents || []).length > 1) {
-        folder(box, `root:${root.id}`, short(root.path), root.documents.length, 1, () => root.documents.forEach(d =>
-          item(box, { id: d.id, label: d.path.slice(root.path.length + 1) || d.path.split('/').pop(), kind: d.path.split('/')[0], title: d.path, depth: 2, active: !shown && doc?.id === d.id, onOpen: open(d) })));
-      } else {
-        item(box, { id: root.id, label: short(root.path), kind: root.path.split('/')[0], title: root.path, depth: 1, active: !shown && doc?.id === root.id, badge, onOpen: open(root), onDrop: drop });
-      }
-    });
-    if (chat && doc && !own.has(doc.id)) box.append(button(`지금 문서를 이 대화의 자료로 · ${doc.path.split('/').pop()}`, 'tree-action', () => relink(doc.id)));
-    if (!chat && doc) box.append(el('div', 'tree-empty', `첫 질문 때 ${doc.path.split('/').pop()} 를 자료로 둡니다`));
-  });
-  if (!detail) return;
-  folder(box, 'materials', '자료', detail.materials.length, 0, () => {
-    if (!detail.materials.length) box.append(el('div', 'tree-empty', '수업, 노트, 기록이 여기에 모입니다'));
-    detail.materials.forEach(m => item(box, { id: m.id, label: m.title, kind: m.kind, title: `${KIND[m.kind] || m.kind} · ${m.title}`, depth: 1, active: shown === m.id, onOpen: () => showMaterial(m.id) }));
-  });
-}
-
-async function showMaterial(id) {
-  const material = await json(`/api/materials/${encodeURIComponent(id)}`);
-  shown = id; research.setLayout('split'); renderLinks();
-  const url = new URL(location.href); url.searchParams.set('material', id); url.searchParams.delete('doc'); history.replaceState(null, '', url);
-  research.renderTree();
-  const box = $('doc-content');
-  $('doc-langbar')?.classList.add('hidden');
-  box.replaceChildren();
-  const head = el('p', 'text-[12px] text-slate-400 mb-2', KIND[material.kind] || material.kind);
-  const content = el('div', 'article-content');
-  if (material.kind === 'lesson') blocks(content, material.content, { key: material.id, playgrounds, onContext: context => { activeContext = { ...context }; persist(); } });
-  else { content.append(el('h2', '', material.title)); const md = el('div', 'md-chat'); md.innerHTML = window.marked ? marked.parse(material.content || '') : material.content; content.append(md); }
-  box.append(head, content);
-  $('doc-scroll').scrollTop = 0;
-}
-
-async function loadDetail() {
-  detail = scope.domain === 'space' && scope.space ? await json(`/api/spaces/${encodeURIComponent(scope.space.id)}`).catch(() => null) : null;
-  renderLinks();
+  const box = $('links-menu'); if (!box) return; box.replaceChildren();
+  const documents = chat?.documents || [];
+  if (documents.length) {
+    const first = documents[0];
+    box.append(chip(first.path.split('/')[0], first.path.split('/').pop(), first.path, () => research.openFile(first.id), () => relink('')));
+  }
+  if (chat && doc && !documents.some(d => d.id === doc.id)) box.append(chip('plus', doc.path.split('/').pop(), `${doc.path} 를 이 대화의 자료로`, () => relink(doc.id)));
+  if (!chat && doc) box.append(el('span', 'source-hint', `첫 질문 때 ${doc.path.split('/').pop()} 를 자료로 둡니다`));
 }
 
 function row(title, meta, selected, fn) {
@@ -259,7 +201,7 @@ async function open(domain, id) {
   $('conversation-menu').classList.add('hidden');
   if (id) await refresh(id);
   if (chat?.space_id && chat.space_id !== scope.space?.id) scope.space = await json(`/api/spaces/${chat.space_id}`);
-  locate(); renderHeader(); await loadDetail();
+  locate(); renderHeader(); renderLinks();
 }
 
 async function refresh(id = chat?.id) {
@@ -274,7 +216,7 @@ async function refresh(id = chat?.id) {
 }
 
 async function relink(collectedId) {
-  try { chat = { ...chat, ...(await post(base(), { collected_id: collectedId }, 'PUT')), codex_available: chat.codex_available }; renderHeader(); await loadDetail(); }
+  try { chat = { ...chat, ...(await post(base(), { collected_id: collectedId }, 'PUT')), codex_available: chat.codex_available }; renderHeader(); renderLinks(); }
   catch (error) { $('form-status').textContent = error.message; }
 }
 
@@ -299,7 +241,7 @@ async function send(event) {
     await post(`${base()}/messages`, payload);
     $('message-input').value = ''; quote = null; annotations.clear(); retryPayload = null;
     renderQuote(); resizeInput(); persist(); $('form-status').textContent = ''; await refresh(); scrollBottom();
-    research.spacesChanged(); loadDetail();
+    research.spacesChanged();
   } catch (error) {
     $('form-status').textContent = `${error.message} 입력 내용은 유지됩니다.`; persist();
   } finally { sending = false; $('send').disabled = false; }
@@ -374,26 +316,19 @@ window.addEventListener('research:quote', event => {
   quote = { text: event.detail.text.slice(0, 2000), path: event.detail.path, id: event.detail.id };
   renderQuote(); persist(); $('message-input').focus();
 });
-async function follow(current) {
-  doc = current; shown = null; renderLinks();
-  const url = new URL(location.href);
-  if (doc && url.searchParams.has('material')) { url.searchParams.delete('material'); history.replaceState(null, '', url); }
-  if (!doc || chat || url.searchParams.get('conversation') || url.searchParams.get('agent')) return;
-  const found = (await json(`/api/conversations?collected_id=${encodeURIComponent(doc.id)}`)).items || [];
-  if (found.length && !chat) { scope = { domain: 'space', space: null }; await open('space', found[0].id); }
+function follow(current) {
+  doc = current; renderLinks();
 }
 window.addEventListener('research:doc', event => follow(event.detail));
 document.addEventListener('visibilitychange', () => { if (!document.hidden && chat) refresh(); });
 
 renderQuote(); resizeInput();
-research.showMaterial = showMaterial;
-
 async function start() {
-  const url = new URL(location.href), material = url.searchParams.get('material'), agent = url.searchParams.get('agent'), space = url.searchParams.get('space'), conversation = url.searchParams.get('conversation');
+  const url = new URL(location.href), agent = url.searchParams.get('agent'), space = url.searchParams.get('space'), conversation = url.searchParams.get('conversation');
   if (agent) return open('agent', agent);
-  if (conversation) { await open('space', conversation); if (material) showMaterial(material); return; }
+  if (conversation) return open('space', conversation);
   if (space && url.searchParams.get('new')) { scope = { domain: 'space', space: await json(`/api/spaces/${space}`) }; return open('space', null); }
-  if (space) { await choose({ domain: 'space', space: await json(`/api/spaces/${space}`) }); if (material) showMaterial(material); return; }
+  if (space) return choose({ domain: 'space', space: await json(`/api/spaces/${space}`) });
   renderHeader(); follow(research.current());
 }
 start();

@@ -27,11 +27,9 @@
       sidebarOpen: false,
       sidebarWidth: clampSidebar(parseFloat(localStorage.getItem("sidebarWidth") || "288") || 288),
       resizingSidebar: false,
-      layout: localStorage.getItem("layout") === "split" ? "split" : "chat",
       spaces: [],
       details: {},
       expanded: (() => { try { return JSON.parse(localStorage.getItem("spaceExpanded") || "{}") || {}; } catch (_) { return {}; } })(),
-      chatWidthPct: clampChatWidth(parseFloat(localStorage.getItem("chatWidthPct") || "50") || 50),
       tree: [],
       currentPath: null,
       currentId: null,
@@ -58,10 +56,6 @@
 
     function clampSidebar(px) {
       return Math.min(480, Math.max(200, Math.round(px)));
-    }
-
-    function clampChatWidth(pct) {
-      return Math.min(70, Math.max(25, Math.round(pct * 10) / 10));
     }
 
     function clampZoom(z) {
@@ -213,38 +207,46 @@
         icon: HOME_ICON,
         onClick: () => openHome(),
       }));
-      tree.appendChild(sidebarRow({
-        label: "Space",
-        active: state.view === "space" && !params.get("id"),
-        icon: SPACE_ICON,
-        onClick: () => { location.href = SPACE_URL; },
-      }));
+      const spacesOpen = state.expanded.spaces !== false;
+      tree.appendChild(folderRow({ label: "Space", icon: SPACE_ICON, open: spacesOpen, depth: 0, onToggle: () => expandSpace("spaces", !spacesOpen) }));
+      if (!spacesOpen) return;
       const box = document.createElement("div");
       box.className = "ml-3 border-l border-slate-100 pl-1";
       tree.appendChild(box);
       if (!state.spaces.length) box.insertAdjacentHTML("beforeend", `<div class="px-2 py-1.5 text-xs text-slate-400">Nothing yet</div>`);
-      const current = params.get("space") || params.get("id");
+      const current = window.workbench?.activeSpace?.() || params.get("space") || params.get("id");
       for (const item of state.spaces.slice(0, 12)) {
         const open = state.expanded[item.id] ?? item.id === current;
-        const row = sidebarRow({
+        box.appendChild(folderRow({
           label: item.title,
-          active: current === item.id,
-          title: item.title,
+          open,
+          depth: 0,
+          strong: current === item.id,
           meta: sinceLabel(item.updated_at),
-          onClick: () => { location.href = `${SPACE_URL}?id=${encodeURIComponent(item.id)}`; },
-        });
-        const chevron = document.createElement("span");
-        chevron.className = `inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-[13px] text-slate-400 hover:bg-slate-200 transition-transform ${open ? "rotate-90" : ""}`;
-        chevron.textContent = "›";
-        chevron.title = open ? "접기" : "펼치기";
-        chevron.addEventListener("click", (e) => { e.stopPropagation(); expandSpace(item.id, !open); });
-        row.prepend(chevron);
-        box.appendChild(row);
+          onToggle: () => expandSpace(item.id, !open),
+        }));
         if (!open) continue;
         const detail = state.details[item.id];
         if (!detail) { loadSpaceDetail(item.id); continue; }
         box.appendChild(spaceFolders(item.id, detail));
       }
+    }
+
+    function chevronHtml(open) {
+      return `<span class="inline-flex h-4 w-4 shrink-0 items-center justify-center text-slate-400"><svg viewBox="0 0 16 16" class="h-3 w-3 transition-transform duration-150 ${open ? "rotate-90" : ""}" style="transform-origin: 50% 50%"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg></span>`;
+    }
+
+    function folderRow({ label, icon, open, depth, strong, meta, count, onToggle }) {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.setAttribute("aria-expanded", String(open));
+      row.style.paddingLeft = `${4 + depth * 12}px`;
+      row.className = `flex w-full items-center gap-1.5 rounded-lg py-1.5 pr-2 text-left text-sm transition duration-150 hover:bg-slate-50 ${strong ? "font-semibold text-slate-900" : "text-slate-700"}`;
+      row.innerHTML = `${chevronHtml(open)}${icon || ""}<span class="min-w-0 flex-1 truncate">${escapeHtml(label)}</span>${
+        meta ? `<span class="shrink-0 text-[10px] font-normal text-slate-400">${escapeHtml(meta)}</span>` : ""
+      }${count !== undefined ? `<span class="shrink-0 text-[10px] font-normal text-slate-400">${count}</span>` : ""}`;
+      row.addEventListener("click", onToggle);
+      return row;
     }
 
     const RESEARCH_ICON = {
@@ -256,6 +258,8 @@
       lesson: '<path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H12v16H5.5A1.5 1.5 0 0 1 4 18.5zM12 4h6.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H12" />',
       note: '<path d="M4 20h4L19 9l-4-4L4 16z" /><path d="M13 7l4 4" />',
       log: '<circle cx="12" cy="12" r="8" /><path d="M12 8v4l3 2" />',
+      chat: '<path d="M21 11a8 8 0 0 1-8 8H6.5L3 21V11a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z" />',
+      plus: '<path d="M12 5v14M5 12h14" />',
     };
     window.RESEARCH_ICON = RESEARCH_ICON;
 
@@ -281,53 +285,57 @@
       renderTree();
     }
 
+    function openItem(item) {
+      if (window.workbench) return window.workbench.open(item);
+      location.href = `${COLLECTED_URL}?open=${encodeURIComponent(JSON.stringify(item))}`;
+    }
+
     function spaceFolders(spaceId, detail) {
       const box = document.createElement("div");
       box.className = "ml-3 border-l border-slate-100 pl-1 mb-1";
-      const params = new URLSearchParams(location.search);
-      const sameSpace = state.view === "collected" && params.get("space") === spaceId;
-      const folder = (name, count, rows) => {
-        const head = document.createElement("div");
-        head.className = "flex items-center gap-1.5 px-2 py-1 text-[12px] font-medium text-slate-700";
-        head.innerHTML = `<span class="text-apple-link">${iconHtml("folder")}</span><span class="flex-1 truncate">${escapeHtml(name)}</span><span class="text-[10px] text-slate-400">${count}</span>`;
+      const active = window.workbench?.activeKey?.() || "";
+      const folder = (key, name, rows) => {
+        const id = `${spaceId}:${key}`;
+        const open = state.expanded[id] !== false;
+        const head = folderRow({ label: name, icon: `<span class="text-apple-link">${iconHtml("folder")}</span>`, open, depth: 0, count: rows.length, onToggle: () => expandSpace(id, !open) });
+        head.classList.replace("text-sm", "text-[12px]");
+        head.classList.replace("py-1.5", "py-1");
         box.appendChild(head);
-        if (!rows.length) box.insertAdjacentHTML("beforeend", `<div class="pl-7 pr-2 pb-1 text-[11px] text-slate-400">비어 있음</div>`);
+        if (!open) return;
+        if (!rows.length) box.insertAdjacentHTML("beforeend", `<div class="pl-9 pr-2 pb-1 text-[11px] text-slate-400">비어 있음</div>`);
         rows.forEach((row) => box.appendChild(row));
       };
-      const leaf = ({ label, title, kind, active, onClick }) => {
+      const leaf = (item, kind, label, title) => {
         const btn = document.createElement("button");
         btn.type = "button";
-        btn.title = title;
-        btn.className = `flex w-full items-center gap-1.5 rounded-lg py-1 pl-6 pr-2 text-left text-[12px] transition duration-150 ${active ? "bg-ice text-apple-link" : "text-slate-600 hover:bg-slate-50"}`;
+        btn.title = title || label;
+        btn.draggable = true;
+        const on = active === itemKey(item);
+        btn.className = `flex w-full items-center gap-1.5 rounded-lg py-1 pl-9 pr-2 text-left text-[12px] transition duration-150 ${on ? "bg-ice text-apple-link" : "text-slate-600 hover:bg-slate-50"}`;
         btn.innerHTML = `${iconHtml(kind)}<span class="min-w-0 flex-1 truncate">${escapeHtml(label)}</span>`;
-        btn.addEventListener("click", onClick);
+        btn.addEventListener("click", () => openItem(item));
+        btn.addEventListener("dragstart", (e) => {
+          e.dataTransfer.setData("application/x-research", JSON.stringify(item));
+          e.dataTransfer.effectAllowed = "copyMove";
+        });
         return btn;
       };
-      const conversationFor = (rootId) => detail.conversations.find((c) => c.collected_id === rootId)?.id || "";
-      const collected = detail.collected.flatMap((root) => (root.documents?.length ? root.documents : [root]).map((d) => leaf({
-        label: d.path.split("/").slice(2).join("/") || d.path,
-        title: d.path,
-        kind: d.path.split("/")[0],
-        active: sameSpace && state.currentId === d.id,
-        onClick: () => {
-          if (sameSpace && window.research) return openFile(d.id);
-          location.href = `${COLLECTED_URL}?space=${encodeURIComponent(spaceId)}&conversation=${encodeURIComponent(conversationFor(root.id))}&doc=${encodeURIComponent(d.id)}`;
-        },
-      })));
-      const materials = detail.materials.map((m) => leaf({
-        label: m.title,
-        title: m.title,
-        kind: m.kind,
-        active: sameSpace && params.get("material") === m.id,
-        onClick: () => {
-          if (sameSpace && window.research?.showMaterial) return window.research.showMaterial(m.id);
-          location.href = `${COLLECTED_URL}?space=${encodeURIComponent(spaceId)}&material=${encodeURIComponent(m.id)}`;
-        },
-      }));
-      folder("Collected", collected.length, collected);
-      folder("자료", materials.length, materials);
+      const conversations = detail.conversations.map((c) => leaf({ kind: "chat", space: spaceId, conversation: c.id, title: c.title }, "chat", c.title));
+      conversations.push(leaf({ kind: "chat", space: spaceId, conversation: "", title: "새 대화" }, "plus", "새 대화"));
+      const collected = detail.collected.flatMap((root) => (root.documents?.length ? root.documents : [root]).map((d) =>
+        leaf({ kind: "doc", id: d.id, title: d.path.split("/").pop(), path: d.path }, d.path.split("/")[0], d.path.split("/").slice(2).join("/") || d.path, d.path)));
+      const materials = detail.materials.map((m) => leaf({ kind: "material", id: m.id, title: m.title, material: m.kind }, m.kind, m.title));
+      folder("conversations", "대화", conversations);
+      folder("collected", "Collected", collected);
+      folder("materials", "자료", materials);
       return box;
     }
+
+    function itemKey(item) {
+      if (item.kind === "chat") return item.conversation ? `chat:${item.conversation}` : `chat:${item.conversation === "" ? "new" : "latest"}:${item.space}`;
+      return item.kind === "agent" ? `agent:${item.agent}` : `${item.kind}:${item.id}`;
+    }
+    window.itemKey = itemKey;
 
     async function loadTree() {
       const res = await fetch("/api/tree");
@@ -849,7 +857,6 @@
       state.pairTexts = { orig: null, trans: null };
       localStorage.setItem("lastDoc", id);
       renderTree();
-      if (state.layout === "chat") setLayout("split");
       window.dispatchEvent(new CustomEvent("research:doc", { detail: { id, path: node.path } }));
 
       const url = new URL(location.href);
@@ -907,6 +914,7 @@
     }
 
     async function openDocFromUrl() {
+      if (state.view === "workbench") return;
       if (state.view === "space") return renderSpacePage();
       if (state.view === "home") {
         applyHomeMode();
@@ -1210,51 +1218,6 @@
     }
 
     // Chat split layout
-    function applyChatSplit() {
-      const panel = $("#doc-pane");
-      const resizer = $("#split-resizer");
-      const navBtn = $("#btn-toggle-chat");
-      if (!panel || !resizer) {
-        if (navBtn) navBtn.disabled = true;
-        return;
-      }
-      const open = state.layout === "split";
-      if (open) {
-        panel.classList.remove("hidden", "leave-panel");
-        panel.style.display = "flex";
-        panel.style.width = state.chatWidthPct + "%";
-        resizer.style.display = "";
-      } else if (panel.style.display !== "none") {
-        closePanel(panel, resizer);
-      }
-      if (navBtn) navBtn.classList.toggle("text-apple", open);
-      localStorage.setItem("layout", state.layout);
-      localStorage.setItem("chatWidthPct", String(state.chatWidthPct));
-    }
-
-    function setLayout(layout) {
-      state.layout = layout;
-      applyChatSplit();
-    }
-
-    function closePanel(panel, resizer) {
-      const done = () => {
-        panel.classList.remove("leave-panel");
-        panel.style.display = "none";
-        resizer.style.display = "none";
-      };
-      if (STILL.matches) return done();
-      panel.classList.add("leave-panel");
-      panel.addEventListener("animationend", done, { once: true });
-      setTimeout(done, 400);
-    }
-
-    function openChat(open) {
-      if (!$("#doc-pane")) return;
-      const want = open !== undefined ? open : state.layout !== "split";
-      setLayout(want ? "split" : "chat");
-    }
-
     function initSidebarResizer() {
       const rz = $("#sidebar-resizer");
       const onMove = (e) => {
@@ -1281,47 +1244,6 @@
       rz.addEventListener("dblclick", () => {
         state.sidebarWidth = 288;
         applySidebar();
-      });
-    }
-
-    function initSplitResizer() {
-      const resizer = $("#split-resizer");
-      if (!resizer) return;
-      const workspace = $("#workspace");
-      let startX = 0;
-      let startPct = 50;
-
-      const onMove = (e) => {
-        if (!state.resizingSplit) return;
-        const rect = workspace.getBoundingClientRect();
-        if (rect.width <= 0) return;
-        const dx = e.clientX - startX;
-        const deltaPct = (dx / rect.width) * 100;
-        state.chatWidthPct = clampChatWidth(startPct - deltaPct);
-        applyChatSplit();
-      };
-      const onUp = () => {
-        if (!state.resizingSplit) return;
-        state.resizingSplit = false;
-        document.body.classList.remove("cursor-col-resize");
-        document.removeEventListener("mousemove", onMove);
-        document.removeEventListener("mouseup", onUp);
-      };
-
-      resizer.addEventListener("mousedown", (e) => {
-        if (state.layout !== "split") return;
-        e.preventDefault();
-        state.resizingSplit = true;
-        startX = e.clientX;
-        startPct = state.chatWidthPct;
-        document.body.classList.add("cursor-col-resize");
-        document.addEventListener("mousemove", onMove);
-        document.addEventListener("mouseup", onUp);
-      });
-
-      resizer.addEventListener("dblclick", () => {
-        state.chatWidthPct = 50;
-        applyChatSplit();
       });
     }
 
@@ -1663,7 +1585,6 @@
       state.sidebarOpen = false;
       applySidebar();
     });
-    on("#btn-toggle-chat", "click", () => openChat());
     document.addEventListener("click", (e) => {
       const dd = $("#download-dd");
       if (dd && !dd.contains(e.target) && isDownloadOpen()) {
@@ -1709,10 +1630,6 @@
       if (!$("#home-mode")?.contains(e.target)) setHomeModeOpen(false);
     });
     document.addEventListener("keydown", (e) => {
-      if ((e.metaKey || e.ctrlKey) && (e.key === "n" || e.key === "N")) {
-        e.preventDefault();
-        openChat();
-      }
       // Font size
       if ((e.metaKey || e.ctrlKey) && (e.key === "=" || e.key === "+" || e.key === "Equal")) {
         e.preventDefault();
@@ -1773,8 +1690,6 @@
     });
 
     // init
-    const opened = new URLSearchParams(location.search);
-    if (opened.get("doc") || opened.get("material")) state.layout = "split";
     if (window.matchMedia("(max-width: 767px)").matches) {
       state.sidebarOpen = false;
     }
@@ -1782,15 +1697,13 @@
     updateDownload();
     applyDocZoom();
     applyChatZoom();
-    applyChatSplit();
     initSidebarResizer();
-    initSplitResizer();
     window.research = {
       openFile: (id) => openFile(id),
-      setLayout,
       current: () => (state.currentId ? { id: state.currentId, path: state.currentPath } : null),
       spacesChanged: loadSpaces,
       renderTree,
+      toast,
     };
     loadSpaces();
     requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove("booting")));

@@ -2,56 +2,23 @@
 <html lang="en" class="h-full">
 <head>
 {{include partial/head.html}}
-<link rel="stylesheet" href="/viewer/space.css" />
+<link rel="stylesheet" href="/viewer/workbench.css" />
 </head>
-<body data-page="collected" class="booting h-full bg-slate-50 text-slate-900 font-sans antialiased overflow-hidden select-text">
+<body data-page="workbench" class="booting h-full bg-slate-50 text-slate-900 font-sans antialiased overflow-hidden select-text">
 
   <div class="h-full flex flex-col">
 {{include partial/header.html}}
     <div class="flex-1 min-h-0 flex relative">
 {{include partial/sidebar.html}}
-    <!-- Workspace -->
+    <!-- Workbench -->
     <div id="workspace" class="relative flex-1 min-w-0 min-h-0 flex">
-{{include partial/chat.html}}
-
-      <!-- Horizontal resizer -->
-      <div
-        id="split-resizer"
-        title="Drag to resize"
-        class="group relative z-20 w-px shrink-0 cursor-col-resize bg-slate-100 hover:bg-slate-300 active:bg-apple transition-colors max-md:!hidden"
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize the sources panel"
-      >
-        <div class="absolute inset-y-0 -left-2.5 -right-2.5"></div>
-        <div class="pointer-events-none absolute left-1/2 top-1/2 h-10 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-slate-400 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-      </div>
-
-      <!-- Sources -->
-      <div id="doc-pane" class="relative h-full shrink-0 min-w-0 min-h-0 flex flex-col bg-slate-50 max-md:absolute max-md:inset-0 max-md:!w-full max-md:z-20" style="width: 45%">
-        <div id="links-menu" class="shrink-0 max-h-[45%] overflow-y-auto border-b border-slate-200 bg-white py-1.5"></div>
-        <main id="doc-scroll" class="relative flex-1 min-h-0 overflow-y-auto select-text">
-          <div id="doc-langbar" class="hidden sticky top-0 z-10 pointer-events-none">
-            <div class="max-w-3xl mx-auto px-6 sm:px-10 pt-3 flex justify-end">
-              <div class="pointer-events-auto inline-flex items-center rounded-full bg-slate-100/90 backdrop-blur p-0.5" role="tablist" aria-label="Document language">
-                <button type="button" data-lang="orig" class="seg-btn">Eng</button>
-                <button type="button" data-lang="trans" class="seg-btn">Korean</button>
-                <button type="button" data-lang="both" class="seg-btn">Line by line</button>
-              </div>
-            </div>
-          </div>
-          <article id="doc-content" class="max-w-3xl mx-auto px-6 sm:px-10 py-10 pb-16" style="--doc-zoom: 1"></article>
-
-        </main>
-      </div>
+      <div id="workbench" class="workbench"></div>
     </div>
     </div>
   </div>
 
 {{include partial/overlay.html}}
-  <div id="annotation-markers"></div>
-  <div id="annotation-editor" class="annotation-editor" hidden><input id="annotation-comment" maxlength="2000" aria-label="주석 코멘트" placeholder="코멘트 (선택)"><button id="annotation-done" type="button" aria-label="코멘트 완료">✓</button></div>
   <script src="/viewer/app.js"></script>
-  <script type="module" src="/viewer/space.js"></script>
+  <script type="module" src="/viewer/workbench.js"></script>
 </body>
 </html>

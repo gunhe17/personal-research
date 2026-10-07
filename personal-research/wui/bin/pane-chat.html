@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ko" class="h-full">
+<head>
+{{include partial/head.html}}
+<link rel="stylesheet" href="/viewer/space.css" />
+<script>
+  window.research = {
+    openFile: (id) => window.parent.workbench?.open({ kind: "doc", id }, { beside: window.frameElement }),
+    current: () => window.parent.workbench?.lastDoc() || null,
+    spacesChanged: () => window.parent.research?.spacesChanged?.(),
+    renderTree: () => window.parent.research?.renderTree?.(),
+    titled: (info) => window.parent.workbench?.titled(window.frameElement, info),
+  };
+</script>
+</head>
+<body class="h-full bg-white text-slate-900 font-sans antialiased overflow-hidden select-text">
+  <div class="h-full flex flex-col">
+    <!-- breadcrumb -->
+    <div class="pane-bar">
+      <div id="header-center" class="flex min-w-0 items-center gap-1"></div>
+      <div id="links-menu" class="flex min-w-0 items-center gap-1.5"></div>
+    </div>
+    <div class="flex-1 min-h-0 flex">
+{{include partial/chat.html}}
+    </div>
+  </div>
+{{include partial/overlay.html}}
+  <div id="annotation-markers"></div>
+  <div id="annotation-editor" class="annotation-editor" hidden><input id="annotation-comment" maxlength="2000" aria-label="주석 코멘트" placeholder="코멘트 (선택)"><button id="annotation-done" type="button" aria-label="코멘트 완료">✓</button></div>
+  <script type="module" src="/viewer/space.js"></script>
+</body>
+</html>
