@@ -9,7 +9,6 @@ services:
     restart: unless-stopped
     volumes:
       - ../personal-research/api/database:/app/personal-research/api/database
-      - grok-auth:/root/.grok
       - claude-config:/root/.claude
       - codex-auth:/root/.codex
     ports:
@@ -18,6 +17,5 @@ services:
       - ../.env/.env.production
 
 volumes:
-  grok-auth:
   claude-config:
   codex-auth:

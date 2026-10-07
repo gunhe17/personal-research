@@ -4,14 +4,8 @@ ENV PYTHONUNBUFFERED=1
 
 RUN \
     apt-get update && \
-    apt-get install -y --no-install-recommends curl ca-certificates git && \
+    apt-get install -y --no-install-recommends curl ca-certificates git ripgrep && \
     rm -rf /var/lib/apt/lists/*
-
-RUN \
-    curl -fsSL https://x.ai/cli/install.sh | bash && \
-    rm -f /usr/local/bin/grok /usr/local/bin/agent && \
-    cp -L /root/.grok/bin/grok /usr/local/bin/grok && \
-    rm -rf /root/.grok
 
 RUN \
     curl -fsSL "https://github.com/openai/codex/releases/latest/download/codex-$(uname -m)-unknown-linux-musl.tar.gz" | tar -xz -C /tmp && \

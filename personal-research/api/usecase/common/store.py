@@ -47,31 +47,22 @@ CREATE TABLE IF NOT EXISTS log (
 );
 CREATE INDEX IF NOT EXISTS log_created_at ON log (created_at);
 
-CREATE TABLE IF NOT EXISTS conversations (
-    id        TEXT PRIMARY KEY,
-    title     TEXT NOT NULL,
-    createdAt TEXT NOT NULL,
-    updatedAt TEXT NOT NULL,
-    messages  TEXT NOT NULL DEFAULT '[]'
-);
-
-CREATE TABLE IF NOT EXISTS agent (
-    id        TEXT PRIMARY KEY,
-    title     TEXT NOT NULL,
-    createdAt TEXT NOT NULL,
-    updatedAt TEXT NOT NULL,
-    messages  TEXT NOT NULL DEFAULT '[]'
-);
-
-CREATE TABLE IF NOT EXISTS asked (
+CREATE TABLE IF NOT EXISTS space (
     id         TEXT PRIMARY KEY,
     title      TEXT NOT NULL,
-    plan       TEXT NOT NULL DEFAULT '',
+    purpose    TEXT NOT NULL DEFAULT '',
     log        TEXT NOT NULL DEFAULT '',
     thread_id  TEXT,
     messages   TEXT NOT NULL DEFAULT '[]',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS space_collected (
+    space_id     TEXT NOT NULL,
+    collected_id TEXT NOT NULL,
+    linked_at    TEXT NOT NULL,
+    PRIMARY KEY (space_id, collected_id)
 );
 """
 

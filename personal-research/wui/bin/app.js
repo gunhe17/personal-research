@@ -27,7 +27,9 @@
       sidebarOpen: false,
       sidebarWidth: clampSidebar(parseFloat(localStorage.getItem("sidebarWidth") || "288") || 288),
       resizingSidebar: false,
-      chatOpen: localStorage.getItem("chatOpen") !== "0",
+      layout: localStorage.getItem("layout") || "split",
+      spaces: [],
+      spacesOpen: localStorage.getItem("spacesOpen") !== "0",
       chatWidthPct: clampChatWidth(parseFloat(localStorage.getItem("chatWidthPct") || "50") || 50),
       tree: [],
       currentPath: null,
@@ -40,7 +42,6 @@
       homeMode: localStorage.getItem("homeMode") || "ask",
       currentTitle: null,
       currentText: "",
-      citations: [],
       conversation: null,
       messages: [],
       sending: false,
@@ -235,7 +236,7 @@
     }
 
     function toggleSection(key) {
-      const flag = key === "related" ? "relatedOpen" : "listOpen";
+      const flag = { related: "relatedOpen", spaces: "spacesOpen" }[key] || "listOpen";
       state[flag] = !state[flag];
       localStorage.setItem(flag, state[flag] ? "1" : "0");
       renderTree();
@@ -291,9 +292,6 @@
     const COLLECTED_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0">
       <path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4l2 2.5h9A1.5 1.5 0 0 1 21 10v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18z" /></svg>`;
 
-    const ASKED_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0">
-      <path d="M21 11a8 8 0 0 1-8 8H6.5L3 21V11a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z" /></svg>`;
-
     const SKELETON_WIDTHS = ["72%", "58%", "81%", "64%", "49%"];
 
     function relatedSkeleton() {
@@ -321,12 +319,25 @@
         icon: COLLECTED_ICON,
         onClick: () => openCollected(),
       }));
-      tree.appendChild(sidebarRow({
-        label: "Asked",
-        active: false,
-        icon: ASKED_ICON,
-        onClick: () => { location.href = "/viewer/asked"; },
+      const spaces = document.createElement("div");
+      spaces.className = "ml-3 border-l border-slate-100 pl-1";
+      tree.appendChild(spaces);
+      spaces.appendChild(sectionLabel("Spaces", {
+        open: state.spacesOpen,
+        count: state.spaces.length,
+        onToggle: () => toggleSection("spaces"),
       }));
+      if (state.spacesOpen) {
+        for (const item of state.spaces.slice(0, 12)) {
+          spaces.appendChild(sidebarRow({
+            label: item.title,
+            active: new URLSearchParams(location.search).get("space") === item.id,
+            title: item.title,
+            meta: sinceLabel(item.updated_at),
+            onClick: () => { location.href = `${COLLECTED_URL}?space=${encodeURIComponent(item.id)}`; },
+          }));
+        }
+      }
 
       const under = document.createElement("div");
       under.className = "ml-3 border-l border-slate-100 pl-1";
@@ -501,7 +512,15 @@
 
 
     const HOME_URL = "/viewer/";
-    const CHATS = state.view === "home" ? "/api/agent" : "/api/conversations";
+
+    async function loadSpaces() {
+      try {
+        state.spaces = (await (await fetch("/api/spaces")).json()).items || [];
+      } catch (_) {
+        state.spaces = [];
+      }
+      renderTree();
+    }
     const COLLECTED_URL = "/viewer/collected";
 
     function openCollected() {
@@ -556,9 +575,24 @@
         toast("Give a URL or an arXiv id");
         return;
       }
+      if (!collecting) {
+        try {
+          const res = await fetch("/api/spaces", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ question: value, client_id: uid() }),
+          });
+          const created = await res.json();
+          if (!res.ok) throw new Error(created.error);
+          localStorage.setItem("layout", "chat");
+          location.href = `${COLLECTED_URL}?space=${encodeURIComponent(created.id)}`;
+        } catch (e) {
+          toast(`Could not start a space: ${e.message || e}`);
+        }
+        return;
+      }
       box.value = "";
       autoResizeHome();
-      openChat(true);
 
       state.messages.push({ role: "user", content: value, mode: state.homeMode });
       const assistant = { role: "assistant", content: "", streaming: true };
@@ -567,10 +601,10 @@
       setSending(true);
 
       try {
-        const res = await fetch(collecting ? "/api/collect" : "/api/ask", {
+        const res = await fetch("/api/collect", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(collecting ? { input: value } : { question: value }),
+          body: JSON.stringify({ input: value }),
         });
         if (!res.ok || !res.body) throw new Error(await res.text());
         const reader = res.body.getReader();
@@ -629,8 +663,7 @@
       assistant.streaming = false;
       setSending(false);
       renderMessages();
-      persistConversation();
-      if (collecting) loadTree();
+      loadTree();
     }
 
     async function renderDoc(opts = {}) {
@@ -697,6 +730,8 @@
       state.docLang = state.docPair ? state.docLang : "orig";
       state.pairTexts = { orig: null, trans: null };
       localStorage.setItem("lastDoc", id);
+      if (state.layout === "chat") setLayout("split");
+      window.dispatchEvent(new CustomEvent("research:doc", { detail: { id, path: node.path } }));
 
       const url = new URL(location.href);
       url.searchParams.set("doc", id);
@@ -1065,65 +1100,10 @@
       toast("Copied");
     }
 
-    function addCitation(text, multi) {
-      const item = { id: uid(), text, path: state.currentPath || "" };
-      if (multi) {
-        if (!state.citations.some((c) => c.text === text && c.path === item.path)) {
-          state.citations.push(item);
-        }
-      } else {
-        state.citations = [item];
-      }
-      renderCitations();
-      if (!state.chatOpen) openChat(true);
-      toast(multi ? "Quote added" : "Quoted");
-    }
-
-    function renderCitations() {
-      if (!$("#citations")) return;
-      const box = $("#citations");
-      if (!state.citations.length) {
-        box.classList.add("hidden");
-        box.innerHTML = "";
-        clearActiveDocSelection();
-        return;
-      }
-      box.classList.remove("hidden");
-      box.innerHTML = state.citations
-        .map(
-          (c, i) => `
-        <div class="flex items-start gap-1 rounded-xl bg-slate-50 text-[11px] text-slate-800 overflow-hidden">
-          <button
-            type="button"
-            class="cite-open min-w-0 flex-1 flex items-start gap-2 px-2.5 py-1.5 hover:bg-slate-50"
-            title="Open the original document"
-            data-cite-path="${encodeURIComponent(c.path || "")}"
-            data-cite-text="${encodeURIComponent(c.text || "")}"
-          >
-            <span class="shrink-0 font-mono font-semibold text-slate-600">#${i + 1}</span>
-            <div class="min-w-0 flex-1">
-              <div class="font-mono text-[10px] text-slate-500 truncate">${escapeHtml(c.path)}</div>
-              <div class="line-clamp-2 font-medium text-slate-800">${escapeHtml(c.text)}</div>
-            </div>
-          </button>
-          <button type="button" data-cid="${c.id}" class="cite-remove icon-btn shrink-0 m-1" title="Remove quote">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" class="h-3 w-3 pointer-events-none"><path d="M6 6l12 12M18 6L6 18" /></svg>
-          </button>
-        </div>`
-        )
-        .join("");
-      box.querySelectorAll(".cite-remove").forEach((btn) => {
-        btn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          state.citations = state.citations.filter((c) => c.id !== btn.dataset.cid);
-          renderCitations();
-        });
-      });
-      box.querySelectorAll(".cite-open").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          openCitation(decodeCiteAttr(btn.dataset.citePath), decodeCiteAttr(btn.dataset.citeText));
-        });
-      });
+    function addCitation(text) {
+      window.dispatchEvent(new CustomEvent("research:quote", { detail: { text, path: state.currentPath || "", id: state.currentId } }));
+      if (state.layout === "doc") setLayout("split");
+      toast("Quoted");
     }
 
     // Chat split layout
@@ -1139,22 +1119,27 @@
         }
         return;
       }
-      if (navBtn) {
-        navBtn.disabled = false;
-        navBtn.title = "Toggle chat (⌘N)";
-      }
-      if (state.chatOpen) {
+      const chat = state.layout === "chat";
+      const open = state.layout !== "doc";
+      $("#doc-pane").style.display = chat ? "none" : "";
+      if (open) {
         panel.classList.remove("hidden", "leave-panel");
         panel.style.display = "flex";
-        panel.style.width = state.chatWidthPct + "%";
-        resizer.classList.remove("hidden");
-        resizer.style.display = "";
+        panel.style.width = chat ? "100%" : state.chatWidthPct + "%";
+        panel.style.flex = chat ? "1 1 auto" : "";
+        resizer.style.display = chat ? "none" : "";
       } else if (panel.style.display !== "none") {
         closePanel(panel, resizer);
       }
-      if (navBtn) navBtn.classList.toggle("text-apple", state.chatOpen);
-      localStorage.setItem("chatOpen", state.chatOpen ? "1" : "0");
+      if (navBtn) navBtn.classList.toggle("text-apple", open);
+      localStorage.setItem("layout", state.layout);
       localStorage.setItem("chatWidthPct", String(state.chatWidthPct));
+      window.dispatchEvent(new CustomEvent("research:layout", { detail: state.layout }));
+    }
+
+    function setLayout(layout) {
+      state.layout = layout;
+      applyChatSplit();
     }
 
     function closePanel(panel, resizer) {
@@ -1171,17 +1156,10 @@
 
     function openChat(open) {
       if (!$("#chat-panel")) return;
-      const was = state.chatOpen;
-      state.chatOpen = open !== undefined ? open : !state.chatOpen;
-      applyChatSplit();
-      if (state.chatOpen && !was) {
-        const panel = $("#chat-panel");
-        panel.classList.remove("enter-panel");
-        void panel.offsetWidth;
-        panel.classList.add("enter-panel");
-        panel.addEventListener("animationend", () => panel.classList.remove("enter-panel"), { once: true });
-      }
-      if (state.chatOpen) setTimeout(() => $("#input")?.focus(), 100);
+      const want = open !== undefined ? open : state.layout === "doc";
+      if (want === (state.layout !== "doc")) return;
+      setLayout(want ? "split" : "doc");
+      if (want) setTimeout(() => $("#message-input")?.focus(), 100);
     }
 
     function initSidebarResizer() {
@@ -1238,7 +1216,7 @@
       };
 
       resizer.addEventListener("mousedown", (e) => {
-        if (!state.chatOpen) return;
+        if (state.layout !== "split") return;
         e.preventDefault();
         state.resizingSplit = true;
         startX = e.clientX;
@@ -1252,22 +1230,6 @@
         state.chatWidthPct = 50;
         applyChatSplit();
       });
-    }
-
-    function newConversation() {
-      state.conversation = {
-        id: uid(),
-        title: "New chat",
-        createdAt: null,
-        updatedAt: null,
-        messages: [],
-      };
-      state.messages = [];
-      state.citations = [];
-      renderCitations();
-      renderMessages();
-      const sub = $("#chat-sub");
-      if (sub) sub.textContent = "New chat";
     }
 
     const STEP_MARK = {
@@ -1444,42 +1406,6 @@
       if (stickBottom) box.scrollTop = box.scrollHeight;
     }
 
-    function buildSystemPrompt() {
-      return `당신은 수집된 문서를 근거로 답하는 학습 에이전트입니다.
-사용자가 연 문서와 인용 구절을 우선 근거로 답하세요.
-Documents·인용에 없으면 추측하지 말고 부족하다고 말하세요.
-쉬운 한국어, 핵심 용어는 영문 병기.
-도구/파일 탐색 없이 제공된 컨텍스트만으로 답하세요.`;
-    }
-
-    async function persistConversation() {
-      if (!state.conversation) return;
-      const title =
-        state.conversation.title && state.conversation.title !== "New chat"
-          ? state.conversation.title
-          : (state.messages.find((m) => m.role === "user")?.content || "New chat").slice(0, 48);
-      const payload = {
-        id: state.conversation.id,
-        title,
-        createdAt: state.conversation.createdAt,
-        messages: state.messages.map((m) => ({
-          role: m.role,
-          content: m.content,
-          citations: m.citations || undefined,
-        })),
-      };
-      const res = await fetch(CHATS + "/" + encodeURIComponent(payload.id), {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (res.ok) {
-        state.conversation = await res.json();
-        const sub = $("#chat-sub");
-      if (sub) sub.textContent = state.conversation.title;
-      }
-    }
-
     function setSending(on) {
       if (!$("#btn-send")) return;
       state.sending = !!on;
@@ -1487,118 +1413,6 @@ Documents·인용에 없으면 추측하지 말고 부족하다고 말하세요.
       const input = $("#input");
       if (btn) btn.disabled = state.sending;
       if (input) input.disabled = state.sending;
-    }
-
-    async function sendChat() {
-      if (!$("#input")) return;
-      const text = $("#input")?.value.trim();
-      if (!text || state.sending) return;
-      const cites = state.citations.slice();
-      const userMsg = { role: "user", content: text, citations: cites.length ? cites : undefined };
-      state.messages.push(userMsg);
-      $("#input").value = "";
-      autoResizeInput();
-      state.citations = [];
-      renderCitations();
-      renderMessages();
-
-      setSending(true);
-      const assistant = { role: "assistant", content: "", streaming: true };
-      state.messages.push(assistant);
-      renderMessages();
-
-      let finished = false;
-      const finishUnlock = () => {
-        if (finished) return;
-        finished = true;
-        assistant.streaming = false;
-        setSending(false);
-      };
-
-      try {
-        const history = state.messages
-          .filter((m) => m !== assistant && (m.role === "user" || m.role === "assistant"))
-          .map((m) => ({
-            role: m.role,
-            content: m.content,
-            citations: m.citations,
-          }));
-
-        const controller = new AbortController();
-        const hangTimer = setTimeout(() => controller.abort(), 180_000);
-
-        const res = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            system: buildSystemPrompt(),
-            path: state.currentPath || "",
-            document: state.currentText || "",
-            messages: history,
-            max_turns: 1,
-          }),
-          signal: controller.signal,
-        });
-
-        if (!res.ok) {
-          const err = await res.text();
-          throw new Error(err.slice(0, 500));
-        }
-
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-        let streamDone = false;
-        while (!streamDone) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const chunks = buffer.split("\n\n");
-          buffer = chunks.pop() || "";
-          for (const chunk of chunks) {
-            const line = chunk.trim();
-            if (!line.startsWith("data:")) continue;
-            const data = line.slice(5).trim();
-            if (data === "[DONE]") {
-              streamDone = true;
-              break;
-            }
-            try {
-              const j = JSON.parse(data);
-              if (j.type === "delta" && j.text) {
-                assistant.content += j.text;
-                renderMessages();
-              } else if (j.type === "done") {
-                if (j.text && !assistant.content) assistant.content = j.text;
-                if (j.text && assistant.content && j.text.length > assistant.content.length) {
-                  assistant.content = j.text;
-                }
-                renderMessages();
-                finishUnlock();
-                streamDone = true;
-                try { reader.cancel(); } catch (_) {}
-                break;
-              } else if (j.type === "error") {
-                assistant.content = (assistant.content ? assistant.content + "\n\n" : "") + "Error: " + (j.error || "") + (j.stderr ? "\n" + j.stderr : "");
-                renderMessages();
-                finishUnlock();
-                streamDone = true;
-                try { reader.cancel(); } catch (_) {}
-                break;
-              }
-            } catch (_) {}
-          }
-        }
-        clearTimeout(hangTimer);
-        if (!assistant.content) assistant.content = "(no response)";
-      } catch (e) {
-        const msg = e && e.name === "AbortError" ? "The response timed out" : e.message;
-        assistant.content = (assistant.content ? assistant.content + "\n\n" : "") + "Error: " + msg;
-      } finally {
-        finishUnlock();
-        renderMessages();
-        await persistConversation();
-      }
     }
 
     // Download
@@ -1747,132 +1561,6 @@ Documents·인용에 없으면 추측하지 말고 부족하다고 말하세요.
       toast(name + " downloaded");
     }
 
-    // History dropdown
-    function isHistoryOpen() {
-      const dd = $("#history-dropdown");
-      return !!dd && !dd.classList.contains("hidden") && !dd.classList.contains("leave-pop");
-    }
-
-    function setHistoryOpen(open) {
-      const dd = $("#history-dropdown");
-      const btn = $("#btn-history");
-      if (!dd || !btn) return;
-      const chev = $("#history-chevron");
-      if (open) {
-        reveal(dd, "pop");
-        btn.setAttribute("aria-expanded", "true");
-        btn.classList.add("bg-slate-50");
-        if (chev) chev.classList.add("rotate-180");
-      } else {
-        leave(dd, "leave-pop");
-        btn.setAttribute("aria-expanded", "false");
-        btn.classList.remove("bg-slate-50");
-        if (chev) chev.classList.remove("rotate-180");
-      }
-    }
-
-    function formatHistoryTime(iso) {
-      if (!iso) return "";
-      try {
-        const d = new Date(iso);
-        if (Number.isNaN(d.getTime())) return iso;
-        const mm = String(d.getMonth() + 1).padStart(2, "0");
-        const dd = String(d.getDate()).padStart(2, "0");
-        const hh = String(d.getHours()).padStart(2, "0");
-        const mi = String(d.getMinutes()).padStart(2, "0");
-        return `${mm}/${dd} ${hh}:${mi}`;
-      } catch (_) {
-        return iso;
-      }
-    }
-
-    async function refreshHistoryList() {
-      const list = $("#history-list");
-      list.innerHTML = `<div class="px-3 py-4 text-center text-xs text-slate-400">Loading…</div>`;
-      try {
-        const res = await fetch(CHATS);
-        const data = await res.json();
-        const items = data.items || [];
-        const currentId = state.conversation && state.conversation.id;
-        if (!items.length) {
-          list.innerHTML = `<div class="px-3 py-5 text-center text-xs text-slate-400">No saved chats</div>`;
-          return;
-        }
-        list.innerHTML = items
-          .map((it) => {
-            const active = it.id === currentId;
-            return `
-            <div
-              role="option"
-              aria-selected="${active ? "true" : "false"}"
-              data-id="${escapeHtml(it.id)}"
-              class="group flex items-center gap-1 px-1.5 py-0.5 ${active ? "bg-slate-100" : ""}"
-            >
-              <button
-                type="button"
-                data-open="${escapeHtml(it.id)}"
-                class="min-w-0 flex-1 rounded-lg px-2 py-1.5 text-left hover:bg-slate-50 transition duration-150 ${active ? "hover:bg-slate-100" : ""}"
-              >
-                <div class="text-[13px] font-medium text-slate-900 truncate">${escapeHtml(it.title || "Untitled")}</div>
-                <div class="text-[10px] text-slate-400 tabular-nums">${escapeHtml(formatHistoryTime(it.updatedAt))} · messages ${it.messageCount || 0}</div>
-              </button>
-              <button
-                type="button"
-                data-del="${escapeHtml(it.id)}"
-                title="Delete"
-                class="icon-btn shrink-0"
-              ><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" class="h-3 w-3 pointer-events-none"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
-            </div>`;
-          })
-          .join("");
-
-        list.querySelectorAll("[data-open]").forEach((btn) => {
-          btn.addEventListener("click", () => {
-            loadConversation(btn.dataset.open);
-            setHistoryOpen(false);
-          });
-        });
-        list.querySelectorAll("[data-del]").forEach((btn) => {
-          btn.addEventListener("click", async (e) => {
-            e.stopPropagation();
-            const id = btn.dataset.del;
-            await fetch(CHATS + "/" + encodeURIComponent(id), { method: "DELETE" });
-            if (state.conversation && state.conversation.id === id) {
-              newConversation();
-              toast("Chat deleted");
-            }
-            await refreshHistoryList();
-          });
-        });
-      } catch (e) {
-        list.innerHTML = `<div class="px-3 py-4 text-center text-xs text-red-500">Could not load the list</div>`;
-      }
-    }
-
-    async function toggleHistory() {
-      if (isHistoryOpen()) {
-        setHistoryOpen(false);
-        return;
-      }
-      setHistoryOpen(true);
-      await refreshHistoryList();
-    }
-
-    async function loadConversation(id) {
-      const res = await fetch(CHATS + "/" + encodeURIComponent(id));
-      if (!res.ok) return toast("Could not open the chat");
-      const data = await res.json();
-      state.conversation = data;
-      state.messages = (data.messages || []).map((m) => ({ ...m }));
-      state.citations = [];
-      renderCitations();
-      renderMessages();
-      const sub = $("#chat-sub");
-      if (sub) sub.textContent = data.title || "chats";
-      setHistoryOpen(false);
-      openChat(true);
-    }
-
     // Events
     on("#btn-toggle-sidebar", "click", () => {
       state.sidebarOpen = !state.sidebarOpen;
@@ -1883,20 +1571,7 @@ Documents·인용에 없으면 추측하지 말고 부족하다고 말하세요.
       applySidebar();
     });
     on("#btn-toggle-chat", "click", () => openChat());
-    on("#btn-new-chat", "click", () => {
-      newConversation();
-      setHistoryOpen(false);
-      toast("Started a new chat");
-    });
-    on("#btn-history", "click", (e) => {
-      e.stopPropagation();
-      toggleHistory();
-    });
     document.addEventListener("click", (e) => {
-      const root = $("#history-dd");
-      if (root && !root.contains(e.target) && isHistoryOpen()) {
-        setHistoryOpen(false);
-      }
       const dd = $("#download-dd");
       if (dd && !dd.contains(e.target) && isDownloadOpen()) {
         setDownloadOpen(false);
@@ -1917,13 +1592,6 @@ Documents·인용에 없으면 추측하지 말고 부족하다고 말하세요.
     $("#doc-langbar")?.querySelectorAll(".seg-btn").forEach((btn) => {
       btn.addEventListener("click", () => setDocLang(btn.dataset.lang));
     });
-    function autoResizeInput() {
-      const ta = $("#input");
-      if (!ta) return;
-      ta.style.height = "auto";
-      const next = Math.min(144, Math.max(48, ta.scrollHeight));
-      ta.style.height = next + "px";
-    }
     on("#home-send", "click", runHome);
     on("#home-input", "input", autoResizeHome);
     on("#home-input", "keydown", (e) => {
@@ -1947,19 +1615,10 @@ Documents·인용에 없으면 추측하지 말고 부족하다고 말하세요.
     document.addEventListener("click", (e) => {
       if (!$("#home-mode")?.contains(e.target)) setHomeModeOpen(false);
     });
-    on("#btn-send", "click", sendChat);
-    on("#input", "keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        sendChat();
-      }
-    });
-    on("#input", "input", autoResizeInput);
     document.addEventListener("keydown", (e) => {
       if ((e.metaKey || e.ctrlKey) && (e.key === "n" || e.key === "N")) {
         e.preventDefault();
-        if (!state.chatOpen) openChat(true);
-        else openChat(false);
+        openChat();
       }
       // Font size
       if ((e.metaKey || e.ctrlKey) && (e.key === "=" || e.key === "+" || e.key === "Equal")) {
@@ -1983,11 +1642,7 @@ Documents·인용에 없으면 추측하지 말고 부족하다고 말하세요.
           setDownloadOpen(false);
           return;
         }
-        if (isHistoryOpen()) {
-          setHistoryOpen(false);
-          return;
-        }
-        if (state.chatOpen) openChat(false);
+        if (state.layout === "split") openChat(false);
       }
     });
     on("#btn-doc-font-down", "click", () => setDocZoom(state.docZoom - 0.1));
@@ -2026,9 +1681,11 @@ Documents·인용에 없으면 추측하지 말고 부족하다고 말하세요.
     });
 
     // init
+    const opened = new URLSearchParams(location.search);
+    if (opened.get("space") && !opened.get("doc")) state.layout = "chat";
     if (window.matchMedia("(max-width: 767px)").matches) {
       state.sidebarOpen = false;
-      state.chatOpen = false;
+      if (state.layout === "split") state.layout = "doc";
     }
     applySidebar();
     updateDownload();
@@ -2037,7 +1694,13 @@ Documents·인용에 없으면 추측하지 말고 부족하다고 말하세요.
     applyChatSplit();
     initSidebarResizer();
     initSplitResizer();
-    newConversation();
+    window.research = {
+      openFile: (id) => openFile(id),
+      setLayout,
+      current: () => (state.currentId ? { id: state.currentId, path: state.currentPath } : null),
+      spacesChanged: loadSpaces,
+    };
+    loadSpaces();
     requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove("booting")));
     loadTree().then(openDocFromUrl, (e) => {
       $("#tree").innerHTML = `<div class="p-3 text-xs text-slate-600">Could not load the document list. <code class="bg-slate-100 px-1 rounded">python3 server.py</code> Check that the server is running.<br/>${escapeHtml(e.message)}</div>`;

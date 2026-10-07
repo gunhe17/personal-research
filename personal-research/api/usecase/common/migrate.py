@@ -42,6 +42,7 @@ def run(*, collected: Path, conversations: Path) -> str:
             documents += 1
         if conversations.is_file():
             talk = sqlite3.connect(conversations)
+            connection.execute("CREATE TABLE IF NOT EXISTS conversations (id TEXT PRIMARY KEY, title TEXT, createdAt TEXT, updatedAt TEXT, messages TEXT)")
             for row in talk.execute("SELECT id, title, createdAt, updatedAt, messages FROM conversations"):
                 connection.execute("INSERT OR REPLACE INTO conversations VALUES (?, ?, ?, ?, ?)", row)
                 talks += 1

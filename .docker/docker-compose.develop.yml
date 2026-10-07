@@ -8,7 +8,6 @@ services:
       dockerfile: .docker/Dockerfile.develop.api
     volumes:
       - ..:/app
-      - grok-auth:/root/.grok
       - claude-config:/root/.claude
       - codex-auth:/root/.codex
     ports:
@@ -17,6 +16,5 @@ services:
       - ../.env/.env.develop
 
 volumes:
-  grok-auth:
   claude-config:
   codex-auth:

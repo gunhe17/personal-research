@@ -2,6 +2,7 @@
 <html lang="en" class="h-full">
 <head>
 {{include partial/head.html}}
+<link rel="stylesheet" href="/viewer/space.css" />
 </head>
 <body data-page="collected" class="booting h-full bg-slate-50 text-slate-900 font-sans antialiased overflow-hidden select-text">
 
@@ -28,101 +29,15 @@
       </div>
 
 
-      <!-- Horizontal resizer -->
-      <div
-        id="split-resizer"
-        title="Drag to resize"
-        class="group relative z-20 w-px shrink-0 cursor-col-resize bg-slate-100 hover:bg-slate-300 active:bg-apple transition-colors max-md:!hidden"
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="DocumentsResize the chat panel"
-      >
-        <div class="absolute inset-y-0 -left-2.5 -right-2.5"></div>
-        <div class="pointer-events-none absolute left-1/2 top-1/2 h-10 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-slate-400 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-      </div>
-
-      <!-- Chat panel -->
-      <aside
-        id="chat-panel"
-        class="h-full shrink-0 flex flex-col min-w-0 bg-white overflow-visible select-text max-md:absolute max-md:inset-0 max-md:!w-full max-md:border-l-0 max-md:z-20"
-        style="width: 50%"
-      >
-        <!-- chat header -->
-        <div class="shrink-0 h-11 flex items-center gap-1 bg-white px-3 relative z-20">
-          <!-- Custom history dropdown -->
-          <div id="history-dd" class="relative min-w-0 flex-1">
-            <button
-              type="button"
-              id="btn-history"
-              title="Chat history"
-              aria-haspopup="listbox"
-              aria-expanded="false"
-              class="w-full flex items-center gap-1.5 rounded-lg px-2 py-1 text-left hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-apple/20 transition duration-150"
-            >
-              <div class="min-w-0 flex-1 flex items-baseline gap-1.5">
-                <span class="text-[13px] font-semibold tracking-tight text-slate-900">Agent</span>
-                <span id="chat-sub" class="text-[11px] text-slate-500 truncate">New chat</span>
-              </div>
-              <svg id="history-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-4 w-4 shrink-0 text-slate-400 transition-transform">
-                <path d="M6 9l6 6 6-6" />
-              </svg>
-            </button>
-
-            <div
-              id="history-dropdown"
-              role="listbox"
-              aria-label="Chat history"
-              class="hidden absolute left-0 right-0 top-full mt-1 z-50 overflow-hidden rounded-xl bg-white shadow-lg enter-pop"
-            >
-              <div class="flex items-center px-3 py-2">
-                <span class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Chat history</span>
-              </div>
-              <div id="history-list" class="max-h-64 overflow-y-auto py-1"></div>
-            </div>
-          </div>
-
-          <button type="button" id="btn-new-chat" title="New chat" class="icon-btn shrink-0">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" class="h-4 w-4"><path d="M12 5v14M5 12h14" /></svg>
-          </button>
-        </div>
-
-        <div id="messages" class="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden p-3 sm:p-4 space-y-3 bg-slate-50"></div>
-
-        <!-- composer -->
-        <div class="shrink-0 bg-white p-3 space-y-2">
-          <div id="citations" class="hidden space-y-1.5 max-h-32 overflow-y-auto"></div>
-          <div
-            id="composer-box"
-            class="relative rounded-2xl bg-slate-50 focus-within:bg-white focus-within:ring-2 focus-within:ring-apple/20 transition"
-          >
-            <textarea
-              id="input"
-              rows="2"
-              placeholder="Ask a question…"
-              class="w-full resize-none min-h-[3rem] max-h-36 bg-transparent px-3.5 pt-3 pb-11 text-slate-900 placeholder:text-slate-400 focus:outline-none disabled:text-slate-500"
-            ></textarea>
-            <div class="absolute bottom-2 right-2 flex items-center gap-1.5">
-              <button
-                type="button"
-                id="btn-send"
-                title="Send (Enter)"
-                aria-label="Send"
-                class="h-8 w-8 inline-flex items-center justify-center rounded-full bg-apple text-white hover:bg-apple-hover disabled:opacity-40 disabled:cursor-not-allowed transition"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
-                  <path d="M12 19V5" />
-                  <path d="M5 12l7-7 7 7" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
-      </aside>
+{{include partial/chat.html}}
     </div>
     </div>
   </div>
 
 {{include partial/overlay.html}}
+  <div id="annotation-markers"></div>
+  <div id="annotation-editor" class="annotation-editor" hidden><input id="annotation-comment" maxlength="2000" aria-label="주석 코멘트" placeholder="코멘트 (선택)"><button id="annotation-done" type="button" aria-label="코멘트 완료">✓</button></div>
   <script src="/viewer/app.js"></script>
+  <script type="module" src="/viewer/space.js"></script>
 </body>
 </html>
