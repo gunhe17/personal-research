@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import mimetypes
 import os
 import re
 import sys
@@ -25,7 +24,6 @@ from usecase.collected.collect import pipeline
 from usecase.collected.read import read
 from usecase.collected.search import search
 
-VIEWER = store.API.parent / "wui" / "bin"
 HOST = os.environ.get("HOST") or "127.0.0.1"
 PORT = int(os.environ.get("PORT") or 8765)
 SPACE = re.compile(r"/api/spaces/([a-zA-Z0-9_-]+)")
@@ -33,8 +31,6 @@ MATERIALS = re.compile(r"/api/spaces/([a-zA-Z0-9_-]+)/materials")
 MATERIAL = re.compile(r"/api/materials/([a-zA-Z0-9_-]+)")
 CONVERSATIONS = re.compile(r"/api/(space|agent)/conversations")
 CONVERSATION = re.compile(r"/api/(space|agent)/conversations/([a-zA-Z0-9_-]+)(?:/(messages|retry|cancel))?")
-INCLUDE = re.compile(r"\{\{include ([\w./-]+)\}\}")
-SHELL = re.compile(r"\{\{shell\}\}\n(.*?)\{\{/shell\}\}\n", re.DOTALL)
 
 
 def load_dotenv(*, path: Path) -> None:
@@ -70,10 +66,6 @@ class Handler(BaseHTTPRequestHandler):
         path = parsed.path
         query = parse_qs(parsed.query)
 
-        if path in ("/", "/viewer", "/viewer/"):
-            return self.serve(path=VIEWER / "index.html")
-        if path.startswith("/viewer/"):
-            return self.serve(path=VIEWER / path[len("/viewer/"):])
         if path == "/api/settings":
             return self.reply(code=200, payload=setting.get())
         if path == "/api/login":
@@ -313,7 +305,10 @@ class Handler(BaseHTTPRequestHandler):
         return body if isinstance(body, dict) else {}
 
     def trusted(self) -> bool:
-        return self.headers.get("Origin") in (None, f"http://{self.headers.get('Host')}")
+        origin = self.headers.get("Origin")
+        host = self.headers.get("X-Forwarded-Host") or self.headers.get("Host")
+
+        return origin is None or urlparse(origin).netloc == host
 
     def cors(self) -> None:
         self.send_header("Access-Control-Allow-Origin", "*")
@@ -336,36 +331,6 @@ class Handler(BaseHTTPRequestHandler):
         self.cors()
         self.end_headers()
         self.wfile.write(data)
-
-    def serve(self, *, path: Path) -> None:
-        path = path.resolve()
-        if not path.is_relative_to(VIEWER.resolve()):
-            return self.send(code=403, data=b"forbidden", content_type="text/plain; charset=utf-8")
-        if path.is_dir():
-            path = path / "index.html"
-        if not path.is_file() and path.with_suffix(".html").is_file():
-            path = path.with_suffix(".html")
-        if not path.is_file():
-            return self.send(code=404, data=b"not found", content_type="text/plain; charset=utf-8")
-        if path.suffix == ".html":
-            page = SHELL.sub(
-                lambda found: (VIEWER / "partial/shell.html").read_text(encoding="utf-8").replace("{{slot}}\n", found.group(1)),
-                path.read_text(encoding="utf-8"),
-            )
-            page = INCLUDE.sub(
-                lambda found: (VIEWER / found.group(1)).read_text(encoding="utf-8"),
-                page,
-            )
-            return self.send(
-                code=200, data=page.encode("utf-8"),
-                content_type="text/html; charset=utf-8", no_store=True,
-            )
-        guessed = {".js": "application/javascript", ".css": "text/css"}.get(path.suffix)
-        content_type = f"{guessed}; charset=utf-8" if guessed else (
-            mimetypes.guess_type(str(path))[0] or "application/octet-stream"
-        )
-
-        self.send(code=200, data=path.read_bytes(), content_type=content_type, no_store=True)
 
 
 def collecting(*, given: str, send) -> None:
@@ -406,7 +371,7 @@ def main() -> None:
         raise SystemExit(f"DB 없음: {store.DATABASE} (collect.py migrate 로 만든다)")
     record.recover()
     log.write(level="info", message=f"start {HOST}:{PORT} database={store.DATABASE} codex={converse.BIN}")
-    print(f"Open http://{HOST}:{PORT}/viewer/")
+    print(f"API http://{HOST}:{PORT}/api/health")
     ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
 
 
