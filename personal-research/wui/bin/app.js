@@ -171,7 +171,6 @@
           ${status?.logged_in ? `<button type="button" data-action="signout" class="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-[12px] text-slate-700 hover:bg-slate-200">Log out</button>` : ""}`,
         ))}
         ${row("Logs in with", p.cli)}
-        ${id === "anthropic" ? row("Token", p.token ? `${p.token} · saved ${new Date(p.saved.token).toLocaleDateString()}` : `<span class="text-slate-400">Uses the CLI's own login</span>`) : ""}
         ${row("Usage", used(m))}` : `
         ${control("Key", editing ? `
           <input type="password" autocomplete="off" spellcheck="false" placeholder="${p.key ? "New key" : `${p.label} API key`}" class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[13px] text-slate-900 placeholder:text-slate-400 focus:border-apple focus:bg-white focus:outline-none" />
