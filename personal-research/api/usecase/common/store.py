@@ -122,6 +122,8 @@ CREATE TABLE IF NOT EXISTS user_meta (
     kind         TEXT NOT NULL,
     collected_id TEXT NOT NULL DEFAULT '',
     value        TEXT NOT NULL DEFAULT '{}',
+    openai       TEXT NOT NULL DEFAULT '',
+    anthropic    TEXT NOT NULL DEFAULT '',
     updated_at   TEXT NOT NULL,
     PRIMARY KEY (user_id, kind, collected_id)
 );
@@ -422,6 +424,10 @@ def upgrade(*, connection) -> None:
             (USER,),
         )
         connection.execute("DROP TABLE opened")
+    # credential
+    for provider in ("openai", "anthropic"):
+        if provider not in columns(connection=connection, table="user_meta"):
+            connection.execute(f"ALTER TABLE user_meta ADD COLUMN {provider} TEXT NOT NULL DEFAULT ''")
     # conversation
     paths = dict(connection.execute("SELECT path, id FROM collected").fetchall())
     for table in ("conversations", "agent"):

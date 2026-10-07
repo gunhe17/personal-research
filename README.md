@@ -78,7 +78,7 @@ docker compose --env-file .env/.env.production -f .docker/docker-compose.product
 
 답변은 두 제공사 모두 만든다. OpenAI 는 codex, Anthropic 은 claude 가 맡고, 입력창의 제공사와 모델 드롭다운으로 메시지마다 고른다. 기본값은 OpenAI 의 `CODEX_MODEL` 이다. 입력창에 `/` 를 치면 `/next` `/retrieval` 명령 목록이 뜬다.
 
-설정의 Model access 에서 제공사마다 요금제 로그인과 API 키 중 하나를 고른다. API 키는 git 이 무시하는 `api/database/setting.json` 에 권한 600 으로 저장되고, 화면에는 끝 네 자리만 보인다. API 키를 고르면 그 제공사 CLI 에 `CODEX_API_KEY` 나 `ANTHROPIC_API_KEY` 로 넘겨 API 과금으로 바뀐다. 요금제 로그인을 고르면 환경 변수에 키가 있어도 지우고 CLI 로그인을 쓴다. 번역의 claude 도 같은 설정을 따른다. 서버의 채팅 API 에는 인증이 없으므로, 외부 서버에 둘 때도 포트는 `127.0.0.1` 에만 열고 Tailscale 이나 SSH 터널로 접속한다.
+설정의 Model access 에서 제공사마다 요금제 로그인과 API 키 중 하나를 고른다. 선택은 `user_meta` 의 `credential` 행에 남는다. 인증 방식은 `value` 에, API 키는 제공사별 컬럼(`openai` `anthropic`)에 Fernet 으로 암호화해 둔다. 암호화 키는 `ENCRYPTION_KEY` 환경 변수이고, 없으면 처음 저장할 때 `api/database/encryption.key` 를 권한 600 으로 만든다. 이 파일을 잃으면 저장한 API 키를 다시 입력해야 한다. 화면에는 키의 끝 네 자리만 보인다. API 키를 고르면 그 제공사 CLI 에 `CODEX_API_KEY` 나 `ANTHROPIC_API_KEY` 로 넘겨 API 과금으로 바뀐다. 요금제 로그인을 고르면 환경 변수에 키가 있어도 지우고 CLI 로그인을 쓴다. 번역의 claude 도 같은 설정을 따른다. 서버의 채팅 API 에는 인증이 없으므로, 외부 서버에 둘 때도 포트는 `127.0.0.1` 에만 열고 Tailscale 이나 SSH 터널로 접속한다.
 
 뷰어를 열면 홈이 먼저 나온다. 입력창 왼쪽 배지로 `ask` 와 `collect` 를 고른다. `ask` 는 질문으로 새 agent 대화를 열고, `collect` 는 주소를 받아 원문을 받고 한국어판까지 만든다.
 

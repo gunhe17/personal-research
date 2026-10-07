@@ -11,6 +11,8 @@ RUN \
     curl -fsSL "https://github.com/openai/codex/releases/latest/download/codex-$(uname -m)-unknown-linux-musl.tar.gz" | tar -xz -C /tmp && \
     mv /tmp/codex-$(uname -m)-unknown-linux-musl /usr/local/bin/codex
 
+RUN pip install --no-cache-dir cryptography
+
 RUN curl -fsSL https://claude.ai/install.sh | bash
 ENV PATH="/root/.local/bin:${PATH}" \
     CLAUDE_CONFIG_DIR=/root/.claude \
