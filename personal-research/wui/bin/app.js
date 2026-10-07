@@ -225,7 +225,6 @@
           open,
           depth: 0,
           strong: current === item.id,
-          meta: sinceLabel(item.updated_at),
           onToggle: () => expandSpace(item.id, !open),
         }));
         if (!open) continue;
