@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27%3E%3Ccircle cx=%2711%27 cy=%2711%27 r=%277%27 fill=%27none%27 stroke=%27%230071e3%27 stroke-width=%272%27/%3E%3Cpath d=%27M16.5 16.5L21 21%27 stroke=%27%230071e3%27 stroke-width=%272%27 stroke-linecap=%27round%27/%3E%3C/svg%3E" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Asked · Research</title>
+<style>
+  :root {
+    --apple: #0071e3; --link: #0066cc; --carbon: #1d1d1f; --frost: #f5f5f7; --ice: #f4f8fb;
+    --ash: #707070; --mist: #858585; --pebble: #e2e2e5; --line: #d2d2d7; --hair: #e8e8ed;
+    --tangent: #8e5bd0; --secant: #d9822b;
+    font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, Inter, Pretendard, "Apple SD Gothic Neo", system-ui, sans-serif;
+    color: var(--carbon); background: var(--frost); letter-spacing: -0.016em; font-synthesis: none;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--frost); }
+  button, input, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  button:disabled { opacity: .4; cursor: default; }
+  [hidden] { display: none !important; }
+  ::selection { background: #b3d7ff; color: var(--carbon); }
+  ::highlight(annotations) { background: #fff1b8; }
+
+  /* header */
+  .site-header { position: sticky; top: 0; z-index: 20; height: 44px; display: flex; align-items: center; gap: 12px; padding: 0 16px; background: rgba(255,255,255,.9); backdrop-filter: blur(12px); border-bottom: 1px solid var(--hair); font-size: 12px; }
+  .site-header a { color: var(--carbon); text-decoration: none; font-weight: 600; }
+  .site-header span { color: var(--ash); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .error-banner { max-width: 760px; margin: 16px auto; padding: 12px 16px; border-radius: 8px; background: var(--ice); border: 1px solid var(--line); font-size: 14px; }
+  .conversation { max-width: 760px; margin: 0 auto; padding: 48px 16px 280px; }
+  .quiet { border: 0; background: none; color: var(--link); font-size: 12px; padding: 4px 0; }
+  .quiet:hover { text-decoration: underline; }
+
+  /* answer */
+  .assistant-message { margin-bottom: 48px; }
+  .author { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ash); margin-bottom: 20px; }
+  .author-mark { width: 20px; height: 20px; border: 1px solid var(--line); border-radius: 980px; display: grid; place-items: center; font-family: Georgia, serif; font-size: 14px; }
+  .article-content { font-size: 17px; line-height: 1.9; word-break: keep-all; overflow-wrap: anywhere; }
+  .article-content h2 { font-size: 28px; font-weight: 600; line-height: 1.3; letter-spacing: .007em; margin: 0 0 20px; }
+  .article-content h3 { font-size: 21px; font-weight: 600; line-height: 1.4; margin: 36px 0 8px; }
+  .article-content p { margin: 0 0 16px; }
+  .article-content ul { margin: 0 0 8px; padding-left: 20px; }
+  .article-content code { font-family: "SF Mono", ui-monospace, monospace; font-size: .88em; background: var(--pebble); border-radius: 4px; padding: 1px 4px; }
+  .formula { margin: 16px 0 24px; padding: 16px 20px; background: #fff; border: 1px solid var(--hair); border-radius: 8px; font-family: "SF Mono", ui-monospace, monospace; font-size: 15px; line-height: 1.8; white-space: pre-wrap; overflow-x: auto; }
+  .article-followup { padding-left: 16px; border-left: 2px solid var(--line); color: var(--ash); }
+  .message-actions { display: flex; gap: 16px; margin-top: 8px; }
+
+  /* question */
+  .exchange { margin: 56px 0 0; }
+  .user-message { margin: 0 0 40px auto; max-width: 85%; width: fit-content; padding: 14px 18px; background: #fff; border: 1px solid var(--hair); border-radius: 8px; font-size: 15px; line-height: 1.7; white-space: pre-wrap; }
+  .user-label { font-size: 12px; color: var(--ash); margin-bottom: 4px; }
+  .user-message blockquote { margin: 0 0 8px; padding-left: 12px; border-left: 2px solid var(--line); color: var(--ash); }
+  .user-context { margin-top: 6px; font-size: 12px; color: var(--ash); }
+  .sent-annotation summary { font-size: 12px; color: var(--ash); cursor: pointer; }
+  .job-status { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--ash); }
+  .job-status.error { color: #b3261e; }
+  .thinking-dot { width: 8px; height: 8px; border-radius: 980px; background: var(--apple); animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .25; } }
+
+  /* playground */
+  .playground { margin: 24px 0 32px; padding: 20px; background: #fff; border: 1px solid var(--hair); border-radius: 8px; font-size: 14px; line-height: 1.6; }
+  .playground-header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+  .playground-header p { margin: 0; color: var(--ash); }
+  .playground-label { font-size: 11px; font-weight: 600; letter-spacing: .08em; margin-right: 8px; color: var(--carbon); }
+  .pg-tools { display: flex; gap: 8px; }
+  .pg-tools button, .pg-presets button, .pg-descent button { border: 1px solid var(--link); color: var(--link); background: none; border-radius: 980px; padding: 3px 12px; font-size: 12px; }
+  .pg-presets button.active { background: var(--apple); border-color: var(--apple); color: #fff; }
+  .pg-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin: 16px 0; }
+  .pg-metric { padding: 10px 12px; background: var(--frost); border-radius: 8px; }
+  .pg-metric span { display: block; font-size: 12px; color: var(--ash); }
+  .pg-metric strong { font-size: 21px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .pg-chart { width: 100%; height: auto; display: block; }
+  .pg-chart text { font-size: 12px; fill: var(--ash); }
+  .pg-chart .axis-label { fill: var(--carbon); }
+  .pg-chart .point-label { fill: var(--carbon); font-weight: 600; }
+  .pg-legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 12px; color: var(--ash); margin: 4px 0 12px; }
+  .pg-legend i { display: inline-block; width: 16px; height: 3px; margin-right: 6px; vertical-align: middle; background: var(--apple); }
+  .pg-legend i.secant { background: var(--secant); }
+  .pg-legend i.tangent { background: var(--tangent); }
+  .pg-controls { display: grid; gap: 16px; }
+  .pg-control label { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+  .pg-control input[type=number] { width: 90px; padding: 2px 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--frost); }
+  .pg-control input[type=range] { width: 100%; accent-color: var(--apple); }
+  .pg-range-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--mist); }
+  .pg-presets { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; }
+  .pg-result { margin: 16px 0 8px; padding: 12px 14px; background: var(--ice); border-radius: 8px; white-space: pre-line; font-variant-numeric: tabular-nums; }
+  .pg-descent { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+  .pg-descent input { width: 80px; padding: 2px 6px; border: 1px solid var(--line); border-radius: 8px; }
+  .pg-caption { color: var(--ash); font-size: 13px; margin: 8px 0; }
+  .pg-task { margin: 12px 0 0; font-weight: 600; }
+
+  /* composer */
+  .composer-dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; padding: 0 16px 16px; background: linear-gradient(transparent, var(--frost) 32px); }
+  .composer-dock > * { max-width: 760px; margin-left: auto; margin-right: auto; }
+  .composer { display: flex; align-items: flex-end; gap: 8px; padding: 8px 8px 8px 16px; background: #fff; border: 1px solid var(--line); border-radius: 12px; }
+  .composer:focus-within { border-color: var(--apple); }
+  .composer textarea { flex: 1; border: 0; outline: 0; resize: none; background: none; font-size: 17px; line-height: 1.5; max-height: 180px; padding: 4px 0; }
+  .send-button { width: 32px; height: 32px; border: 0; border-radius: 980px; background: var(--apple); color: #fff; font-size: 16px; }
+  .form-status { min-height: 18px; margin: 4px auto; font-size: 12px; color: var(--ash); }
+  .attachment-tray { display: grid; gap: 6px; margin-bottom: 6px; }
+  .quote-box { padding: 8px 12px; background: #fff; border: 1px solid var(--hair); border-radius: 8px; font-size: 13px; }
+  .quote-box div { display: flex; justify-content: space-between; color: var(--ash); }
+  .quote-box blockquote { margin: 4px 0 0; max-height: 72px; overflow: auto; }
+  .annotation-count { justify-self: start; border: 1px solid var(--line); background: #fff; border-radius: 980px; padding: 2px 12px; font-size: 12px; }
+  #annotation-list { background: #fff; border: 1px solid var(--hair); border-radius: 8px; padding: 6px; }
+  .annotation-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; font-size: 12px; padding: 4px; }
+  .annotation-preview { border: 0; background: none; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .annotation-row span { color: var(--ash); }
+  .annotation-marker { position: absolute; z-index: 15; width: 18px; height: 18px; border: 0; border-radius: 980px; background: var(--carbon); color: #fff; font-size: 11px; }
+  .annotation-editor { position: fixed; z-index: 30; display: flex; gap: 6px; width: min(360px, calc(100vw - 20px)); padding: 6px; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
+  .annotation-editor input { flex: 1; border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; background: var(--frost); }
+  .annotation-editor button { border: 0; border-radius: 980px; background: var(--apple); color: #fff; width: 28px; }
+  .jump-bottom, .quote-selection { position: fixed; z-index: 25; left: 50%; transform: translateX(-50%); border: 1px solid var(--link); color: var(--link); background: #fff; border-radius: 980px; padding: 6px 15px; font-size: 13px; }
+  .jump-bottom { bottom: 120px; }
+  .quote-selection { top: 56px; }
+</style>
+<script type="module" src="/viewer/asked.js"></script>
+</head>
+<body>
+<!-- header -->
+<header class="site-header"><a href="/viewer/">Research</a><span id="asked-title">Asked</span></header>
+<div id="error-banner" class="error-banner" role="alert" hidden></div>
+<main class="conversation" aria-label="학습 대화"><section id="messages"></section></main>
+<button id="jump-bottom" class="jump-bottom" type="button" hidden>새 답변으로 ↓</button>
+<button id="quote-selection" class="quote-selection" type="button" hidden>선택한 내용에 질문 ↗</button>
+<!-- composer -->
+<div class="composer-dock">
+  <div class="attachment-tray">
+    <button id="annotation-count" class="annotation-count" type="button" hidden></button>
+    <div id="annotation-list" hidden></div>
+    <div id="quote-box" class="quote-box" hidden><div><span>인용한 설명</span><button id="clear-quote" class="quiet" type="button" aria-label="인용 지우기">×</button></div><blockquote id="quote-text"></blockquote></div>
+  </div>
+  <form id="composer" class="composer">
+    <textarea id="message-input" rows="1" maxlength="10000" aria-label="메시지" placeholder="메시지 입력 · /next 로 다음 설명"></textarea>
+    <button id="send" class="send-button" type="submit" aria-label="보내기">↑</button>
+  </form>
+  <p id="form-status" class="form-status" role="status"></p>
+</div>
+<div id="annotation-markers"></div>
+<div id="annotation-editor" class="annotation-editor" hidden><input id="annotation-comment" maxlength="2000" aria-label="주석 코멘트" placeholder="코멘트 (선택)"><button id="annotation-done" type="button" aria-label="코멘트 완료">✓</button></div>
+</body>
+</html>

@@ -7,17 +7,19 @@ import uuid
 from usecase.common import store
 
 IDENTIFIER = re.compile(r"[a-zA-Z0-9_-]+")
+TABLES = ("conversations", "agent")
 
 
 # #
 # query
 
-def listed() -> list[dict]:
+def listed(*, table: str) -> list[dict]:
+    assert table in TABLES
     with store.session() as connection:
         rows = connection.execute(
-            """SELECT id, title, createdAt, updatedAt,
+            f"""SELECT id, title, createdAt, updatedAt,
                       json_array_length(messages) AS messageCount
-               FROM conversations ORDER BY updatedAt DESC"""
+               FROM {table} ORDER BY updatedAt DESC"""
         ).fetchall()
 
     return [
@@ -26,12 +28,13 @@ def listed() -> list[dict]:
     ]
 
 
-def get(*, id: str) -> dict | None:
+def get(*, table: str, id: str) -> dict | None:
+    assert table in TABLES
     if not IDENTIFIER.fullmatch(id or ""):
         return None
     with store.session() as connection:
         row = connection.execute(
-            "SELECT id, title, createdAt, updatedAt, messages FROM conversations WHERE id = ?",
+            f"SELECT id, title, createdAt, updatedAt, messages FROM {table} WHERE id = ?",
             (id,),
         ).fetchone()
     if not row:
@@ -49,7 +52,8 @@ def get(*, id: str) -> dict | None:
 # #
 # command
 
-def save(*, data: dict) -> dict:
+def save(*, table: str, data: dict) -> dict:
+    assert table in TABLES
     id = data.get("id") or str(uuid.uuid4())
     if not IDENTIFIER.fullmatch(id):
         id = str(uuid.uuid4())
@@ -62,7 +66,7 @@ def save(*, data: dict) -> dict:
     }
     with store.session() as connection:
         connection.execute(
-            "INSERT OR REPLACE INTO conversations VALUES (?, ?, ?, ?, ?)",
+            f"INSERT OR REPLACE INTO {table} VALUES (?, ?, ?, ?, ?)",
             (
                 saved["id"],
                 saved["title"],
@@ -75,10 +79,11 @@ def save(*, data: dict) -> dict:
     return saved
 
 
-def delete(*, id: str) -> bool:
+def delete(*, table: str, id: str) -> bool:
+    assert table in TABLES
     if not IDENTIFIER.fullmatch(id or ""):
         return False
     with store.session() as connection:
-        removed = connection.execute("DELETE FROM conversations WHERE id = ?", (id,)).rowcount
+        removed = connection.execute(f"DELETE FROM {table} WHERE id = ?", (id,)).rowcount
 
     return removed > 0

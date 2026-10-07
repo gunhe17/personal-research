@@ -54,6 +54,25 @@ CREATE TABLE IF NOT EXISTS conversations (
     updatedAt TEXT NOT NULL,
     messages  TEXT NOT NULL DEFAULT '[]'
 );
+
+CREATE TABLE IF NOT EXISTS agent (
+    id        TEXT PRIMARY KEY,
+    title     TEXT NOT NULL,
+    createdAt TEXT NOT NULL,
+    updatedAt TEXT NOT NULL,
+    messages  TEXT NOT NULL DEFAULT '[]'
+);
+
+CREATE TABLE IF NOT EXISTS asked (
+    id         TEXT PRIMARY KEY,
+    title      TEXT NOT NULL,
+    plan       TEXT NOT NULL DEFAULT '',
+    log        TEXT NOT NULL DEFAULT '',
+    thread_id  TEXT,
+    messages   TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
 """
 
 

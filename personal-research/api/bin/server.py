@@ -16,6 +16,8 @@ from usecase.common import log
 from usecase.common import store
 
 from usecase.agent.ask import ask
+from usecase.asked.converse import converse as asked_converse
+from usecase.asked.record import record as asked_record
 from usecase.conversation.converse import converse
 from usecase.conversation.record import record
 from usecase.collected.collect import pipeline
@@ -25,7 +27,9 @@ from usecase.collected.search import search
 VIEWER = store.API.parent / "wui" / "bin"
 HOST = os.environ.get("HOST") or "127.0.0.1"
 PORT = int(os.environ.get("PORT") or 8765)
-CONVERSATION = re.compile(r"/api/conversations/([a-zA-Z0-9_-]+)")
+CONVERSATION = re.compile(r"/api/(conversations|agent)/([a-zA-Z0-9_-]+)")
+CHATS = re.compile(r"/api/(conversations|agent)")
+ASKED = re.compile(r"/api/asked/([a-zA-Z0-9_-]+)(?:/(messages|retry|cancel))?")
 INCLUDE = re.compile(r"\{\{include ([\w./-]+)\}\}")
 
 
@@ -71,6 +75,7 @@ class Handler(BaseHTTPRequestHandler):
                 "ok": True,
                 "grok_bin": converse.BIN,
                 "grok_available": converse.available(),
+                "codex_available": asked_converse.available(),
                 "database": str(store.DATABASE),
             })
         if path == "/api/tree":
@@ -107,12 +112,20 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/search":
             terms = [t for t in (query.get("q") or [""])[0].split() if t]
             return self.reply(code=200, payload={"items": search.run(terms=terms)})
-        if path == "/api/conversations":
-            return self.reply(code=200, payload={"items": record.listed()})
+        if CHATS.fullmatch(path):
+            return self.reply(code=200, payload={"items": record.listed(table=CHATS.fullmatch(path).group(1))})
+        if path == "/api/asked":
+            return self.reply(code=200, payload={"items": asked_record.listed()})
 
         matched = CONVERSATION.fullmatch(path)
         if matched:
-            found = record.get(id=matched.group(1))
+            found = record.get(table=matched.group(1), id=matched.group(2))
+            return self.reply(code=200 if found else 404, payload=found or {"error": "not found"})
+        matched = ASKED.fullmatch(path)
+        if matched and not matched.group(2):
+            found = asked_record.get(id=matched.group(1))
+            if found:
+                found["codex_available"] = asked_converse.available()
             return self.reply(code=200 if found else 404, payload=found or {"error": "not found"})
 
         self.reply(code=404, payload={"error": "not found", "path": path})
@@ -131,8 +144,11 @@ class Handler(BaseHTTPRequestHandler):
                 "id": wanted,
                 "related": search.related(id=wanted),
             })
-        if parsed.path == "/api/conversations":
-            return self.reply(code=200, payload=record.save(data=body))
+        if CHATS.fullmatch(parsed.path):
+            return self.reply(code=200, payload=record.save(table=CHATS.fullmatch(parsed.path).group(1), data=body))
+        matched = ASKED.fullmatch(parsed.path)
+        if matched and matched.group(2):
+            return self.asked(id=matched.group(1), action=matched.group(2), body=body)
         if parsed.path == "/api/chat":
             return self.stream(work=lambda send: converse.stream(body=body, send=send))
         if parsed.path == "/api/ask":
@@ -155,20 +171,43 @@ class Handler(BaseHTTPRequestHandler):
         body = self.payload()
         if body is None:
             return self.reply(code=400, payload={"error": "invalid json"})
-        body["id"] = matched.group(1)
-        existing = record.get(id=matched.group(1))
+        table, id = matched.groups()
+        body["id"] = id
+        existing = record.get(table=table, id=id)
         if existing and existing.get("createdAt"):
             body["createdAt"] = existing["createdAt"]
 
-        self.reply(code=200, payload=record.save(data=body))
+        self.reply(code=200, payload=record.save(table=table, data=body))
 
     def do_DELETE(self) -> None:
         matched = CONVERSATION.fullmatch(urlparse(self.path).path)
         if not matched:
             return self.reply(code=404, payload={"error": "not found"})
-        removed = record.delete(id=matched.group(1))
+        removed = record.delete(table=matched.group(1), id=matched.group(2))
 
         self.reply(code=200 if removed else 404, payload={"ok": removed})
+
+    # #
+    # asked
+
+    def asked(self, *, id: str, action: str, body: dict) -> None:
+        if not asked_converse.available():
+            return self.reply(code=500, payload={"error": "codex CLI 가 없다"})
+        try:
+            if action == "messages":
+                question = asked_record.ask(id=id, data=body)
+                if question["status"] == "queued":
+                    asked_converse.submit(id=id, message_id=question["id"])
+                return self.reply(code=200, payload=question)
+            message_id = body.get("message_id") or ""
+            if action == "cancel":
+                asked_converse.cancel(id=id, message_id=message_id)
+            elif asked_converse.status(id=id, message_id=message_id) in ("failed", "cancelled", "interrupted"):
+                asked_converse.submit(id=id, message_id=message_id)
+        except (ValueError, StopIteration) as error:
+            return self.reply(code=400, payload={"error": str(error) or "질문을 찾을 수 없습니다."})
+
+        self.reply(code=200, payload={"ok": True})
 
     # #
     # chat
@@ -271,6 +310,7 @@ def main() -> None:
     load_dotenv(path=store.API / ".env")
     if not store.DATABASE.is_file():
         raise SystemExit(f"DB 없음: {store.DATABASE} (collect.py migrate 로 만든다)")
+    asked_record.recover()
     log.write(level="info", message=f"start {HOST}:{PORT} database={store.DATABASE} grok={converse.BIN}")
     print(f"Open http://{HOST}:{PORT}/viewer/")
     ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()

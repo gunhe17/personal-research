@@ -10,6 +10,7 @@ services:
       - ..:/app
       - grok-auth:/root/.grok
       - claude-config:/root/.claude
+      - codex-auth:/root/.codex
     ports:
       - "127.0.0.1:${DEVELOP_API_PORT}:${PORT}"
     env_file:
@@ -18,3 +19,4 @@ services:
 volumes:
   grok-auth:
   claude-config:
+  codex-auth:

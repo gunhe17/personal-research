@@ -291,6 +291,9 @@
     const COLLECTED_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0">
       <path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4l2 2.5h9A1.5 1.5 0 0 1 21 10v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18z" /></svg>`;
 
+    const ASKED_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0">
+      <path d="M21 11a8 8 0 0 1-8 8H6.5L3 21V11a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z" /></svg>`;
+
     const SKELETON_WIDTHS = ["72%", "58%", "81%", "64%", "49%"];
 
     function relatedSkeleton() {
@@ -317,6 +320,12 @@
         active: state.view === "collected",
         icon: COLLECTED_ICON,
         onClick: () => openCollected(),
+      }));
+      tree.appendChild(sidebarRow({
+        label: "Asked",
+        active: false,
+        icon: ASKED_ICON,
+        onClick: () => { location.href = "/viewer/asked"; },
       }));
 
       const under = document.createElement("div");
@@ -492,6 +501,7 @@
 
 
     const HOME_URL = "/viewer/";
+    const CHATS = state.view === "home" ? "/api/agent" : "/api/conversations";
     const COLLECTED_URL = "/viewer/collected";
 
     function openCollected() {
@@ -1458,7 +1468,7 @@ Documents·인용에 없으면 추측하지 말고 부족하다고 말하세요.
           citations: m.citations || undefined,
         })),
       };
-      const res = await fetch("/api/conversations/" + encodeURIComponent(payload.id), {
+      const res = await fetch(CHATS + "/" + encodeURIComponent(payload.id), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -1780,7 +1790,7 @@ Documents·인용에 없으면 추측하지 말고 부족하다고 말하세요.
       const list = $("#history-list");
       list.innerHTML = `<div class="px-3 py-4 text-center text-xs text-slate-400">Loading…</div>`;
       try {
-        const res = await fetch("/api/conversations");
+        const res = await fetch(CHATS);
         const data = await res.json();
         const items = data.items || [];
         const currentId = state.conversation && state.conversation.id;
@@ -1826,7 +1836,7 @@ Documents·인용에 없으면 추측하지 말고 부족하다고 말하세요.
           btn.addEventListener("click", async (e) => {
             e.stopPropagation();
             const id = btn.dataset.del;
-            await fetch("/api/conversations/" + encodeURIComponent(id), { method: "DELETE" });
+            await fetch(CHATS + "/" + encodeURIComponent(id), { method: "DELETE" });
             if (state.conversation && state.conversation.id === id) {
               newConversation();
               toast("Chat deleted");
@@ -1849,7 +1859,7 @@ Documents·인용에 없으면 추측하지 말고 부족하다고 말하세요.
     }
 
     async function loadConversation(id) {
-      const res = await fetch("/api/conversations/" + encodeURIComponent(id));
+      const res = await fetch(CHATS + "/" + encodeURIComponent(id));
       if (!res.ok) return toast("Could not open the chat");
       const data = await res.json();
       state.conversation = data;
