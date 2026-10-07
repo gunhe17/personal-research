@@ -29,6 +29,8 @@
       resizingSidebar: false,
       layout: localStorage.getItem("layout") === "split" ? "split" : "chat",
       spaces: [],
+      details: {},
+      expanded: (() => { try { return JSON.parse(localStorage.getItem("spaceExpanded") || "{}") || {}; } catch (_) { return {}; } })(),
       chatWidthPct: clampChatWidth(parseFloat(localStorage.getItem("chatWidthPct") || "50") || 50),
       tree: [],
       currentPath: null,
@@ -221,15 +223,110 @@
       box.className = "ml-3 border-l border-slate-100 pl-1";
       tree.appendChild(box);
       if (!state.spaces.length) box.insertAdjacentHTML("beforeend", `<div class="px-2 py-1.5 text-xs text-slate-400">Nothing yet</div>`);
+      const current = params.get("space") || params.get("id");
       for (const item of state.spaces.slice(0, 12)) {
-        box.appendChild(sidebarRow({
+        const open = state.expanded[item.id] ?? item.id === current;
+        const row = sidebarRow({
           label: item.title,
-          active: (params.get("space") || params.get("id")) === item.id,
+          active: current === item.id,
           title: item.title,
           meta: sinceLabel(item.updated_at),
           onClick: () => { location.href = `${SPACE_URL}?id=${encodeURIComponent(item.id)}`; },
-        }));
+        });
+        const chevron = document.createElement("span");
+        chevron.className = `inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-[13px] text-slate-400 hover:bg-slate-200 transition-transform ${open ? "rotate-90" : ""}`;
+        chevron.textContent = "›";
+        chevron.title = open ? "접기" : "펼치기";
+        chevron.addEventListener("click", (e) => { e.stopPropagation(); expandSpace(item.id, !open); });
+        row.prepend(chevron);
+        box.appendChild(row);
+        if (!open) continue;
+        const detail = state.details[item.id];
+        if (!detail) { loadSpaceDetail(item.id); continue; }
+        box.appendChild(spaceFolders(item.id, detail));
       }
+    }
+
+    const RESEARCH_ICON = {
+      folder: '<path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4l2 2.5h9A1.5 1.5 0 0 1 21 10v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18z" />',
+      docs: '<path d="M7 3h7l4 4v14H7z" /><path d="M14 3v4h4M10 12h5M10 16h5" />',
+      papers: '<path d="M4 7l8-4 8 4-8 4z" /><path d="M8 9v5c0 1.5 2 3 4 3s4-1.5 4-3V9" />',
+      repos: '<path d="M9 8l-4 4 4 4M15 8l4 4-4 4" />',
+      videos: '<rect x="3" y="5" width="18" height="14" rx="2" /><path d="M10 9.5v5l4.5-2.5z" />',
+      lesson: '<path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H12v16H5.5A1.5 1.5 0 0 1 4 18.5zM12 4h6.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H12" />',
+      note: '<path d="M4 20h4L19 9l-4-4L4 16z" /><path d="M13 7l4 4" />',
+      log: '<circle cx="12" cy="12" r="8" /><path d="M12 8v4l3 2" />',
+    };
+    window.RESEARCH_ICON = RESEARCH_ICON;
+
+    function iconHtml(name, cls = "h-3.5 w-3.5") {
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="${cls} shrink-0">${RESEARCH_ICON[name] || RESEARCH_ICON.docs}</svg>`;
+    }
+
+    function expandSpace(id, open) {
+      state.expanded[id] = open;
+      localStorage.setItem("spaceExpanded", JSON.stringify(state.expanded));
+      renderTree();
+    }
+
+    async function loadSpaceDetail(id) {
+      if (state.details[id] === null) return;
+      state.details[id] = null;
+      try {
+        state.details[id] = await (await fetch(`/api/spaces/${encodeURIComponent(id)}`)).json();
+      } catch (_) {
+        delete state.details[id];
+        return;
+      }
+      renderTree();
+    }
+
+    function spaceFolders(spaceId, detail) {
+      const box = document.createElement("div");
+      box.className = "ml-3 border-l border-slate-100 pl-1 mb-1";
+      const params = new URLSearchParams(location.search);
+      const sameSpace = state.view === "collected" && params.get("space") === spaceId;
+      const folder = (name, count, rows) => {
+        const head = document.createElement("div");
+        head.className = "flex items-center gap-1.5 px-2 py-1 text-[12px] font-medium text-slate-700";
+        head.innerHTML = `<span class="text-apple-link">${iconHtml("folder")}</span><span class="flex-1 truncate">${escapeHtml(name)}</span><span class="text-[10px] text-slate-400">${count}</span>`;
+        box.appendChild(head);
+        if (!rows.length) box.insertAdjacentHTML("beforeend", `<div class="pl-7 pr-2 pb-1 text-[11px] text-slate-400">비어 있음</div>`);
+        rows.forEach((row) => box.appendChild(row));
+      };
+      const leaf = ({ label, title, kind, active, onClick }) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.title = title;
+        btn.className = `flex w-full items-center gap-1.5 rounded-lg py-1 pl-6 pr-2 text-left text-[12px] transition duration-150 ${active ? "bg-ice text-apple-link" : "text-slate-600 hover:bg-slate-50"}`;
+        btn.innerHTML = `${iconHtml(kind)}<span class="min-w-0 flex-1 truncate">${escapeHtml(label)}</span>`;
+        btn.addEventListener("click", onClick);
+        return btn;
+      };
+      const conversationFor = (rootId) => detail.conversations.find((c) => c.collected_id === rootId)?.id || "";
+      const collected = detail.collected.flatMap((root) => (root.documents?.length ? root.documents : [root]).map((d) => leaf({
+        label: d.path.split("/").slice(2).join("/") || d.path,
+        title: d.path,
+        kind: d.path.split("/")[0],
+        active: sameSpace && state.currentId === d.id,
+        onClick: () => {
+          if (sameSpace && window.research) return openFile(d.id);
+          location.href = `${COLLECTED_URL}?space=${encodeURIComponent(spaceId)}&conversation=${encodeURIComponent(conversationFor(root.id))}&doc=${encodeURIComponent(d.id)}`;
+        },
+      })));
+      const materials = detail.materials.map((m) => leaf({
+        label: m.title,
+        title: m.title,
+        kind: m.kind,
+        active: sameSpace && params.get("material") === m.id,
+        onClick: () => {
+          if (sameSpace && window.research?.showMaterial) return window.research.showMaterial(m.id);
+          location.href = `${COLLECTED_URL}?space=${encodeURIComponent(spaceId)}&material=${encodeURIComponent(m.id)}`;
+        },
+      }));
+      folder("Collected", collected.length, collected);
+      folder("자료", materials.length, materials);
+      return box;
     }
 
     async function loadTree() {
@@ -337,6 +434,7 @@
     const SPACE_URL = "/viewer/space";
 
     async function loadSpaces() {
+      state.details = {};
       try {
         state.spaces = (await (await fetch("/api/spaces")).json()).items || [];
       } catch (_) {
@@ -750,6 +848,7 @@
       state.docLang = state.docPair ? state.docLang : "orig";
       state.pairTexts = { orig: null, trans: null };
       localStorage.setItem("lastDoc", id);
+      renderTree();
       if (state.layout === "chat") setLayout("split");
       window.dispatchEvent(new CustomEvent("research:doc", { detail: { id, path: node.path } }));
 
@@ -815,6 +914,7 @@
         setTimeout(() => $("#home-input")?.focus(), 60);
         return;
       }
+      if (new URLSearchParams(location.search).get("material")) return;
       const doc = new URLSearchParams(location.search).get("doc") || localStorage.getItem("lastDoc");
       if (doc && state.nodeById.has(doc)) {
         if (await openFile(doc)) restoreDocScroll(doc);
@@ -1674,7 +1774,7 @@
 
     // init
     const opened = new URLSearchParams(location.search);
-    if (opened.get("doc")) state.layout = "split";
+    if (opened.get("doc") || opened.get("material")) state.layout = "split";
     if (window.matchMedia("(max-width: 767px)").matches) {
       state.sidebarOpen = false;
     }
@@ -1690,6 +1790,7 @@
       setLayout,
       current: () => (state.currentId ? { id: state.currentId, path: state.currentPath } : null),
       spacesChanged: loadSpaces,
+      renderTree,
     };
     loadSpaces();
     requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove("booting")));

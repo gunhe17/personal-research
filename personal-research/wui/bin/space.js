@@ -107,16 +107,7 @@ function renderHeader() {
   if (chat && !chat.codex_available) $('space-banner').textContent = '서버에서 codex CLI 를 찾지 못했습니다. 컨테이너에서 codex login --device-auth 를 확인해 주세요.';
 }
 
-const ICON = {
-  folder: '<path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4l2 2.5h9A1.5 1.5 0 0 1 21 10v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18z" />',
-  docs: '<path d="M7 3h7l4 4v14H7z" /><path d="M14 3v4h4M10 12h5M10 16h5" />',
-  papers: '<path d="M4 7l8-4 8 4-8 4z" /><path d="M8 9v5c0 1.5 2 3 4 3s4-1.5 4-3V9" />',
-  repos: '<path d="M9 8l-4 4 4 4M15 8l4 4-4 4" />',
-  videos: '<rect x="3" y="5" width="18" height="14" rx="2" /><path d="M10 9.5v5l4.5-2.5z" />',
-  lesson: '<path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H12v16H5.5A1.5 1.5 0 0 1 4 18.5zM12 4h6.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H12" />',
-  note: '<path d="M4 20h4L19 9l-4-4L4 16z" /><path d="M13 7l4 4" />',
-  log: '<circle cx="12" cy="12" r="8" /><path d="M12 8v4l3 2" />',
-};
+const ICON = window.RESEARCH_ICON;
 const KIND = { lesson: '수업', note: '노트', log: '기록' };
 let detail = null, shown = null;
 let folders = {};
@@ -181,6 +172,8 @@ function renderLinks() {
 async function showMaterial(id) {
   const material = await json(`/api/materials/${encodeURIComponent(id)}`);
   shown = id; research.setLayout('split'); renderLinks();
+  const url = new URL(location.href); url.searchParams.set('material', id); url.searchParams.delete('doc'); history.replaceState(null, '', url);
+  research.renderTree();
   const box = $('doc-content');
   $('doc-langbar')?.classList.add('hidden');
   box.replaceChildren();
@@ -384,6 +377,7 @@ window.addEventListener('research:quote', event => {
 async function follow(current) {
   doc = current; shown = null; renderLinks();
   const url = new URL(location.href);
+  if (doc && url.searchParams.has('material')) { url.searchParams.delete('material'); history.replaceState(null, '', url); }
   if (!doc || chat || url.searchParams.get('conversation') || url.searchParams.get('agent')) return;
   const found = (await json(`/api/conversations?collected_id=${encodeURIComponent(doc.id)}`)).items || [];
   if (found.length && !chat) { scope = { domain: 'space', space: null }; await open('space', found[0].id); }
@@ -392,12 +386,14 @@ window.addEventListener('research:doc', event => follow(event.detail));
 document.addEventListener('visibilitychange', () => { if (!document.hidden && chat) refresh(); });
 
 renderQuote(); resizeInput();
+research.showMaterial = showMaterial;
+
 async function start() {
-  const url = new URL(location.href), agent = url.searchParams.get('agent'), space = url.searchParams.get('space'), conversation = url.searchParams.get('conversation');
+  const url = new URL(location.href), material = url.searchParams.get('material'), agent = url.searchParams.get('agent'), space = url.searchParams.get('space'), conversation = url.searchParams.get('conversation');
   if (agent) return open('agent', agent);
-  if (conversation) return open('space', conversation);
+  if (conversation) { await open('space', conversation); if (material) showMaterial(material); return; }
   if (space && url.searchParams.get('new')) { scope = { domain: 'space', space: await json(`/api/spaces/${space}`) }; return open('space', null); }
-  if (space) return choose({ domain: 'space', space: await json(`/api/spaces/${space}`) });
+  if (space) { await choose({ domain: 'space', space: await json(`/api/spaces/${space}`) }); if (material) showMaterial(material); return; }
   renderHeader(); follow(research.current());
 }
 start();
