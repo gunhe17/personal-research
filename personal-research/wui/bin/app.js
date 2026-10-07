@@ -110,102 +110,203 @@
       markSettings(true);
     }
 
+    const settings = { tab: "general", providers: [], status: {}, sheet: null, timer: null };
+
     async function loadProviders() {
-      const box = $("#settings-providers");
-      if (!box) return;
-      $("#settings-error").hidden = true;
       const data = await fetch("/api/settings").then((r) => r.json()).catch(() => null);
       if (!data) return;
-      box.innerHTML = data.providers.map((p) => `
-        <div data-provider="${p.id}" data-auth="${p.auth}" class="rounded-xl border border-slate-200 p-3">
-          <div class="mb-2.5 flex items-center gap-1.5">
-            <span class="text-sm font-medium text-slate-800">${p.label}</span>
-            <span class="flex-1 text-[11px] text-slate-400">${p.cli}</span>
-            <span data-status class="inline-flex items-center gap-1.5 text-[11px] text-slate-400"><span data-dot class="h-1.5 w-1.5 rounded-full bg-slate-300"></span><span data-status-text>Checking…</span></span>
+      settings.providers = data.providers;
+      $("#settings-provider-tabs").innerHTML = data.providers.map((p) => `
+        <button type="button" data-settings-tab="${p.id}" class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-slate-800 hover:bg-white/70 aria-selected:bg-white aria-selected:shadow-sm">
+          <span class="flex-1 truncate">${p.label}</span><span data-dot="${p.id}" class="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300"></span>
+        </button>`).join("");
+      $("#settings-provider-panes").innerHTML = data.providers.map((p) => `
+        <div data-settings-pane="${p.id}" data-auth="${p.auth}" class="space-y-6" hidden>
+          <div>
+            <h3 class="text-[21px] font-semibold tracking-tight text-slate-900">${p.label}</h3>
+            <div class="mt-1 flex items-center gap-1.5 text-[12px] text-slate-500"><span>${p.cli}</span><span>·</span><span data-pane-dot class="h-1.5 w-1.5 rounded-full bg-slate-300"></span><span data-state>Checking…</span></div>
           </div>
-          <div class="inline-flex items-center rounded-full bg-slate-100 p-0.5" role="group" aria-label="${p.label} access">
-            <button type="button" data-auth-choice="subscription" class="seg-btn">Plan login</button>
-            <button type="button" data-auth-choice="api_key" class="seg-btn">API key</button>
-          </div>
-          <div data-plan class="mt-2.5">
-            <div class="flex items-center gap-2">
-              <button type="button" data-login class="shrink-0 rounded-full border border-[#0066cc] px-3 py-1 text-[12px] text-[#0066cc] hover:bg-[#0066cc]/5 transition disabled:opacity-40">Log in</button>
-              <span data-detail class="min-w-0 truncate text-[11px] text-slate-400"></span>
+          <section class="space-y-2">
+            <h4 class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Access</h4>
+            <div class="inline-flex items-center rounded-full bg-slate-100 p-0.5" role="group" aria-label="${p.label} access">
+              <button type="button" data-auth-choice="subscription" class="seg-btn">Plan login</button>
+              <button type="button" data-auth-choice="api_key" class="seg-btn">API key</button>
             </div>
-            <div data-pending hidden class="mt-2.5 space-y-2 rounded-lg bg-slate-50 p-3 text-[12px] text-slate-600">
-              <a data-url target="_blank" rel="noopener noreferrer" class="inline-flex text-[#0066cc] hover:underline">Open the sign-in page ↗</a>
-              <div data-code-row hidden>Enter this code there <span data-code class="ml-1 select-all font-mono text-[15px] font-semibold tracking-wider text-slate-900"></span></div>
-              <div data-paste class="hidden gap-2">
-                <input data-code-input type="text" autocomplete="off" spellcheck="false" placeholder="Paste the code shown after sign-in" class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-apple focus:outline-none" />
-                <button type="button" data-submit class="shrink-0 rounded-full bg-apple px-3 py-1 text-[12px] text-white hover:bg-apple-hover">Submit</button>
-              </div>
-              <div class="flex items-center gap-2"><span data-hint class="flex-1 text-slate-400">Waiting for approval…</span><button type="button" data-cancel class="text-slate-500 hover:text-slate-800">Cancel</button></div>
+            <p class="text-[11px] text-slate-400" data-access-note></p>
+          </section>
+          <section data-plan class="space-y-2">
+            <h4 class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Sign-in</h4>
+            <div class="flex items-center gap-3">
+              <button type="button" data-login class="shrink-0 rounded-full px-3.5 py-1.5 text-[13px] transition"></button>
+              <span data-detail class="min-w-0 truncate text-[12px] text-slate-500"></span>
             </div>
-          </div>
-          <input type="password" autocomplete="off" spellcheck="false" placeholder="${p.key ? `Saved ${p.key} · enter to replace` : `${p.label} API key`}" class="mt-2.5 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-apple focus:bg-white focus:outline-none" />
+          </section>
+          <section data-key class="space-y-2">
+            <h4 class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">API key</h4>
+            <div class="flex gap-2">
+              <input type="password" autocomplete="off" spellcheck="false" placeholder="${p.key ? `Saved ${p.key} · enter to replace` : `${p.label} API key`}" class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-[13px] text-slate-900 placeholder:text-slate-400 focus:border-apple focus:bg-white focus:outline-none" />
+              <button type="button" data-save-key class="shrink-0 rounded-full bg-apple px-3.5 py-1.5 text-[13px] text-white hover:bg-apple-hover disabled:opacity-40">Save</button>
+            </div>
+          </section>
+          <p data-error class="text-[12px] text-red-600" hidden></p>
         </div>`).join("");
-      box.querySelectorAll("[data-provider]").forEach((item) => {
-        paintProvider(item);
-        item.querySelectorAll("[data-auth-choice]").forEach((b) => b.addEventListener("click", () => {
-          item.dataset.auth = b.dataset.authChoice;
-          paintProvider(item);
-        }));
-        item.querySelector("[data-login]").addEventListener("click", () => loginAction(item, { method: "POST", body: { provider: item.dataset.provider } }));
-        item.querySelector("[data-submit]").addEventListener("click", () => loginAction(item, { method: "POST", body: { provider: item.dataset.provider, code: item.querySelector("[data-code-input]").value } }));
-        item.querySelector("[data-cancel]").addEventListener("click", () => loginAction(item, { method: "DELETE" }));
-        loginAction(item, { method: "GET" });
+      document.querySelectorAll("[data-settings-pane][data-auth]").forEach((pane) => {
+        const id = pane.dataset.settingsPane;
+        paintAccess(pane);
+        pane.querySelectorAll("[data-auth-choice]").forEach((b) => b.addEventListener("click", () => chooseAccess(pane, b.dataset.authChoice)));
+        pane.querySelector("[data-login]").addEventListener("click", () => openSheet(id));
+        pane.querySelector("[data-save-key]").addEventListener("click", () => saveKey(pane));
+        pane.querySelector("input[type=password]").addEventListener("keydown", (e) => { if (e.key === "Enter") saveKey(pane); });
+        refreshLogin(id);
       });
+      document.querySelectorAll("[data-settings-tab]").forEach((b) => (b.onclick = () => showTab(b.dataset.settingsTab)));
+      showTab(settings.tab);
     }
 
-    function paintProvider(item) {
-      item.querySelectorAll("[data-auth-choice]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.authChoice === item.dataset.auth)));
-      item.querySelector("input[type=password]").hidden = item.dataset.auth !== "api_key";
-      item.querySelector("[data-plan]").hidden = item.dataset.auth !== "subscription";
+    function showTab(name) {
+      settings.tab = document.querySelector(`[data-settings-pane="${name}"]`) ? name : "general";
+      document.querySelectorAll("[data-settings-tab]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.settingsTab === settings.tab)));
+      document.querySelectorAll("[data-settings-pane]").forEach((p) => (p.hidden = p.dataset.settingsPane !== settings.tab));
     }
 
-    async function loginAction(item, { method, body }) {
-      const provider = item.dataset.provider;
-      const button = item.querySelector("[data-login]");
-      if (method === "POST" && !body.code) { button.disabled = true; item.querySelector("[data-detail]").textContent = "Starting sign-in…"; }
-      if (body?.code !== undefined) item.querySelector("[data-hint]").textContent = "Checking the code…";
-      const query = method === "POST" ? "" : `?provider=${encodeURIComponent(provider)}`;
-      const response = await fetch(`/api/login${query}`, {
-        method,
-        headers: body ? { "Content-Type": "application/json" } : undefined,
-        body: body ? JSON.stringify(body) : undefined,
-      }).catch(() => null);
-      button.disabled = false;
-      if (method === "DELETE") return loginAction(item, { method: "GET" });
-      const data = response ? await response.json().catch(() => ({})) : { error: "Could not reach the server" };
-      if (!response?.ok) {
-        item.querySelector("[data-detail]").textContent = data.error || "Sign-in failed";
-        return;
+    function paintAccess(pane) {
+      const auth = pane.dataset.auth;
+      pane.querySelectorAll("[data-auth-choice]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.authChoice === auth)));
+      pane.querySelector("[data-plan]").hidden = auth !== "subscription";
+      pane.querySelector("[data-key]").hidden = auth !== "api_key";
+      pane.querySelector("[data-access-note]").textContent = auth === "api_key" ? "Requests bill the provider account." : "Uses your subscription through the CLI sign-in.";
+    }
+
+    async function chooseAccess(pane, auth) {
+      const provider = settings.providers.find((p) => p.id === pane.dataset.settingsPane);
+      pane.dataset.auth = auth;
+      paintAccess(pane);
+      if (auth === "api_key" && !provider.key) return pane.querySelector("input[type=password]").focus();
+      await saveProvider(pane, { auth });
+    }
+
+    async function saveKey(pane) {
+      const key = pane.querySelector("input[type=password]").value.trim();
+      if (!key) return pane.querySelector("input[type=password]").focus();
+      if (await saveProvider(pane, { auth: "api_key", key })) toast("API key saved");
+    }
+
+    async function saveProvider(pane, values) {
+      const id = pane.dataset.settingsPane;
+      const error = pane.querySelector("[data-error]");
+      const response = await fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ providers: { [id]: values } }) }).catch(() => null);
+      const body = response ? await response.json().catch(() => ({})) : { error: "Could not reach the server" };
+      error.hidden = !!response?.ok;
+      if (!response?.ok) { error.textContent = body.error || "Could not save"; return false; }
+      settings.providers = body.providers;
+      const saved = body.providers.find((p) => p.id === id);
+      const input = pane.querySelector("input[type=password]");
+      input.value = "";
+      input.placeholder = saved.key ? `Saved ${saved.key} · enter to replace` : `${saved.label} API key`;
+      document.querySelectorAll("iframe").forEach((f) => f.contentWindow?.dispatchEvent(new Event("research:settings")));
+      refreshLogin(id);
+      return true;
+    }
+
+    async function refreshLogin(id) {
+      const data = await fetch(`/api/login?provider=${encodeURIComponent(id)}`).then((r) => r.json()).catch(() => null);
+      if (!data) return null;
+      settings.status[id] = data;
+      const pane = document.querySelector(`[data-settings-pane="${id}"]`);
+      const provider = settings.providers.find((p) => p.id === id);
+      const ready = provider?.auth === "api_key" ? !!provider.key : data.logged_in;
+      document.querySelectorAll(`[data-dot="${id}"]`).forEach((d) => (d.className = `h-1.5 w-1.5 shrink-0 rounded-full ${ready ? "bg-[#34c759]" : "bg-slate-300"}`));
+      if (!pane) return data;
+      pane.querySelector("[data-pane-dot]").className = `h-1.5 w-1.5 rounded-full ${ready ? "bg-[#34c759]" : "bg-slate-300"}`;
+      pane.querySelector("[data-state]").textContent = ready ? "Ready" : "Sign in needed";
+      pane.querySelector("[data-detail]").textContent = data.logged_in ? data.detail : data.pending ? "Sign-in in progress" : "";
+      const login = pane.querySelector("[data-login]");
+      login.textContent = data.pending ? "Continue sign-in" : data.logged_in ? "Log in again" : "Log in";
+      login.className = `shrink-0 rounded-full px-3.5 py-1.5 text-[13px] transition ${data.logged_in && !data.pending ? "border border-[#0066cc] text-[#0066cc] hover:bg-[#f4f8fb]" : "bg-apple text-white hover:bg-apple-hover"}`;
+      return data;
+    }
+
+    async function openSheet(id) {
+      const provider = settings.providers.find((p) => p.id === id);
+      settings.sheet = id;
+      $("#login-title").textContent = `Sign in to ${provider.label}`;
+      $("#login-paste").value = "";
+      paintSheet({ pending: null }, "Starting sign-in…");
+      $("#login-sheet").classList.remove("hidden");
+      $("#login-sheet").classList.add("flex");
+      let data = settings.status[id];
+      if (!data?.pending) {
+        const response = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ provider: id }) }).catch(() => null);
+        data = response ? await response.json().catch(() => ({})) : { error: "Could not reach the server" };
+        if (!response?.ok) return paintSheet({ pending: null }, data.error || "Could not start sign-in");
       }
-      paintLogin(item, data);
-      clearTimeout(item.loginTimer);
-      if (data.pending && !$("#settings-modal").classList.contains("hidden")) {
-        item.loginTimer = setTimeout(() => { if (document.body.contains(item)) loginAction(item, { method: "GET" }); }, 2500);
-      }
+      if (settings.sheet !== id) return;
+      paintSheet(data);
+      pollSheet(id);
     }
 
-    function paintLogin(item, data) {
-      item.querySelector("[data-dot]").className = `h-1.5 w-1.5 rounded-full ${data.logged_in ? "bg-[#34c759]" : "bg-slate-300"}`;
-      item.querySelector("[data-status-text]").textContent = data.logged_in ? "Logged in" : "Not logged in";
-      item.querySelector("[data-status]").classList.toggle("text-slate-600", data.logged_in);
-      item.querySelector("[data-detail]").textContent = data.detail || "";
-      item.querySelector("[data-login]").textContent = data.logged_in ? "Log in again" : "Log in";
+    function paintSheet(data, message) {
       const pending = data.pending;
-      item.querySelector("[data-pending]").hidden = !pending;
-      if (!pending) return;
-      item.querySelector("[data-url]").href = pending.url;
-      item.querySelector("[data-code-row]").hidden = !pending.code;
-      item.querySelector("[data-code]").textContent = pending.code;
-      item.querySelector("[data-paste]").classList.toggle("hidden", !pending.needs_code);
-      item.querySelector("[data-paste]").classList.toggle("flex", pending.needs_code);
-      item.querySelector("[data-hint]").textContent = pending.error || (pending.needs_code ? "Sign in, then paste the code here." : "Waiting for approval…");
+      const done = data.logged_in && !pending && !message;
+      document.querySelectorAll("[data-step]").forEach((s) => {
+        const active = done || (pending && s.dataset.step !== "3");
+        s.className = `flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[12px] ${active ? "bg-apple text-white" : "border border-slate-200 text-slate-400"}`;
+        s.textContent = done ? "✓" : s.dataset.step;
+      });
+      const url = $("#login-url");
+      url.textContent = pending?.url ? `${pending.url.replace(/^https:\/\//, "").slice(0, 48)}${pending.url.length > 56 ? "…" : ""} ↗` : "";
+      url.href = pending?.url || "#";
+      $("#login-step-two").textContent = pending?.needs_code ? "Paste the code shown after sign-in" : "Enter this code";
+      $("#login-code").textContent = pending?.code || "";
+      $("#login-code-row").classList.toggle("hidden", !pending?.code);
+      $("#login-code-row").classList.toggle("flex", !!pending?.code);
+      $("#login-paste-row").classList.toggle("hidden", !pending?.needs_code);
+      $("#login-paste-row").classList.toggle("flex", !!pending?.needs_code);
+      $("#login-wait").textContent = done ? "Signed in" : message || (pending?.needs_code ? "Waiting for the code…" : "Waiting for approval…");
+      $("#login-wait").classList.toggle("text-slate-400", !done);
+      $("#login-hint").textContent = pending?.error || (done ? data.detail || "" : pending && !pending.needs_code ? "This closes by itself when you approve." : "");
+    }
+
+    function pollSheet(id) {
+      clearTimeout(settings.timer);
+      settings.timer = setTimeout(async () => {
+        if (settings.sheet !== id) return;
+        const data = await refreshLogin(id);
+        if (settings.sheet !== id || !data) return;
+        paintSheet(data);
+        if (data.pending) return pollSheet(id);
+        if (data.logged_in) setTimeout(() => { if (settings.sheet === id) closeSheet(); }, 1200);
+      }, 2000);
+    }
+
+    async function submitCode() {
+      const id = settings.sheet;
+      const code = $("#login-paste").value.trim();
+      if (!id || !code) return $("#login-paste").focus();
+      $("#login-submit").disabled = true;
+      $("#login-wait").textContent = "Checking the code…";
+      const response = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ provider: id, code }) }).catch(() => null);
+      const data = response ? await response.json().catch(() => ({})) : { error: "Could not reach the server" };
+      $("#login-submit").disabled = false;
+      if (!response?.ok) return paintSheet(settings.status[id] || { pending: null }, data.error || "Sign-in failed");
+      settings.status[id] = data;
+      await refreshLogin(id);
+      paintSheet(data);
+      if (data.logged_in && !data.pending) setTimeout(() => { if (settings.sheet === id) closeSheet(); }, 1200);
+    }
+
+    function closeSheet({ cancel = false } = {}) {
+      const id = settings.sheet;
+      settings.sheet = null;
+      clearTimeout(settings.timer);
+      $("#login-sheet").classList.add("hidden");
+      $("#login-sheet").classList.remove("flex");
+      if (cancel && id) fetch(`/api/login?provider=${encodeURIComponent(id)}`, { method: "DELETE" }).then(() => refreshLogin(id));
+      else if (id) refreshLogin(id);
     }
 
     function closeSettings() {
+      if (settings.sheet) closeSheet({ cancel: true });
       const m = $("#settings-modal");
       leave(m, "leave-fade", () => m.classList.remove("flex"));
       markSettings(false);
@@ -1789,6 +1890,10 @@
         setDocZoom(1);
       }
       if (e.key === "Escape") {
+        if (settings.sheet) {
+          closeSheet({ cancel: true });
+          return;
+        }
         if (!$("#settings-modal")?.classList.contains("hidden")) {
           closeSettings();
           return;
@@ -1825,26 +1930,13 @@
     on("#dl-go", "click", runDownload);
     on("#btn-settings", "click", openSettings);
     on("#btn-close-settings", "click", closeSettings);
-    on("#btn-cancel-settings", "click", closeSettings);
     on("#settings-modal", "click", (e) => {
       if (e.target === $("#settings-modal")) closeSettings();
     });
-    on("#btn-save-settings", "click", async () => {
-      const providers = Object.fromEntries([...document.querySelectorAll("[data-provider]")].map((box) => {
-        const key = box.querySelector("input[type=password]").value.trim();
-        return [box.dataset.provider, { auth: box.dataset.auth, ...(key ? { key } : {}) }];
-      }));
-      const response = await fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ providers }) }).catch(() => null);
-      const body = response ? await response.json().catch(() => ({})) : { error: "Could not reach the server" };
-      if (!response?.ok) {
-        $("#settings-error").textContent = body.error || "Could not save";
-        $("#settings-error").hidden = false;
-        return;
-      }
-      document.querySelectorAll("iframe").forEach((f) => f.contentWindow?.dispatchEvent(new Event("research:settings")));
-      closeSettings();
-      toast("Settings saved");
-    });
+    on("#login-cancel", "click", () => closeSheet({ cancel: true }));
+    on("#login-submit", "click", submitCode);
+    on("#login-paste", "keydown", (e) => { if (e.key === "Enter") submitCode(); });
+    on("#login-copy", "click", () => navigator.clipboard?.writeText($("#login-code").textContent).then(() => toast("Code copied")));
 
     // init
     if (window.matchMedia("(max-width: 767px)").matches) {

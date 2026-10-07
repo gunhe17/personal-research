@@ -1,47 +1,76 @@
   <div id="settings-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 enter-fade">
-    <div class="w-full max-w-md max-h-[90vh] flex flex-col rounded-3xl bg-white shadow-2xl overflow-hidden enter-rise">
-      <div class="shrink-0 flex items-center gap-2 px-5 pt-5 pb-3">
-        <h3 class="text-sm font-semibold text-slate-900 flex-1">Settings</h3>
-        <button type="button" id="btn-close-settings" class="icon-btn shrink-0" title="Close">
+    <div class="relative flex h-[min(560px,90vh)] w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl enter-rise">
+      <!-- nav -->
+      <nav class="flex w-48 shrink-0 flex-col gap-0.5 border-r border-slate-100 bg-slate-50 p-2.5 text-[13px] max-sm:w-32">
+        <div class="px-2 pb-2 pt-1 text-sm font-semibold text-slate-900">Settings</div>
+        <button type="button" data-settings-tab="general" class="flex w-full items-center rounded-lg px-2 py-1.5 text-left text-slate-800 hover:bg-white/70 aria-selected:bg-white aria-selected:shadow-sm">General</button>
+        <div class="px-2 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Models</div>
+        <div id="settings-provider-tabs" class="flex flex-col gap-0.5"></div>
+      </nav>
+
+      <!-- pane -->
+      <div class="min-w-0 flex-1 overflow-y-auto p-6">
+        <button type="button" id="btn-close-settings" class="icon-btn absolute right-3 top-3" title="Close">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" class="h-4 w-4"><path d="M6 6l12 12M18 6L6 18" /></svg>
         </button>
+        <div data-settings-pane="general" class="space-y-6">
+          <h3 class="text-[21px] font-semibold tracking-tight text-slate-900">General</h3>
+          <section>
+            <h4 class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Document text size</h4>
+            <p class="mb-2 mt-0.5 text-[11px] text-slate-400">Document viewer · ⌘+ / ⌘− / ⌘0</p>
+            <div class="flex items-center gap-2">
+              <button type="button" id="btn-doc-font-down" class="h-8 w-8 rounded-full border border-slate-200 text-slate-800 hover:bg-slate-50 font-semibold text-[13px]" aria-label="Smaller document text">A−</button>
+              <span id="doc-font-label" class="min-w-[3.25rem] text-center font-mono text-[13px] font-semibold text-slate-800 tabular-nums">100%</span>
+              <button type="button" id="btn-doc-font-up" class="h-8 w-8 rounded-full border border-slate-200 text-slate-800 hover:bg-slate-50 font-semibold text-[13px]" aria-label="Larger document text">A+</button>
+              <button type="button" id="btn-doc-font-reset" class="ml-1 rounded-full bg-slate-100 px-3 h-8 text-[12px] text-slate-700 hover:bg-slate-200" aria-label="Default document size">Default</button>
+            </div>
+          </section>
+          <section>
+            <h4 class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Chat text size</h4>
+            <p class="mb-2 mt-0.5 text-[11px] text-slate-400">Messages, composer and quotes</p>
+            <div class="flex items-center gap-2">
+              <button type="button" id="btn-chat-font-down" class="h-8 w-8 rounded-full border border-slate-200 text-slate-800 hover:bg-slate-50 font-semibold text-[13px]" aria-label="Smaller chat text">A−</button>
+              <span id="chat-font-label" class="min-w-[3.25rem] text-center font-mono text-[13px] font-semibold text-slate-800 tabular-nums">100%</span>
+              <button type="button" id="btn-chat-font-up" class="h-8 w-8 rounded-full border border-slate-200 text-slate-800 hover:bg-slate-50 font-semibold text-[13px]" aria-label="Larger chat text">A+</button>
+              <button type="button" id="btn-chat-font-reset" class="ml-1 rounded-full bg-slate-100 px-3 h-8 text-[12px] text-slate-700 hover:bg-slate-200" aria-label="Default chat size">Default</button>
+            </div>
+          </section>
+        </div>
+        <div id="settings-provider-panes"></div>
       </div>
-      <div class="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-5">
-        <!-- Document font size -->
-        <section>
-          <h4 class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Document text size</h4>
-          <p class="text-[11px] text-slate-400 mb-2">Document viewer · ⌘+ / ⌘− / ⌘0</p>
-          <div class="flex items-center gap-2">
-            <button type="button" id="btn-doc-font-down" class="h-9 w-9 rounded-full border border-slate-200 text-slate-800 hover:bg-slate-50 font-semibold text-sm" aria-label="Smaller document text">A−</button>
-            <span id="doc-font-label" class="min-w-[3.5rem] text-center font-mono text-sm font-semibold text-slate-800 tabular-nums">100%</span>
-            <button type="button" id="btn-doc-font-up" class="h-9 w-9 rounded-full border border-slate-200 text-slate-800 hover:bg-slate-50 font-semibold text-sm" aria-label="Larger document text">A+</button>
-            <button type="button" id="btn-doc-font-reset" class="ml-1 rounded-full border border-slate-200 px-3 h-9 text-[11px] font-medium text-slate-600 hover:bg-slate-50" aria-label="Default document size">Default</button>
-          </div>
-        </section>
 
-        <!-- Chat font size -->
-        <section>
-          <h4 class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Chat text size</h4>
-          <p class="text-[11px] text-slate-400 mb-2">messages, composer and quotes</p>
-          <div class="flex items-center gap-2">
-            <button type="button" id="btn-chat-font-down" class="h-9 w-9 rounded-full border border-slate-200 text-slate-800 hover:bg-slate-50 font-semibold text-sm" aria-label="Smaller chat text">A−</button>
-            <span id="chat-font-label" class="min-w-[3.5rem] text-center font-mono text-sm font-semibold text-slate-800 tabular-nums">100%</span>
-            <button type="button" id="btn-chat-font-up" class="h-9 w-9 rounded-full border border-slate-200 text-slate-800 hover:bg-slate-50 font-semibold text-sm" aria-label="Larger chat text">A+</button>
-            <button type="button" id="btn-chat-font-reset" class="ml-1 rounded-full border border-slate-200 px-3 h-9 text-[11px] font-medium text-slate-600 hover:bg-slate-50" aria-label="Default chat size">Default</button>
+      <!-- sheet -->
+      <div id="login-sheet" class="absolute inset-0 z-10 hidden items-start justify-center bg-white/60 p-6 pt-16 backdrop-blur-[2px]">
+        <div class="w-full max-w-sm overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200 shadow-[rgba(0,0,0,0.22)_3px_5px_30px_0px] enter-rise">
+          <div class="flex items-center border-b border-slate-100 px-5 py-4">
+            <h3 id="login-title" class="flex-1 text-sm font-semibold text-slate-900">Sign in</h3>
+            <button type="button" id="login-cancel" class="text-[12px] text-slate-500 hover:text-slate-800">Cancel</button>
           </div>
-        </section>
-
-        <!-- Model access -->
-        <section>
-          <h4 class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Model access</h4>
-          <p class="text-[11px] text-slate-400 mb-3">Plan login signs the CLI in with your subscription. API key bills the provider account.</p>
-          <div id="settings-providers" class="space-y-4"></div>
-          <p id="settings-error" class="mt-2 text-[12px] text-red-600" hidden></p>
-        </section>
-      </div>
-      <div class="shrink-0 flex justify-end gap-2 px-5 py-3 bg-slate-50/80">
-        <button type="button" id="btn-cancel-settings" class="rounded-full border border-slate-200 px-4 py-1.5 text-sm font-normal text-slate-700 hover:bg-slate-50 transition duration-150">Cancel</button>
-        <button type="button" id="btn-save-settings" class="rounded-full bg-apple px-4 py-1.5 text-sm font-normal text-white hover:bg-apple-hover">Save</button>
+          <ol class="space-y-5 p-5 text-[13px] text-slate-800">
+            <li class="flex gap-3">
+              <span data-step="1" class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[12px]">1</span>
+              <div class="min-w-0"><div class="font-medium">Open the sign-in page</div><a id="login-url" target="_blank" rel="noopener noreferrer" class="mt-1 inline-block max-w-full truncate text-[#0066cc] hover:underline"></a></div>
+            </li>
+            <li class="flex gap-3">
+              <span data-step="2" class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[12px]">2</span>
+              <div class="min-w-0 flex-1">
+                <div id="login-step-two" class="font-medium">Enter this code</div>
+                <div id="login-code-row" class="mt-2 hidden items-center gap-2">
+                  <span id="login-code" class="select-all rounded-lg bg-slate-50 px-3 py-2 font-mono text-[20px] font-semibold tracking-[0.12em] text-slate-900"></span>
+                  <button type="button" id="login-copy" class="rounded-full bg-slate-100 px-3 py-1 text-[12px] text-slate-700 hover:bg-slate-200">Copy</button>
+                </div>
+                <div id="login-paste-row" class="mt-2 hidden gap-2">
+                  <input id="login-paste" type="text" autocomplete="off" spellcheck="false" placeholder="Paste the code" class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-[13px] text-slate-900 placeholder:text-slate-400 focus:border-apple focus:bg-white focus:outline-none" />
+                  <button type="button" id="login-submit" class="shrink-0 rounded-full bg-apple px-3 py-1 text-[12px] text-white hover:bg-apple-hover disabled:opacity-40">Submit</button>
+                </div>
+              </div>
+            </li>
+            <li class="flex gap-3">
+              <span data-step="3" class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[12px]">3</span>
+              <div><div id="login-wait" class="font-medium">Waiting for approval…</div><div id="login-hint" class="mt-1 text-[12px] text-slate-400"></div></div>
+            </li>
+          </ol>
+        </div>
       </div>
     </div>
   </div>
