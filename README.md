@@ -16,10 +16,12 @@ personal-research/
 │   │   │   ├── check/      원문·번역·메타 정합 검사
 │   │   │   ├── list/       수집 목록을 표준 출력에
 │   │   │   └── search/     수집물 전문 검색
-│   │   └── space/
+│   │   ├── space/
+│   │   │   └── record/     space 의 목적을 남긴다
+│   │   └── conversation/
 │   │       ├── converse/   Codex 튜터가 수집물을 조사하고 블록 답변을 만든다
-│   │       └── record/     space 의 목적과 대화와 연결한 수집물을 남긴다
-│   ├── common/           store.py 와 log.py
+│   │       └── record/     space 와 agent 의 대화와 메시지를 남긴다
+│   ├── common/           store.py, log.py, llm.py
 │   └── database/         research.db 한 파일. git 밖
 └── wui/
     ├── bin/              뷰어 화면
@@ -28,20 +30,31 @@ personal-research/
 
 수집물과 대화와 서버 로그가 `personal-research/api/database/research.db` 한 파일에 있다. `collected` 가 문서의 신원(uuid)과 원문 주소와 보관 경로를, `collected_content` 가 원문과 번역본의 본문을 판(version)별로 담는다. 같은 문서의 번역본은 그 문서의 `language = 'kor'` 행이고, 판 번호가 원문보다 낮으면 낡은 번역이다. git 은 바이너리를 diff 하지 못하고 grep 도 되지 않는다. 내용을 파일로 봐야 하면 `collect.py export` 가 `data/collected/` 에 트리를 풀어 준다. 그 폴더는 git 이 무시하는 일회용이다.
 
-대화는 research space 에 산다. space 는 무엇을 배우려는지라는 목적 하나로 나뉜다.
+표는 열한 개다. JSON 이라고 적은 열은 JSON 텍스트다.
 
 | 표 | 무엇 |
 |------|------|
-| `space` | 제목, 목적(`purpose`), 웹 이전 학습 기록(`log`), 이어 가는 Codex 대화(`thread_id`), 대화 하나(`messages`) |
-| `space_collected` | space 가 참조하는 수집물. 없어도 되고 여럿이어도 된다 |
+| `collected` | 문서의 신원, 원본 주소, 보관 경로, 수집 정보(`meta`, JSON) |
+| `collected_content` | 원문과 번역의 본문(`content`). 판마다 한 행. `decoration` 은 상류가 본문 앞에 붙인 장식을 떼어 둔 것이다 |
+| `space` | 무엇을 배울지라는 목적 하나. 제목, 목적(`purpose`), 웹 이전 학습 기록(`log`) |
+| `space_conversation` | space 안의 대화. space 하나에 여럿. 출발 자료(`collected_id`)와 모델별 정보(`meta`, JSON) |
+| `space_message` | space 대화의 메시지 한 건. 질문과 답변이 각각 한 행 |
+| `agent_conversation` | 홈에서 시작한 대화. ask 와 collect 가 쌓인다 |
+| `agent_message` | 홈 대화의 메시지 한 건 |
+| `user` | 사용자. 로그인이 없어 기본 사용자 한 명이다 |
+| `user_meta` | 사용자 부가 정보. 지금은 문서를 연 기록(`kind = 'opened'`) |
+| `llm` | 모델 CLI 호출 원본. 명령, 프롬프트, 출력 전체, 종료 코드, 시각 |
+| `log` | 서버 기록 |
 
-- space 하나에 대화는 하나다. `messages` 에 질문, 블록 답변, 생성 상태, 답변이 근거로 쓴 수집물(`sources`)이 함께 있다.
-- 저장소 카드(`repos/github/{owner}/{repo}`)를 연결하면 그 path 아래 파일이 모두 따라온다. 나중에 수집한 파일도 포함된다.
-- 문서를 보다 질문하면 그 문서를 연결한 space 가 열리고, 없으면 첫 질문 때 새로 만든다. 저장소 파일이면 저장소 카드를 연결한다.
+- 메시지의 `context` 는 질문할 때의 인용과 주석과 그래프 상태, `rich` 는 답변 블록, `sources` 는 답변이 근거로 쓴 수집물이다. 모두 JSON 이다.
+- 대화의 `collected_id` 가 저장소 카드(`repos/github/{owner}/{repo}`)면 그 path 아래 파일이 모두 자료가 된다. 나중에 수집한 파일도 포함된다.
+- 대화의 `meta` 는 모델 이름을 키로 한다. 예: `{"codex": {"thread_id": ..., "model": ...}}`. `thread_id` 는 Codex 가 `~/.codex` 에 저장한 대화의 번호로, 다음 질문에서 그 대화를 이어 가는 데 쓴다.
+- 문서를 열면 그 문서를 자료로 가진 space 대화가 열리고, 없으면 첫 질문 때 그 문서를 자료로 새 대화를 만든다.
 - 답할 때마다 Codex 가 `data/corpus/` 의 수집물 사본(`collect.py export` 와 같은 트리)을 읽기 전용으로 조사하고, 근거로 쓴 path 를 `sources` 에 남긴다. 근거가 없으면 그렇다고 밝히고 답한다. 사본은 수집물이 바뀌면 다음 질문 때 다시 만든다.
-- 서버가 시작할 때 예전 `conversations` `agent` `asked` 표가 있으면 space 로 옮기고 지운다.
+- 모델을 부를 때마다(답변은 Codex, 수집할 때의 번역은 claude) `llm` 에 한 행이 남는다. `owner_id` 는 질문 메시지 id 나 번역한 문서 id 다.
+- DB 를 처음 열 때 `common/store.py` 의 `upgrade` 가 예전 구조(`extra` `body` 열, `opened` `conversations` `agent` `asked` 표, 대화를 JSON 으로 담던 `space`)를 지금 구조로 옮긴다.
 
-화면은 왼쪽 사이드바(space 목록과 수집물 트리) 오른쪽에 문서와 채팅을 둔다. 채팅 패널 머리의 `문서` `나란히` `채팅` 으로 배치를 고른다.
+화면은 왼쪽 사이드바(space 목록과 수집물 트리) 오른쪽에 문서와 채팅을 둔다. 채팅 패널 머리에서 space(또는 Agent)와 대화를 고르고, `문서` `나란히` `채팅` 으로 배치를 고른다.
 
 뷰어 서버는 Docker 로 띄운다. 환경은 둘이고, 포트와 경로는 `.env/.env.{환경}` 에서 정한다.
 
@@ -57,12 +70,12 @@ docker compose --env-file .env/.env.production -f .docker/docker-compose.product
 
 컨테이너 안의 codex 와 claude 는 개인 요금제로 로그인해 쓴다. 로그인은 환경마다 따로 볼륨에 남으므로 환경별로 처음 한 번만 하면 된다.
 
-1. codex 는 `docker exec -it personal-research-{환경}-api codex login --device-auth` 를 실행하고, 화면의 코드를 브라우저에서 승인한다. space 의 답변을 만든다. ChatGPT 계정은 Codex 기본 모델을 쓰지 못할 수 있으므로 `SPACE_CODEX_MODEL` 을 비우지 않는다.
+1. codex 는 `docker exec -it personal-research-{환경}-api codex login --device-auth` 를 실행하고, 화면의 코드를 브라우저에서 승인한다. 대화의 답변을 만든다. ChatGPT 계정은 Codex 기본 모델을 쓰지 못할 수 있으므로 `CODEX_MODEL` 을 비우지 않는다.
 2. claude 는 자기 컴퓨터에서 `claude setup-token` 으로 받은 토큰을 `.env/.env.{환경}` 의 `CLAUDE_CODE_OAUTH_TOKEN` 에 넣고 컨테이너를 다시 띄운다. 수집할 때 번역을 맡는다.
 
 `ANTHROPIC_API_KEY` 를 넣으면 요금제가 아니라 API 과금으로 바뀐다. 서버의 채팅 API 에는 인증이 없으므로, 외부 서버에 둘 때도 포트는 `127.0.0.1` 에만 열고 Tailscale 이나 SSH 터널로 접속한다.
 
-뷰어를 열면 홈이 먼저 나온다. 입력창 왼쪽 배지로 `ask` 와 `collect` 를 고른다. `ask` 는 질문으로 새 space 를 열고, `collect` 는 주소를 받아 원문을 받고 한국어판까지 만든다.
+뷰어를 열면 홈이 먼저 나온다. 입력창 왼쪽 배지로 `ask` 와 `collect` 를 고른다. `ask` 는 질문으로 새 agent 대화를 열고, `collect` 는 주소를 받아 원문을 받고 한국어판까지 만든다.
 
 무엇이 수집돼 있는지는 뷰어의 트리가 답한다. 터미널에서는 `python3 personal-research/api/bin/collect.py list` 를 쓴다.
 

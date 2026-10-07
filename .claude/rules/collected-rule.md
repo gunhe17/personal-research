@@ -7,7 +7,7 @@ paths:
 
 # collected 규칙
 
-수집물과 대화와 서버 로그가 SQLite 한 파일에 있다. 기본 위치는 `personal-research/api/database/research.db` 이고 `DATABASE_PATH` 로 옮긴다. git 은 이 폴더를 무시한다. 아래에서 `bin/` `usecase/` 는 `personal-research/api/` 아래를 줄여 쓴 것이다.
+수집물과 대화와 모델 호출 기록과 서버 로그가 SQLite 한 파일에 있다. 기본 위치는 `personal-research/api/database/research.db` 이고 `DATABASE_PATH` 로 옮긴다. git 은 이 폴더를 무시한다. 아래에서 `bin/` `usecase/` 는 `personal-research/api/` 아래를 줄여 쓴 것이다.
 
 ## 표
 
@@ -15,9 +15,12 @@ paths:
 |---|---|---|
 | `collected` | 문서 하나의 신원과 원문 주소와 보관 경로 | `id` (uuid) |
 | `collected_content` | 원문과 번역본의 본문. 판마다 한 행 | `(collected_id, language, version)` |
+| `space` | 학습 목적 하나 | `id` |
+| `space_conversation` `space_message` | space 의 대화와 그 메시지 | `id` |
+| `agent_conversation` `agent_message` | 홈의 대화와 그 메시지 | `id` |
+| `user` `user_meta` | 사용자와 사용자 부가 정보(문서를 연 기록 등) | `id`, `(user_id, kind, collected_id)` |
+| `llm` | 모델 CLI 호출 원본 | `id` |
 | `log` | 서버가 남긴 기록. `collect.py log` 로 본다 | `id` |
-| `space` | 학습 목적 하나와 그 대화 | `id` |
-| `space_collected` | space 가 참조하는 수집물 | `(space_id, collected_id)` |
 
 신원은 uuid 다. 원문 주소는 유일하지 않기 때문이다. Protégé 논문 한 편이 8절로 쪼개져 같은 주소를 공유하고, 저장소 카드와 그 README 도 주소가 같다. 주소로 묶으면 이것들이 한 문서가 되어 버린다.
 
@@ -81,8 +84,8 @@ sync 전량인 접두는 매 실행마다 목록을 새로 읽어 다시 받으�
 
 - `anthropic-engineering/`, `research-google/`, `earendil/`, `openai/` 는 HTML 변환본이다(`usecase/collected/collect/type/web.py`). 사이트 마크업이 바뀌면 변환 품질이 조용히 나빠질 수 있다.
 - `openai/` 는 openai.com 이 봇 차단으로 403 을 주어 Wayback 스냅샷을 변환했다. 미러는 스냅샷 시점에 머문다.
-- `palantir/` 와 `protege-stanford/` 는 우리 변환기가 본문을 찾지 못해 `research-ontology` 저장소가 2026-08-12 에 추출한 본문을 옮겨 왔다. 추출 방법은 `extra.extraction` 에 있다.
-- `x/` 는 X 가 로그인한 브라우저에만 본문을 주므로 프록시 fxTwitter 에서 받는다. 바이트의 출처는 `extra.via` 다. 프록시는 트윗 id 로 찾으므로, 받은 아티클 id 가 URL 과 다르면 쓰지 않는다.
+- `palantir/` 와 `protege-stanford/` 는 우리 변환기가 본문을 찾지 못해 `research-ontology` 저장소가 2026-08-12 에 추출한 본문을 옮겨 왔다. 추출 방법은 `meta.extraction` 에 있다.
+- `x/` 는 X 가 로그인한 브라우저에만 본문을 주므로 프록시 fxTwitter 에서 받는다. 바이트의 출처는 `meta.via` 다. 프록시는 트윗 id 로 찾으므로, 받은 아티클 id 가 URL 과 다르면 쓰지 않는다.
 - `videos/youtube/` 는 모델이 만든 전사다. 인용할 때는 타임스탬프로 원본 영상을 확인한다. 화자 분리에는 약관에 동의한 HuggingFace 토큰(`HF_TOKEN` 이나 `~/.cache/huggingface/token`)이 필요하다.
 
 ## path 짓기
@@ -103,11 +106,11 @@ sync 전량인 접두는 매 실행마다 목록을 새로 읽어 다시 받으�
 | 자리 | 무엇 |
 |---|---|
 | `collected.url` | 원본 주소. 모든 행에 있다 |
-| `collected.extra` | `published` `fetched` `via` `author` `channel` `branch` `extraction` 처럼 수집 경로마다 아는 것 |
+| `collected.meta` | `published` `fetched` `via` `author` `channel` `branch` `extraction` 처럼 수집 경로마다 아는 것 |
 | `collected_content.decoration` | 상류가 본문 앞에 붙인 장식을 떼어낸 바이트 그대로 |
 | `collected_content.created_at` | 그 판을 받은 시각 |
 
-본문이 없는 기록도 `collected` 행으로 둔다. 저장소 URL 카드가 그렇고, `path` 는 `repos/github/{owner}/{repo}` 다. 카드는 `extra` 에 `stars` `description` `language` `default_branch` `updated_upstream` 을 담는다.
+본문이 없는 기록도 `collected` 행으로 둔다. 저장소 URL 카드가 그렇고, `path` 는 `repos/github/{owner}/{repo}` 다. 카드는 `meta` 에 `stars` `description` `language` `default_branch` `updated_upstream` 을 담는다.
 
 ## 번역본 규약
 
