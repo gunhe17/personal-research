@@ -74,7 +74,15 @@ def collected(*, id: str) -> list[dict]:
         ).fetchall()
 
     return [
-        {"id": r[0], "path": r[1], "url": r[2], "conversation_count": r[3], "updated_at": r[4], "document_count": r[5]}
+        {
+            "id": r[0],
+            "path": r[1],
+            "url": r[2],
+            "conversation_count": r[3],
+            "updated_at": r[4],
+            "document_count": r[5],
+            "documents": conversation.documents(collected_id=r[0]),
+        }
         for r in rows
     ]
 
