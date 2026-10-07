@@ -35,8 +35,6 @@
       currentPath: null,
       currentId: null,
       view: document.body.dataset.page,
-      agents: [],
-      agentsOpen: localStorage.getItem("agentsOpen") !== "0",
       homeMode: localStorage.getItem("homeMode") || "ask",
       currentTitle: null,
       currentText: "",
@@ -169,30 +167,6 @@
       localStorage.setItem("sidebarWidth", String(state.sidebarWidth));
     }
 
-    function sectionLabel(name, { open, onToggle, count, action } = {}) {
-      const el = document.createElement("div");
-      el.className = "flex items-center gap-1 px-2 pt-3 pb-1";
-      const head = document.createElement("button");
-      head.type = "button";
-      head.className = "flex min-w-0 flex-1 items-center gap-1 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-600 transition duration-150";
-      head.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-             class="h-2.5 w-2.5 shrink-0 transition-transform ${open ? "" : "-rotate-90"}"><path d="M6 9l6 6 6-6" /></svg>
-        <span class="truncate">${escapeHtml(name)}</span>
-        ${count ? `<span class="font-mono text-[10px] tabular-nums text-slate-300">${count}</span>` : ""}`;
-      if (onToggle) head.addEventListener("click", onToggle);
-      el.appendChild(head);
-      if (action) el.appendChild(action);
-      return el;
-    }
-
-    function toggleSection(key) {
-      const flag = key === "agents" ? "agentsOpen" : "spacesOpen";
-      state[flag] = !state[flag];
-      localStorage.setItem(flag, state[flag] ? "1" : "0");
-      renderTree();
-    }
-
     function sinceLabel(iso) {
       if (!iso) return "";
       const then = new Date(iso);
@@ -238,45 +212,30 @@
         icon: HOME_ICON,
         onClick: () => openHome(),
       }));
-      tree.appendChild(section({
-        name: "",
-        key: "agents",
-        items: state.agents,
-        active: params.get("agent"),
-        href: (item) => `${COLLECTED_URL}?agent=${encodeURIComponent(item.id)}`,
-      }));
       tree.appendChild(sidebarRow({
         label: "Spaces",
         active: false,
         icon: SPACE_ICON,
-        onClick: () => toggleSection("spaces"),
+        onClick: () => {
+          state.spacesOpen = !state.spacesOpen;
+          localStorage.setItem("spacesOpen", state.spacesOpen ? "1" : "0");
+          renderTree();
+        },
       }));
-      tree.appendChild(section({
-        name: "",
-        key: "spaces",
-        items: state.spaces,
-        active: params.get("space"),
-        href: (item) => `${COLLECTED_URL}?space=${encodeURIComponent(item.id)}`,
-      }));
-    }
-
-    function section({ name, key, items, active, href }) {
+      if (!state.spacesOpen) return;
       const box = document.createElement("div");
       box.className = "ml-3 border-l border-slate-100 pl-1";
-      const open = key === "agents" ? state.agentsOpen : state.spacesOpen;
-      if (name) box.appendChild(sectionLabel(name, { open, count: items.length, onToggle: () => toggleSection(key) }));
-      if (!open) return box;
-      if (!items.length) box.insertAdjacentHTML("beforeend", `<div class="px-2 py-1.5 text-xs text-slate-400">Nothing yet</div>`);
-      for (const item of items.slice(0, 12)) {
+      tree.appendChild(box);
+      if (!state.spaces.length) box.insertAdjacentHTML("beforeend", `<div class="px-2 py-1.5 text-xs text-slate-400">Nothing yet</div>`);
+      for (const item of state.spaces.slice(0, 12)) {
         box.appendChild(sidebarRow({
           label: item.title,
-          active: active === item.id,
+          active: params.get("space") === item.id,
           title: item.title,
           meta: sinceLabel(item.updated_at),
-          onClick: () => { location.href = href(item); },
+          onClick: () => { location.href = `${COLLECTED_URL}?space=${encodeURIComponent(item.id)}`; },
         }));
       }
-      return box;
     }
 
     async function loadTree() {
@@ -384,12 +343,9 @@
 
     async function loadSpaces() {
       try {
-        const [spaces, agents] = await Promise.all([fetch("/api/spaces"), fetch("/api/agent/conversations")]);
-        state.spaces = (await spaces.json()).items || [];
-        state.agents = (await agents.json()).items || [];
+        state.spaces = (await (await fetch("/api/spaces")).json()).items || [];
       } catch (_) {
         state.spaces = [];
-        state.agents = [];
       }
       renderTree();
     }
