@@ -15,5 +15,18 @@ services:
     env_file:
       - ../.env/.env.production
 
+  wui:
+    container_name: personal-research-production-wui
+    build:
+      context: ..
+      dockerfile: .docker/Dockerfile.production.wui
+      args:
+        API_URL: http://api:${PORT}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${PRODUCTION_WUI_PORT}:3000"
+    depends_on:
+      - api
+
 volumes:
   claude-config:

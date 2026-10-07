@@ -14,5 +14,21 @@ services:
     env_file:
       - ../.env/.env.develop
 
+  wui:
+    container_name: personal-research-develop-wui
+    build:
+      context: ..
+      dockerfile: .docker/Dockerfile.develop.wui
+    volumes:
+      - ..:/app
+      - wui-modules:/app/personal-research/wui/node_modules
+    environment:
+      API_URL: http://api:${PORT}
+    ports:
+      - "127.0.0.1:${DEVELOP_WUI_PORT}:3000"
+    depends_on:
+      - api
+
 volumes:
   claude-config:
+  wui-modules:

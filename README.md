@@ -23,9 +23,13 @@ personal-research/
 │   │       └── record/     space 와 agent 의 대화와 메시지를 남긴다
 │   ├── common/           store.py, log.py, llm.py
 │   └── database/         research.db 한 파일. git 밖
-└── wui/
-    ├── bin/              뷰어 화면
-    └── design/           우리가 쓴 설계 문서
+└── wui/                  Next.js 화면. 규칙은 .claude/rules/frontend-rule.md
+    ├── app/              라우트(/ /space /collected)와 전역 스타일
+    ├── features/         화면 영역별 컴포넌트(shell, home, space, workbench, chat, doc, material, blocks, settings)
+    ├── ui/               공용 부품(버튼, 행, 접기, 메뉴, 모달 …)
+    ├── lib/              api, storage, markdown, events
+    ├── check/            Playwright 화면 점검
+    └── design/           디자인 랩
 ```
 
 수집물과 대화와 서버 로그가 `personal-research/api/database/research.db` 한 파일에 있다. `collected` 가 문서의 신원(uuid)과 원문 주소와 보관 경로를, `collected_content` 가 원문과 번역본의 본문을 판(version)별로 담는다. 같은 문서의 번역본은 그 문서의 `language = 'kor'` 행이고, 판 번호가 원문보다 낮으면 낡은 번역이다. git 은 바이너리를 diff 하지 못하고 grep 도 되지 않는다. 내용을 파일로 봐야 하면 `collect.py export` 가 `data/collected/` 에 트리를 풀어 준다. 그 폴더는 git 이 무시하는 일회용이다.
@@ -55,16 +59,18 @@ personal-research/
 - 모델을 부를 때마다(답변은 Codex, 수집할 때의 번역은 claude) `llm` 에 한 행이 남는다. `owner_id` 는 질문 메시지 id 나 번역한 문서 id 다.
 - DB 를 처음 열 때 `common/store.py` 의 `upgrade` 가 예전 구조(`extra` `body` 열, `opened` `conversations` `agent` `asked` 표, 대화를 JSON 으로 담던 `space`, `space` 의 `purpose` `log` 열, 대화 첫머리에 끼워 둔 수업)를 지금 구조로 옮긴다.
 
-왼쪽 사이드바는 Home 과 Space 다. Space, space 이름, 그 아래 Conversations·Collected·Materials 폴더는 모두 펼치고 접는 폴더이고, 실제로 여는 것은 대화, 수집물, 자료 항목뿐이다. space 목록과 상세 페이지(`/viewer/space`, `/viewer/space?id=…`)는 대화 화면의 space 메뉴에서 간다.
+왼쪽 사이드바는 Home 과 Space 다. Space, space 이름, 그 아래 Conversations·Collected·Materials 폴더는 모두 펼치고 접는 폴더이고, 실제로 여는 것은 대화, 수집물, 자료 항목뿐이다. space 목록과 상세 페이지는 `/space`, `/space?id=…` 다.
 
-본문(`/viewer/collected`)은 VS Code 같은 편집기 그룹이다. 그룹 하나에 항목 하나만 뜬다. 사이드바 항목을 누르면 지금 그룹의 항목을 바꾸고, 끌어서 그룹 왼쪽이나 오른쪽 가장자리에 놓으면 그 쪽으로 화면이 나뉜다(최대 4개, 모두 나란히). 그룹 위의 `유형 / 이름` 줄을 끌면 그룹을 옮기고, 그 줄 오른쪽의 ×로 닫는다. 수집물은 × 왼쪽에 내려받기가 있다. 항목마다 유형에 맞는 화면이 iframe 으로 뜬다: 대화는 `pane-chat`, 수집물은 `pane-doc`, 자료는 `pane-material`. 답변의 근거를 누르면 옆 그룹에 문서가 열리고, 문서에서 인용하면 열린 대화로 들어간다. 배치는 브라우저에 남아 다시 열어도 그대로다.
+본문(`/collected`)은 VS Code 같은 편집기 그룹이다. 그룹 하나에 항목 하나만 뜬다. 사이드바 항목을 누르면 지금 그룹의 항목을 바꾸고, 끌어서 그룹 왼쪽이나 오른쪽 가장자리에 놓으면 그 쪽으로 화면이 나뉜다(최대 4개, 모두 나란히). 그룹 위의 `유형 / 이름` 줄을 끌면 그룹을 옮기고, 그 줄 오른쪽의 ×로 닫는다. 수집물은 × 왼쪽에 내려받기가 있다. 항목마다 유형에 맞는 패널이 뜬다: 대화는 `ChatPane`, 수집물은 `DocPane`, 자료는 `MaterialPane`. 패널 사이의 연결(근거 열기, 인용 보내기, 포커스)은 작업대 Context(`features/workbench/WorkbenchProvider.tsx`) 하나가 맡는다. 답변의 근거를 누르면 옆 그룹에 문서가 열리고, 문서에서 인용하면 열린 대화로 들어간다. 배치는 브라우저에 남아 다시 열어도 그대로다.
 
-뷰어 서버는 Docker 로 띄운다. 환경은 둘이고, 포트와 경로는 `.env/.env.{환경}` 에서 정한다.
+서비스는 둘이다. `api` 는 Python 서버로 `/api/*` 만 내고, `wui` 는 Next.js 서버로 화면을 낸다. 브라우저는 wui 만 보고, wui 가 `/api/*` 를 compose 네트워크 안의 `http://api:${PORT}` 로 넘긴다. 환경은 둘이고, 포트와 경로는 `.env/.env.{환경}` 에서 정한다.
 
-| 환경 | 코드 | 호스트 포트 | 재시작 |
-|------|------|------|------|
-| develop | 저장소 전체를 연결해 고치면 바로 반영된다 | 8765 | 수동 |
-| production | 이미지에 넣는다. `data/` 만 호스트 폴더를 연결한다 | 8766 | 자동 |
+| 환경 | 코드 | api 포트 | wui 포트 | 재시작 |
+|------|------|------|------|------|
+| develop | 저장소 전체를 연결해 고치면 바로 반영된다. wui 는 `next dev` | 8765 | 3000 | 수동 |
+| production | 이미지에 넣는다. `database/` 만 호스트 폴더를 연결한다. wui 는 `next build` 의 standalone | 8766 | 3001 | 자동 |
+
+컨테이너 없이 화면만 고칠 때는 api 를 8768 에 띄우고 `personal-research/wui` 에서 `npm run dev` 를 쓴다. `API_URL` 로 넘길 곳을 바꾼다.
 
 ```sh
 docker compose --env-file .env/.env.develop -f .docker/docker-compose.develop.yml up -d --build
