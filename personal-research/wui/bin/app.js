@@ -202,7 +202,7 @@
                   ${chevronHtml(settings.open[id].has(m))}
                   <span class="${p.enabled[m] ? "text-slate-500" : "text-slate-300"}">${methodIcon(m)}</span>
                   <span class="w-4 shrink-0 text-center text-[11px] font-semibold ${m === first ? "text-apple" : "text-slate-400"}">${rank >= 0 ? rank + 1 : "–"}</span>
-                  <span class="flex w-[5.5rem] shrink-0 items-center gap-1.5 ${p.enabled[m] ? "text-slate-800" : "text-slate-400"}">${METHOD[m]}${dot(usable(p, m))}</span>
+                  <span class="flex w-[6.25rem] shrink-0 items-center gap-2 ${p.enabled[m] ? "text-slate-800" : "text-slate-400"}">${dot(usable(p, m))}${METHOD[m]}</span>
                   <span class="min-w-0 flex-1 truncate text-[12px] text-slate-400">${subtitle(m)}</span>
                 </button>
                 <span class="flex shrink-0 items-center text-slate-400 opacity-60 transition group-hover:opacity-100">
