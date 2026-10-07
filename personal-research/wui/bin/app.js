@@ -111,7 +111,7 @@
     }
 
     const settings = { tab: "general", providers: [], status: {}, open: {}, replacing: new Set(), sheet: null, timer: null };
-    const METHOD = { subscription: "Plan login", api_key: "API key" };
+    const plan = (m) => m.startsWith("plan_key");
 
     async function loadProviders() {
       const data = await fetch("/api/settings").then((r) => r.json()).catch(() => null);
@@ -123,7 +123,7 @@
         </button>`).join("");
       $("#settings-provider-panes").innerHTML = data.providers.map((p) => `<div data-settings-pane="${p.id}" class="space-y-6" hidden></div>`).join("");
       data.providers.forEach((p) => {
-        settings.open[p.id] ??= new Set([p.order[0]]);
+        settings.open[p.id] ??= new Set([p.methods[0]?.id]);
         renderPane(p.id);
         refreshLogin(p.id);
       });
@@ -137,82 +137,98 @@
       document.querySelectorAll("[data-settings-pane]").forEach((p) => (p.hidden = p.dataset.settingsPane !== settings.tab));
     }
 
-    function usable(p, method) {
-      if (!p.enabled[method]) return false;
-      return method === "api_key" ? !!p.key : !!settings.status[p.id]?.logged_in;
+    function usable(id, m) {
+      if (!m.enabled) return false;
+      return plan(m.id) ? !!settings.status[`${id}:${m.id}`]?.logged_in : !!m.secret;
     }
 
     function renderPane(id) {
       const p = settings.providers.find((x) => x.id === id);
       const pane = document.querySelector(`[data-settings-pane="${id}"]`);
       if (!p || !pane) return;
-      const status = settings.status[id];
-      const ready = p.order.some((m) => usable(p, m));
-      const first = p.order.find((m) => usable(p, m));
+      const status = (m) => settings.status[`${id}:${m.id}`];
+      const checking = p.methods.some((m) => m.enabled && plan(m.id) && !status(m));
+      const first = p.methods.find((m) => usable(id, m));
+      const enabled = p.methods.filter((m) => m.enabled);
       const dot = (on) => `<span class="h-1.5 w-1.5 shrink-0 rounded-full ${on ? "bg-[#34c759]" : "bg-slate-300"}"></span>`;
       const row = (label, value) => `<div class="flex items-baseline gap-3 py-1.5"><span class="w-24 shrink-0 text-[12px] text-slate-500">${label}</span><span class="min-w-0 flex-1 truncate text-[13px] text-slate-800">${value}</span></div>`;
       const control = (label, value) => `<div class="flex items-center gap-3 py-1"><span class="w-24 shrink-0 text-[12px] text-slate-500">${label}</span><div class="flex min-w-0 flex-1 items-center gap-2 text-[13px] text-slate-800">${value}</div></div>`;
-      const used = (m) => {
-        const u = p.usage[m];
-        return u.last ? `${u.month} this month · last ${sinceLabel(u.last)}` : "Not used yet";
-      };
-      const subtitle = (m) => {
-        if (!p.enabled[m]) return "Off";
-        if (m === "api_key") return p.key ? `Key saved · ${p.key}` : "No key";
-        if (!status) return "Checking…";
-        return status.logged_in ? `Logged in · ${status.detail || p.cli}` : status.pending ? "Logging in…" : "Logged out";
-      };
       const value = (text, buttons) => `<span class="min-w-0 flex-1 truncate">${text}</span>${buttons}`;
-      const editing = !p.key || settings.replacing.has(id);
-      const detail = (m) => m === "subscription" ? `
+      const used = (m) => (m.usage.last ? `${m.usage.month} this month · last ${sinceLabel(m.usage.last)}` : "Not used yet");
+      const subtitle = (m) => {
+        if (!m.enabled) return "Off";
+        if (!plan(m.id)) return m.secret ? `Key saved · ${m.secret}` : "No key";
+        const s = status(m);
+        if (!s) return "Checking…";
+        return s.logged_in ? `Logged in · ${s.detail || p.cli}` : s.pending ? "Logging in…" : "Logged out";
+      };
+      const extra = (m) => p.methods.filter((x) => plan(x.id) === plan(m.id)).length > 1 || !["plan_key", "api_key"].includes(m.id);
+      const remove = (m) => (p.methods.length > 1 && extra(m) ? row("", `<button type="button" data-action="remove" class="text-[12px] text-slate-500 hover:text-red-600">Remove ${m.label}</button>`) : "");
+      const detail = (m) => {
+        const s = status(m);
+        if (plan(m.id)) return `
         ${control("Account", value(
-          status?.logged_in ? status.detail || "Logged in" : `<span class="text-slate-400">${status?.pending ? "Logging in…" : "Logged out"}</span>`,
-          `<button type="button" data-action="login" class="${status?.logged_in && !status?.pending ? "shrink-0 rounded-full border border-[#0066cc] px-3 py-1 text-[12px] text-[#0066cc] hover:bg-[#f4f8fb]" : "shrink-0 rounded-full bg-apple px-3 py-1 text-[12px] text-white hover:bg-apple-hover"}">${status?.pending ? "Continue" : status?.logged_in ? "Log in again" : "Log in"}</button>
-          ${status?.logged_in ? `<button type="button" data-action="signout" class="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-[12px] text-slate-700 hover:bg-slate-200">Log out</button>` : ""}`,
+          s?.logged_in ? s.detail || "Logged in" : `<span class="text-slate-400">${s?.pending ? "Logging in…" : "Logged out"}</span>`,
+          `<button type="button" data-action="login" class="${s?.logged_in && !s?.pending ? "shrink-0 rounded-full border border-[#0066cc] px-3 py-1 text-[12px] text-[#0066cc] hover:bg-[#f4f8fb]" : "shrink-0 rounded-full bg-apple px-3 py-1 text-[12px] text-white hover:bg-apple-hover"}">${s?.pending ? "Continue" : s?.logged_in ? "Log in again" : "Log in"}</button>
+          ${s?.logged_in ? `<button type="button" data-action="signout" class="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-[12px] text-slate-700 hover:bg-slate-200">Log out</button>` : ""}`,
         ))}
         ${row("Logs in with", p.cli)}
-        ${row("Usage", used(m))}` : `
+        ${row("Usage", used(m))}
+        ${remove(m)}`;
+        const editing = !m.secret || settings.replacing.has(`${id}:${m.id}`);
+        return `
         ${control("Key", editing ? `
-          <input type="password" autocomplete="off" spellcheck="false" placeholder="${p.key ? "New key" : `${p.label} API key`}" class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[13px] text-slate-900 placeholder:text-slate-400 focus:border-apple focus:bg-white focus:outline-none" />
+          <input type="password" autocomplete="off" spellcheck="false" placeholder="${m.secret ? "New key" : `${p.label} API key`}" class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[13px] text-slate-900 placeholder:text-slate-400 focus:border-apple focus:bg-white focus:outline-none" />
           <button type="button" data-action="save-key" class="shrink-0 rounded-full bg-apple px-3 py-1 text-[12px] text-white hover:bg-apple-hover">Save</button>
-          ${p.key ? `<button type="button" data-action="keep-key" class="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-[12px] text-slate-700 hover:bg-slate-200">Cancel</button>` : ""}` : value(
-          `${p.key} <span class="text-slate-400">· saved ${new Date(p.saved.api_key).toLocaleDateString()}</span>`,
+          ${m.secret ? `<button type="button" data-action="keep-key" class="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-[12px] text-slate-700 hover:bg-slate-200">Cancel</button>` : ""}` : value(
+          `${m.secret} <span class="text-slate-400">· saved ${new Date(m.saved).toLocaleDateString()}</span>`,
           `<button type="button" data-action="replace-key" class="shrink-0 rounded-full border border-[#0066cc] px-3 py-1 text-[12px] text-[#0066cc] hover:bg-[#f4f8fb]">Replace</button>
           <button type="button" data-action="remove-key" class="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-[12px] text-slate-700 hover:bg-slate-200">Remove</button>`,
         ))}
         ${row("Billing", "Per request on the provider account")}
-        ${row("Usage", used(m))}`;
+        ${row("Usage", used(m))}
+        ${remove(m)}`;
+      };
+      const plus = (type, label) => `
+            <button type="button" data-add="${type}" class="flex w-full items-center gap-1.5 rounded-lg py-1.5 pl-1 pr-1.5 text-left text-[13px] text-apple-link transition duration-150 hover:bg-slate-50">
+              <span class="inline-flex h-4 w-4 shrink-0 items-center justify-center"></span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" class="h-3.5 w-3.5 shrink-0"><path d="M12 5v14M5 12h14" /></svg>
+              <span>${label}</span>
+            </button>`;
       pane.innerHTML = `
         <div>
           <h3 class="text-[21px] font-semibold tracking-tight text-slate-900">${p.label}</h3>
-          <div class="mt-1 flex items-center gap-1.5 text-[12px] text-slate-500">${dot(ready)}<span>${!status && p.enabled.subscription ? "Checking…" : ready ? `Ready · ${METHOD[first]} first` : "Not ready"}</span></div>
+          <div class="mt-1 flex items-center gap-1.5 text-[12px] text-slate-500">${dot(!!first)}<span>${!first && checking ? "Checking…" : first ? `Ready · ${first.label} first` : "Not ready"}</span></div>
           <p data-error class="mt-2 text-[12px] text-red-600" hidden></p>
         </div>
         <section>
           <h4 class="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Try in this order</h4>
           <div class="space-y-0.5">
-            ${p.order.map((m, i) => {
-              const rank = p.order.filter((x) => p.enabled[x]).indexOf(m);
-              const blocked = (to) => to < 0 || to >= p.order.length || p.enabled[p.order[to]] !== p.enabled[m];
+            ${p.methods.map((m, i) => {
+              const rank = enabled.indexOf(m);
+              const blocked = (to) => to < 0 || to >= p.methods.length || p.methods[to].enabled !== m.enabled;
+              const open = settings.open[id].has(m.id);
               return `
-            <div data-method="${m}">
+            <div data-method="${m.id}">
               <div class="group flex items-center gap-1.5 rounded-lg py-1.5 pl-1 pr-1.5 text-sm transition duration-150 hover:bg-slate-50">
-                <button type="button" data-action="toggle" data-toggle="method-${id}-${m}" aria-expanded="${settings.open[id].has(m)}" class="flex min-w-0 flex-1 items-center gap-1.5 text-left">
-                  ${chevronHtml(settings.open[id].has(m))}
-                  <span class="${p.enabled[m] ? "text-slate-500" : "text-slate-300"}">${methodIcon(m)}</span>
+                <button type="button" data-action="toggle" data-toggle="method-${id}-${m.id}" aria-expanded="${open}" class="flex min-w-0 flex-1 items-center gap-1.5 text-left">
+                  ${chevronHtml(open)}
+                  <span class="${m.enabled ? "text-slate-500" : "text-slate-300"}">${methodIcon(m.id)}</span>
                   <span class="w-4 shrink-0 text-center text-[11px] font-semibold ${m === first ? "text-apple" : "text-slate-400"}">${rank >= 0 ? rank + 1 : "–"}</span>
-                  <span class="flex w-[6.25rem] shrink-0 items-center gap-2 ${p.enabled[m] ? "text-slate-800" : "text-slate-400"}">${dot(usable(p, m))}${METHOD[m]}</span>
+                  <span class="flex w-[7rem] shrink-0 items-center gap-2 ${m.enabled ? "text-slate-800" : "text-slate-400"}">${dot(usable(id, m))}<span class="truncate">${m.label}</span></span>
                   <span class="min-w-0 flex-1 truncate text-[12px] text-slate-400">${subtitle(m)}</span>
                 </button>
                 <span class="flex shrink-0 items-center text-slate-400 opacity-60 transition group-hover:opacity-100">
                   <button type="button" data-action="up" ${blocked(i - 1) ? "disabled" : ""} class="flex h-6 w-5 items-center justify-center hover:text-slate-800 disabled:opacity-25" aria-label="Move up"><svg viewBox="0 0 16 16" class="h-3 w-3"><path d="M4 10l4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg></button>
                   <button type="button" data-action="down" ${blocked(i + 1) ? "disabled" : ""} class="flex h-6 w-5 items-center justify-center hover:text-slate-800 disabled:opacity-25" aria-label="Move down"><svg viewBox="0 0 16 16" class="h-3 w-3"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg></button>
                 </span>
-                <button type="button" data-action="switch" role="switch" aria-checked="${p.enabled[m]}" title="Use this method" class="relative ml-1 h-5 w-9 shrink-0 rounded-full transition ${p.enabled[m] ? "bg-[#34c759]" : "bg-slate-200"}"><span class="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition ${p.enabled[m] ? "translate-x-4" : ""}"></span></button>
+                <button type="button" data-action="switch" role="switch" aria-checked="${m.enabled}" title="Use this method" class="relative ml-1 h-5 w-9 shrink-0 rounded-full transition ${m.enabled ? "bg-[#34c759]" : "bg-slate-200"}"><span class="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition ${m.enabled ? "translate-x-4" : ""}"></span></button>
               </div>
-              <div data-detail class="ml-3 border-l border-slate-100 pl-5" ${settings.open[id].has(m) ? "" : "hidden"}><div class="pb-2 pt-0.5">${detail(m)}</div></div>
+              <div data-detail class="ml-3 border-l border-slate-100 pl-5" ${open ? "" : "hidden"}><div class="pb-2 pt-0.5">${detail(m)}</div></div>
             </div>`;
             }).join("")}
+            ${plus("plan_key", "Plan login")}
+            ${plus("api_key", "API key")}
           </div>
         </section>`;
       pane.querySelectorAll("[data-method]").forEach((li) => {
@@ -220,47 +236,19 @@
         li.querySelectorAll("[data-action]").forEach((b) => b.addEventListener("click", () => methodAction(id, m, b.dataset.action, li)));
         li.querySelector("input[type=password]")?.addEventListener("keydown", (e) => { if (e.key === "Enter") methodAction(id, m, "save-key", li); });
       });
-      document.querySelectorAll(`[data-dot="${id}"]`).forEach((d) => (d.className = `h-1.5 w-1.5 shrink-0 rounded-full ${ready ? "bg-[#34c759]" : "bg-slate-300"}`));
-    }
-
-    async function methodAction(id, method, action, li) {
-      const p = settings.providers.find((x) => x.id === id);
-      if (action === "toggle") return foldMethod(id, method, li);
-      if (action === "login") return openSheet(id);
-      if (action === "signout") {
-        if (!confirm(`Log ${p.cli} out on this server?`)) return;
-        await fetch(`/api/login?provider=${encodeURIComponent(id)}&signout=1`, { method: "DELETE" }).catch(() => null);
-        return refreshLogin(id);
-      }
-      if (action === "up" || action === "down") {
-        const order = [...p.order];
-        const at = order.indexOf(method);
-        const to = action === "up" ? at - 1 : at + 1;
-        [order[at], order[to]] = [order[to], order[at]];
-        return saveProvider(id, { order });
-      }
-      if (action === "switch") return saveProvider(id, { enabled: { [method]: !p.enabled[method] } });
-      if (action === "replace-key" || action === "keep-key") {
-        action === "replace-key" ? settings.replacing.add(id) : settings.replacing.delete(id);
-        renderPane(id);
-        return document.querySelector(`[data-settings-pane="${id}"] [data-method="api_key"] input[type=password]`)?.focus();
-      }
-      if (action === "remove-key") {
-        if (!confirm(`Remove the saved ${p.label} API key?`)) return;
-        return saveProvider(id, { key: null });
-      }
-      if (action === "save-key") {
-        const key = li.querySelector("input[type=password]").value.trim();
-        if (!key) return li.querySelector("input[type=password]").focus();
-        settings.replacing.delete(id);
-        if (await saveProvider(id, { key })) toast("API key saved");
-      }
+      pane.querySelectorAll("[data-add]").forEach((b) => b.addEventListener("click", async () => {
+        const before = new Set(p.methods.map((m) => m.id));
+        if (!(await saveProvider(id, { add: b.dataset.add }))) return;
+        const added = settings.providers.find((x) => x.id === id).methods.find((m) => !before.has(m.id));
+        if (added) { settings.open[id].add(added.id); renderPane(id); }
+      }));
+      document.querySelectorAll(`[data-dot="${id}"]`).forEach((d) => (d.className = `h-1.5 w-1.5 shrink-0 rounded-full ${first ? "bg-[#34c759]" : "bg-slate-300"}`));
     }
 
     function methodIcon(method) {
-      const path = method === "api_key"
-        ? '<circle cx="8" cy="15" r="4" /><path d="M11 12l9-9M17 6l3 3M14 9l2 2" />'
-        : '<circle cx="12" cy="8" r="4" /><path d="M4 20c1.5-3.5 4.5-5 8-5s6.5 1.5 8 5" />';
+      const path = plan(method)
+        ? '<circle cx="12" cy="8" r="4" /><path d="M4 20c1.5-3.5 4.5-5 8-5s6.5 1.5 8 5" />'
+        : '<circle cx="8" cy="15" r="4" /><path d="M11 12l9-9M17 6l3 3M14 9l2 2" />';
       return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5 shrink-0">${path}</svg>`;
     }
 
@@ -289,6 +277,46 @@
       };
     }
 
+    async function methodAction(id, method, action, li) {
+      const p = settings.providers.find((x) => x.id === id);
+      const m = p.methods.find((x) => x.id === method);
+      const query = `provider=${encodeURIComponent(id)}&method=${encodeURIComponent(method)}`;
+      if (action === "toggle") return foldMethod(id, method, li);
+      if (action === "login") return openSheet(id, method);
+      if (action === "signout") {
+        if (!confirm(`Log ${m.label} out on this server?`)) return;
+        await fetch(`/api/login?${query}&signout=1`, { method: "DELETE" }).catch(() => null);
+        return refreshLogin(id);
+      }
+      if (action === "up" || action === "down") {
+        const order = p.methods.map((x) => x.id);
+        const at = order.indexOf(method);
+        const to = action === "up" ? at - 1 : at + 1;
+        [order[at], order[to]] = [order[to], order[at]];
+        return saveProvider(id, { order });
+      }
+      if (action === "switch") return saveProvider(id, { enabled: { [method]: !m.enabled } });
+      if (action === "remove") {
+        if (!confirm(`Remove ${m.label}?`)) return;
+        return saveProvider(id, { remove: method });
+      }
+      if (action === "replace-key" || action === "keep-key") {
+        action === "replace-key" ? settings.replacing.add(`${id}:${method}`) : settings.replacing.delete(`${id}:${method}`);
+        renderPane(id);
+        return document.querySelector(`[data-settings-pane="${id}"] [data-method="${method}"] input[type=password]`)?.focus();
+      }
+      if (action === "remove-key") {
+        if (!confirm(`Remove the saved ${m.label}?`)) return;
+        return saveProvider(id, { keys: { [method]: null } });
+      }
+      if (action === "save-key") {
+        const key = li.querySelector("input[type=password]").value.trim();
+        if (!key) return li.querySelector("input[type=password]").focus();
+        settings.replacing.delete(`${id}:${method}`);
+        if (await saveProvider(id, { keys: { [method]: key } })) toast("API key saved");
+      }
+    }
+
     async function saveProvider(id, values) {
       const response = await fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ providers: { [id]: values } }) }).catch(() => null);
       const body = response ? await response.json().catch(() => ({})) : { error: "Could not reach the server" };
@@ -300,39 +328,49 @@
       }
       settings.providers = body.providers;
       renderPane(id);
+      refreshLogin(id);
       document.querySelectorAll("iframe").forEach((f) => f.contentWindow?.dispatchEvent(new Event("research:settings")));
       return true;
     }
 
-    async function refreshLogin(id) {
-      const data = await fetch(`/api/login?provider=${encodeURIComponent(id)}`).then((r) => r.json()).catch(() => null);
-      if (!data) return null;
-      settings.status[id] = data;
-      if (settings.sheet !== id || !data.pending) {
+    async function refreshLogin(id, only) {
+      const p = settings.providers.find((x) => x.id === id);
+      const plans = (p?.methods || []).filter((m) => plan(m.id) && (!only || m.id === only));
+      const results = await Promise.all(plans.map(async (m) => {
+        const data = await fetch(`/api/login?provider=${encodeURIComponent(id)}&method=${encodeURIComponent(m.id)}`).then((r) => r.json()).catch(() => null);
+        if (data) settings.status[`${id}:${m.id}`] = data;
+        return data;
+      }));
+      if (!settings.sheet) {
         const fresh = await fetch("/api/settings").then((r) => r.json()).catch(() => null);
         if (fresh) settings.providers = fresh.providers;
       }
       renderPane(id);
-      return data;
+      return only ? results[0] : null;
     }
 
-    async function openSheet(id) {
+    async function openSheet(id, method) {
       const provider = settings.providers.find((p) => p.id === id);
-      settings.sheet = id;
-      $("#login-title").textContent = `Log in to ${provider.label}`;
+      const m = provider.methods.find((x) => x.id === method);
+      settings.sheet = { id, method };
+      $("#login-title").textContent = `Log in to ${provider.label}${m.label === "Plan login" ? "" : ` · ${m.label}`}`;
       $("#login-paste").value = "";
       paintSheet({ pending: null }, "Starting login…");
       $("#login-sheet").classList.remove("hidden");
       $("#login-sheet").classList.add("flex");
-      let data = settings.status[id];
+      let data = settings.status[`${id}:${method}`];
       if (!data?.pending) {
-        const response = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ provider: id }) }).catch(() => null);
+        const response = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ provider: id, method }) }).catch(() => null);
         data = response ? await response.json().catch(() => ({})) : { error: "Could not reach the server" };
         if (!response?.ok) return paintSheet({ pending: null }, data.error || "Could not start login");
       }
-      if (settings.sheet !== id) return;
+      if (!sheetIs(id, method)) return;
       paintSheet(data);
-      pollSheet(id);
+      pollSheet(id, method);
+    }
+
+    function sheetIs(id, method) {
+      return settings.sheet?.id === id && settings.sheet?.method === method;
     }
 
     function paintSheet(data, message) {
@@ -357,42 +395,44 @@
       $("#login-hint").textContent = pending?.error || (done ? data.detail || "" : pending && !pending.needs_code ? "This closes by itself when you approve." : "");
     }
 
-    function pollSheet(id) {
+    function pollSheet(id, method) {
       clearTimeout(settings.timer);
       settings.timer = setTimeout(async () => {
-        if (settings.sheet !== id) return;
-        const data = await refreshLogin(id);
-        if (settings.sheet !== id || !data) return;
+        if (!sheetIs(id, method)) return;
+        const data = await refreshLogin(id, method);
+        if (!sheetIs(id, method) || !data) return;
         paintSheet(data);
-        if (data.pending) return pollSheet(id);
-        if (data.logged_in) setTimeout(() => { if (settings.sheet === id) closeSheet(); }, 1200);
+        if (data.pending) return pollSheet(id, method);
+        if (data.logged_in) setTimeout(() => { if (sheetIs(id, method)) closeSheet(); }, 1200);
       }, 2000);
     }
 
     async function submitCode() {
-      const id = settings.sheet;
+      if (!settings.sheet) return;
+      const { id, method } = settings.sheet;
       const code = $("#login-paste").value.trim();
-      if (!id || !code) return $("#login-paste").focus();
+      if (!code) return $("#login-paste").focus();
       $("#login-submit").disabled = true;
       $("#login-wait").textContent = "Checking the code…";
-      const response = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ provider: id, code }) }).catch(() => null);
+      const response = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ provider: id, method, code }) }).catch(() => null);
       const data = response ? await response.json().catch(() => ({})) : { error: "Could not reach the server" };
       $("#login-submit").disabled = false;
-      if (!response?.ok) return paintSheet(settings.status[id] || { pending: null }, data.error || "Login failed");
-      settings.status[id] = data;
-      await refreshLogin(id);
+      if (!response?.ok) return paintSheet(settings.status[`${id}:${method}`] || { pending: null }, data.error || "Login failed");
+      settings.status[`${id}:${method}`] = data;
       paintSheet(data);
-      if (data.logged_in && !data.pending) setTimeout(() => { if (settings.sheet === id) closeSheet(); }, 1200);
+      if (data.logged_in && !data.pending) setTimeout(() => { if (sheetIs(id, method)) closeSheet(); }, 1200);
     }
 
     function closeSheet({ cancel = false } = {}) {
-      const id = settings.sheet;
+      const sheet = settings.sheet;
       settings.sheet = null;
       clearTimeout(settings.timer);
       $("#login-sheet").classList.add("hidden");
       $("#login-sheet").classList.remove("flex");
-      if (cancel && id) fetch(`/api/login?provider=${encodeURIComponent(id)}`, { method: "DELETE" }).then(() => refreshLogin(id));
-      else if (id) refreshLogin(id);
+      if (!sheet) return;
+      const query = `provider=${encodeURIComponent(sheet.id)}&method=${encodeURIComponent(sheet.method)}`;
+      if (cancel) fetch(`/api/login?${query}`, { method: "DELETE" }).then(() => refreshLogin(sheet.id));
+      else refreshLogin(sheet.id);
     }
 
     function closeSettings() {

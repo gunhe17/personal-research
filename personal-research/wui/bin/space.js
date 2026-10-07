@@ -99,7 +99,7 @@ function renderMessages() {
     } else if (!rendered.has(message.id)) {
       const asked = chat.messages.find(m => m.id === message.question_id) || previous;
       const parent = threads.get(asked?.id)?.answers || $('messages');
-      parent.append(renderAnswer(message, asked?.kind === 'collect' ? '수집' : `${answeredBy(asked)}${message.rich?.via === 'api_key' ? ' · API key' : ''}`)); rendered.add(message.id); added = true;
+      parent.append(renderAnswer(message, asked?.kind === 'collect' ? '수집' : `${answeredBy(asked)}${message.rich?.via?.startsWith('api_key') ? ' · API key' : ''}`)); rendered.add(message.id); added = true;
     }
   }
   if (added) { if (nearBottom) scrollBottom(); else $('jump-bottom').hidden = false; }

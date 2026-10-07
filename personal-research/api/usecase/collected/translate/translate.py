@@ -82,7 +82,7 @@ def korean(*, id: str) -> str:
             "--allowed-tools", "Read,Write",
             "--permission-mode", "acceptEdits",
         ]
-        method = (setting.methods(provider="anthropic") or ["subscription"])[0]
+        method = (setting.methods(provider="anthropic") or ["plan_key"])[0]
         started_at = store.now()
         done = subprocess.run(command, cwd=folder, capture_output=True, text=True, timeout=1800, env=setting.environment(provider="anthropic", method=method))
         llm.record(

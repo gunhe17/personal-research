@@ -21,7 +21,6 @@ from usecase.space.record import record as spaces
 BIN = os.environ.get("CODEX_BIN") or shutil.which("codex") or "codex"
 CLAUDE = os.environ.get("CLAUDE_BIN") or shutil.which("claude") or str(Path.home() / ".local" / "bin" / "claude")
 GROK = os.environ.get("GROK_BIN") or shutil.which("grok") or str(Path.home() / ".grok" / "bin" / "grok")
-LABELS = {"subscription": "Plan login", "api_key": "API key"}
 MISSING = re.compile(r"no conversation found|session not found|thread not found|no session|not found.*session|unknown (session|thread)", re.IGNORECASE)
 GROK_RESEARCH = "지금은 답하지 말고 조사만 하세요. 작업 폴더의 수집물을 읽고 grep 으로 관련 문서를 찾아, 답에 쓸 내용과 근거 path 를 짧게 정리해 두세요. 답변 JSON 은 다음 요청에서 만듭니다."
 GROK_ANSWER = "앞에서 조사한 내용으로 처음 요청에 대한 최종 답변을 요청된 JSON 하나로 만드세요. 근거로 쓴 문서의 path 를 sources 에 적으세요."
@@ -176,7 +175,7 @@ def generate(*, conversation: dict, question: dict) -> dict:
         try:
             answer = attempt(runner=runner, conversation=conversation, question=question, request=request, model=picked["model"], method=method)
         except Unavailable as error:
-            failures.append(f"{LABELS[method]}: {error}")
+            failures.append(f"{setting.label(method=method)}: {error}")
             continue
         answer["via"] = method
         return answer
@@ -313,7 +312,8 @@ def call(*, command: list, request: str, conversation: dict, question: dict, pro
         raise RuntimeError("응답 시간이 길어 중단했습니다. 다시 시도해 주세요.")
     finally:
         RUNNING.pop(question["id"], None)
-        setting.sync(provider=next(k for k, v in setting.RUNNERS.items() if v == provider))
+        if setting.kind(method=method) == "plan_key":
+            setting.sync(provider=next(k for k, v in setting.RUNNERS.items() if v == provider), method=method)
         llm.record(
             provider=provider,
             model=model,

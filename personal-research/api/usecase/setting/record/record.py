@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import shutil
 from datetime import datetime
 from datetime import timezone
 from pathlib import Path
@@ -12,7 +14,6 @@ from cryptography.fernet import InvalidToken
 from usecase.common import store
 
 KEY_FILE = store.API / "database" / "encryption.key"
-SECRETS = {"api_key": "api_key", "token": "plan_key"}
 HOMES = {
     "openai": ("CODEX_HOME", store.API / "data" / "cli" / "codex"),
     "xai": ("GROK_HOME", store.API / "data" / "cli" / "grok"),
@@ -53,7 +54,9 @@ PROVIDERS = {
         ],
     },
 }
-METHODS = ("subscription", "api_key")
+TYPES = {"plan_key": "Plan login", "api_key": "API key"}
+METHOD = re.compile(r"(plan_key|api_key)(_[2-9]|_[1-9][0-9]+)?")
+LEGACY = {"subscription": "plan_key", "api_key": "api_key"}
 RUNNERS = {"openai": "codex", "anthropic": "claude", "xai": "grok"}
 
 
@@ -69,11 +72,17 @@ def get() -> dict:
             {
                 "id": id,
                 **{k: v for k, v in provider.items() if k != "variable"},
-                **options[id],
-                "saved": saved[id],
-                "key": masked(key=secrets[id]["api_key"]),
-                "token": masked(key=secrets[id]["token"]),
-                "usage": {method: used.get((RUNNERS[id], method), {"month": 0, "last": ""}) for method in METHODS},
+                "methods": [
+                    {
+                        **m,
+                        "type": kind(method=m["id"]),
+                        "label": label(method=m["id"]),
+                        "secret": masked(key=secrets[id].get(m["id"], "")),
+                        "saved": saved[id].get(m["id"], ""),
+                        "usage": used.get((RUNNERS[id], m["id"]), {"month": 0, "last": ""}),
+                    }
+                    for m in options[id]
+                ],
             }
             for id, provider in PROVIDERS.items()
         ],
@@ -82,29 +91,46 @@ def get() -> dict:
 
 def methods(*, provider: str) -> list[str]:
     options, secrets, broken, _ = load()
-    if broken[provider] and options[provider]["enabled"]["api_key"]:
-        raise RuntimeError(f"{PROVIDERS[provider]['label']} API 키를 풀 수 없습니다. 설정에서 다시 입력해 주세요.")
+    usable = []
+    for m in options[provider]:
+        if not m["enabled"]:
+            continue
+        if broken[provider].get(m["id"]):
+            raise RuntimeError(f"{PROVIDERS[provider]['label']} {label(method=m['id'])} 를 풀 수 없습니다. 설정에서 다시 입력해 주세요.")
+        if kind(method=m["id"]) == "plan_key" or secrets[provider].get(m["id"]):
+            usable.append(m["id"])
 
-    return [
-        m for m in options[provider]["order"]
-        if options[provider]["enabled"][m] and (m == "subscription" or secrets[provider]["api_key"])
-    ]
+    return usable
 
 
 def environment(*, provider: str, method: str) -> dict:
     variable = PROVIDERS[provider]["variable"]
     found = {k: v for k, v in os.environ.items() if k != variable}
-    if provider in HOMES:
-        name, home = HOMES[provider]
-        found[name] = str(home)
-        sync(provider=provider)
+    if provider in HOMES and kind(method=method) == "plan_key":
+        found[HOMES[provider][0]] = str(home(provider=provider, method=method))
+        sync(provider=provider, method=method)
     _, secrets, _, _ = load()
-    if method == "api_key":
-        found[variable] = secrets[provider]["api_key"]
-    elif provider == "anthropic" and secrets[provider]["token"]:
-        found["CLAUDE_CODE_OAUTH_TOKEN"] = secrets[provider]["token"]
+    value = secrets[provider].get(method, "")
+    if kind(method=method) == "api_key":
+        found[variable] = value
+    elif provider == "anthropic" and value:
+        found["CLAUDE_CODE_OAUTH_TOKEN"] = value
 
     return found
+
+
+def kind(*, method: str) -> str:
+    return "plan_key" if method.startswith("plan_key") else "api_key"
+
+
+def label(*, method: str) -> str:
+    number = method.removeprefix(kind(method=method)).lstrip("_")
+
+    return f"{TYPES[kind(method=method)]} {number}".strip()
+
+
+def home(*, provider: str, method: str) -> Path:
+    return HOMES[provider][1] / method
 
 
 def usage() -> dict:
@@ -114,10 +140,13 @@ def usage() -> dict:
                WHERE auth != '' AND exit_code = 0 GROUP BY provider, auth""",
             (store.now()[:7],),
         ).fetchall()
+    found = {}
+    for runner, auth, month, last in rows:
+        key = (runner, LEGACY.get(auth, auth))
+        before = found.get(key, {"month": 0, "last": ""})
+        found[key] = {"month": before["month"] + (month or 0), "last": max(before["last"], last or "")}
 
-    return {
-        (r[0], r[1]): {"month": r[2] or 0, "last": r[3] or ""} for r in rows
-    }
+    return found
 
 
 def masked(*, key: str) -> str:
@@ -126,41 +155,49 @@ def masked(*, key: str) -> str:
 
 def load() -> tuple[dict, dict, dict, dict]:
     migrate()
-    kinds = [id for id in PROVIDERS] + [f"{id}_{suffix}" for id in PROVIDERS for suffix in SECRETS.values()]
     with store.session() as connection:
         rows = connection.execute(
-            f"SELECT kind, value, secret, updated_at FROM user_meta WHERE user_id = ? AND collected_id = '' AND kind IN ({', '.join('?' * len(kinds))})",
-            (store.USER, *kinds),
+            "SELECT kind, value, secret, updated_at FROM user_meta WHERE user_id = ? AND collected_id = ''",
+            (store.USER,),
         ).fetchall()
     found = {r[0]: r[1:] for r in rows}
-    options = {id: normalized(given=json.loads(found[id][0]) if id in found else None) for id in PROVIDERS}
-    secrets, saved, broken = {}, {}, {}
+    options, secrets, saved, broken = {}, {}, {}, {}
     for id in PROVIDERS:
-        stored = {name: found.get(f"{id}_{suffix}") for name, suffix in SECRETS.items()}
-        secrets[id] = {name: decrypt(token=row[1]) if row else "" for name, row in stored.items()}
-        saved[id] = {name: row[2] for name, row in stored.items() if row}
-        broken[id] = any(row and not secrets[id][name] for name, row in stored.items())
+        options[id] = normalized(given=json.loads(found[id][0]) if id in found else None)
+        secrets[id], saved[id], broken[id] = {}, {}, {}
+        for m in options[id]:
+            row = found.get(f"{id}_{m['id']}")
+            if not row:
+                continue
+            secrets[id][m["id"]] = decrypt(token=row[1])
+            saved[id][m["id"]] = row[2]
+            broken[id][m["id"]] = not secrets[id][m["id"]]
 
     return options, secrets, broken, saved
 
 
-def normalized(*, given) -> dict:
+def normalized(*, given) -> list[dict]:
     given = {"auth": given} if isinstance(given, str) else given or {}
-    order = given.get("order")
-    if sorted(order or []) != sorted(METHODS):
-        first = given.get("auth") if given.get("auth") in METHODS else "subscription"
-        order = [first, *[m for m in METHODS if m != first]]
-    enabled = given.get("enabled") if isinstance(given.get("enabled"), dict) else {}
-    enabled = {m: enabled.get(m, True) is not False for m in METHODS}
+    if isinstance(given.get("methods"), list):
+        listed = [
+            {"id": m["id"], "enabled": m.get("enabled", True) is not False}
+            for m in given["methods"]
+            if isinstance(m, dict) and isinstance(m.get("id"), str) and METHOD.fullmatch(m["id"])
+        ]
+    else:
+        order = given.get("order") if sorted(given.get("order") or []) == sorted(LEGACY) else None
+        if not order:
+            first = given.get("auth") if given.get("auth") in LEGACY else "subscription"
+            order = [first, *[m for m in LEGACY if m != first]]
+        enabled = given.get("enabled") if isinstance(given.get("enabled"), dict) else {}
+        listed = [{"id": LEGACY[m], "enabled": enabled.get(m, True) is not False} for m in order]
+    unique = list({m["id"]: m for m in listed}.values()) or [{"id": "plan_key", "enabled": True}, {"id": "api_key", "enabled": True}]
 
-    return {
-        "order": ranked(order=order, enabled=enabled),
-        "enabled": enabled,
-    }
+    return ranked(methods=unique)
 
 
-def ranked(*, order: list, enabled: dict) -> list:
-    return [m for m in order if enabled[m]] + [m for m in order if not enabled[m]]
+def ranked(*, methods: list) -> list:
+    return [m for m in methods if m["enabled"]] + [m for m in methods if not m["enabled"]]
 
 
 def unpacked(*, text: str) -> dict:
@@ -170,7 +207,7 @@ def unpacked(*, text: str) -> dict:
         found = {"api_key": text}
     found = found if isinstance(found, dict) else {"api_key": text}
 
-    return {"api_key": found.get("api_key") or "", "token": found.get("token") or ""}
+    return {"api_key": found.get("api_key") or "", "plan_key": found.get("token") or ""}
 
 
 # #
@@ -178,54 +215,76 @@ def unpacked(*, text: str) -> dict:
 
 def edit(*, data: dict) -> dict:
     options, _, _, _ = load()
-    keys = {}
+    keys, removed = {}, []
     for id, given in (data.get("providers") or {}).items():
         if id not in PROVIDERS or not isinstance(given, dict):
             raise ValueError("알 수 없는 제공사입니다.")
+        current = {m["id"]: m for m in options[id]}
+        if given.get("add") is not None:
+            if given["add"] not in TYPES:
+                raise ValueError("추가할 수 없는 인증 수단입니다.")
+            number = 1
+            while (f"{given['add']}_{number}" if number > 1 else given["add"]) in current:
+                number += 1
+            added = f"{given['add']}_{number}" if number > 1 else given["add"]
+            current[added] = {"id": added, "enabled": True}
+            options[id] = [*options[id], current[added]]
+        if given.get("remove") is not None:
+            if given["remove"] not in current or len(current) == 1:
+                raise ValueError("지울 수 없는 인증 수단입니다.")
+            options[id] = [m for m in options[id] if m["id"] != given["remove"]]
+            removed.append((id, given["remove"]))
+            current.pop(given["remove"])
         if given.get("order") is not None:
-            if not isinstance(given["order"], list) or sorted(given["order"]) != sorted(METHODS):
+            if not isinstance(given["order"], list) or sorted(given["order"]) != sorted(current):
                 raise ValueError("순서가 올바르지 않습니다.")
-            options[id]["order"] = list(given["order"])
+            options[id] = [current[m] for m in given["order"]]
         if given.get("enabled") is not None:
-            if not isinstance(given["enabled"], dict) or not all(k in METHODS and isinstance(v, bool) for k, v in given["enabled"].items()):
+            if not isinstance(given["enabled"], dict) or not all(k in current and isinstance(v, bool) for k, v in given["enabled"].items()):
                 raise ValueError("사용 설정이 올바르지 않습니다.")
-            options[id]["enabled"].update(given["enabled"])
-            if not any(options[id]["enabled"].values()):
-                raise ValueError("인증 수단을 하나 이상 켜 주세요.")
-        options[id]["order"] = ranked(order=options[id]["order"], enabled=options[id]["enabled"])
-        if isinstance(given.get("key"), str) and given["key"].strip():
-            keys[id] = given["key"].strip()
-        if given.get("key") is None and "key" in given:
-            keys[id] = ""
+            for k, v in given["enabled"].items():
+                current[k]["enabled"] = v
+        if not any(m["enabled"] for m in options[id]):
+            raise ValueError("인증 수단을 하나 이상 켜 주세요.")
+        options[id] = ranked(methods=options[id])
+        for method, value in (given.get("keys") or {}).items():
+            if method not in current or kind(method=method) != "api_key" or not (value is None or isinstance(value, str)):
+                raise ValueError("API 키를 넣을 수 없는 수단입니다.")
+            keys[(id, method)] = (value or "").strip()
     with store.session() as connection:
         for id in data.get("providers") or {}:
-            write(connection=connection, kind=id, value=json.dumps(options[id]), secret="")
-        for id, key in keys.items():
-            write(connection=connection, kind=f"{id}_api_key", value="{}", secret=encrypt(key=key))
+            write(connection=connection, kind=id, value=json.dumps({"methods": options[id]}), secret="")
+        for (id, method), key in keys.items():
+            write(connection=connection, kind=f"{id}_{method}", value="{}", secret=encrypt(key=key))
+        for id, method in removed:
+            write(connection=connection, kind=f"{id}_{method}", value="{}", secret="")
+    for id, method in removed:
+        if id in HOMES:
+            shutil.rmtree(home(provider=id, method=method), ignore_errors=True)
 
     return get()
 
 
-def remember(*, provider: str, token: str) -> None:
+def remember(*, provider: str, method: str, token: str) -> None:
     with store.session() as connection:
-        write(connection=connection, kind=f"{provider}_plan_key", value="{}", secret=encrypt(key=token))
+        write(connection=connection, kind=f"{provider}_{method}", value="{}", secret=encrypt(key=token))
 
 
-def sync(*, provider: str) -> None:
+def sync(*, provider: str, method: str) -> None:
     if provider not in HOMES:
         return
-    home = HOMES[provider][1]
-    home.mkdir(parents=True, exist_ok=True)
-    home.chmod(0o700)
-    path = home / "auth.json"
+    folder = home(provider=provider, method=method)
+    folder.mkdir(parents=True, exist_ok=True)
+    folder.chmod(0o700)
+    path = folder / "auth.json"
     _, secrets, _, saved = load()
-    token = secrets[provider]["token"]
+    token = secrets[provider].get(method, "")
     content = path.read_text(encoding="utf-8") if path.is_file() else ""
     if content == token:
         return
     changed = datetime.fromtimestamp(path.stat().st_mtime, timezone.utc).isoformat(timespec="seconds") if content else ""
-    if content and (not token or changed > saved[provider].get("token", "")):
-        return remember(provider=provider, token=content)
+    if content and (not token or changed > saved[provider].get(method, "")):
+        return remember(provider=provider, method=method, token=content)
     if token:
         descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         with os.fdopen(descriptor, "w", encoding="utf-8") as file:
@@ -233,7 +292,7 @@ def sync(*, provider: str) -> None:
 
 
 def write(*, connection, kind: str, value: str, secret: str) -> None:
-    if kind.endswith(tuple(SECRETS.values())) and not secret:
+    if kind not in PROVIDERS and not secret:
         connection.execute("DELETE FROM user_meta WHERE user_id = ? AND kind = ? AND collected_id = ''", (store.USER, kind))
         return
     connection.execute(
@@ -255,9 +314,9 @@ def migrate() -> None:
         if row:
             saved = json.loads(row[0])
             for id, token in zip(legacy, row[1:]):
-                write(connection=connection, kind=id, value=json.dumps(normalized(given=saved.get(id))), secret="")
-                for name, value in unpacked(text=decrypt(token=token)).items():
-                    write(connection=connection, kind=f"{id}_{SECRETS[name]}", value="{}", secret=encrypt(key=value))
+                write(connection=connection, kind=id, value=json.dumps({"methods": normalized(given=saved.get(id))}), secret="")
+                for method, value in unpacked(text=decrypt(token=token)).items():
+                    write(connection=connection, kind=f"{id}_{method}", value="{}", secret=encrypt(key=value))
             connection.execute("DELETE FROM user_meta WHERE kind = 'credential'")
         for column in legacy:
             connection.execute(f"ALTER TABLE user_meta DROP COLUMN {column}")
@@ -298,11 +357,11 @@ def cipher() -> Fernet:
 
 if __name__ == "__main__":
     import tempfile
-    from pathlib import Path
 
     folder = Path(tempfile.mkdtemp())
     store.DATABASE = folder / "check.db"
     KEY_FILE = folder / "encryption.key"
+    HOMES = {"openai": ("CODEX_HOME", folder / "codex")}
     with store.session() as connection:
         for column in PROVIDERS:
             connection.execute(f"ALTER TABLE user_meta ADD COLUMN {column} TEXT NOT NULL DEFAULT ''")
@@ -310,59 +369,48 @@ if __name__ == "__main__":
             "INSERT INTO user_meta (user_id, kind, collected_id, value, anthropic, updated_at) VALUES (?, 'credential', '', ?, ?, ?)",
             (store.USER, json.dumps({"anthropic": {"auth": "api_key"}}), encrypt(key=json.dumps({"api_key": "sk-old-1111", "token": "sk-ant-oat01-old-2222"})), store.now()),
         )
-    first = {p["id"]: p for p in get()["providers"]}
-    assert first["anthropic"]["order"] == ["api_key", "subscription"]
-    assert first["anthropic"]["key"] == "…1111" and first["anthropic"]["token"] == "…2222"
+    by = lambda: {p["id"]: p for p in get()["providers"]}
+    ids = lambda provider: [m["id"] for m in by()[provider]["methods"]]
+    first = by()
+    assert [m["id"] for m in first["anthropic"]["methods"]] == ["api_key", "plan_key"]
+    assert {m["id"]: m["secret"] for m in first["anthropic"]["methods"]} == {"api_key": "…1111", "plan_key": "…2222"}
     with store.session() as connection:
-        assert not {"openai", "anthropic", "xai"} & store.columns(connection=connection, table="user_meta")
-        kinds = {r[0] for r in connection.execute("SELECT kind FROM user_meta")}
+        assert not set(PROVIDERS) & store.columns(connection=connection, table="user_meta")
         stored = connection.execute("SELECT secret FROM user_meta WHERE kind = 'anthropic_api_key'").fetchone()[0]
-    assert kinds == {"openai", "anthropic", "xai", "anthropic_api_key", "anthropic_plan_key"}, kinds
     assert stored and "sk-old" not in stored
-    assert methods(provider="openai") == ["subscription"] and first["openai"]["key"] == ""
-    edit(data={"providers": {"openai": {"key": "sk-test-1234"}}})
-    openai = get()["providers"][0]
-    assert openai["key"] == "…1234" and openai["saved"]["api_key"]
-    assert methods(provider="openai") == ["subscription", "api_key"]
-    edit(data={"providers": {"openai": {"order": ["api_key", "subscription"], "enabled": {"subscription": False}}}})
-    assert methods(provider="openai") == ["api_key"]
-    assert get()["providers"][0]["order"] == ["api_key", "subscription"]
-    edit(data={"providers": {"openai": {"enabled": {"subscription": True, "api_key": False}}}})
-    assert get()["providers"][0]["order"] == ["subscription", "api_key"]
-    assert environment(provider="openai", method="api_key")["CODEX_API_KEY"] == "sk-test-1234"
-    remember(provider="anthropic", token="sk-ant-oat01-test-5678")
-    found = environment(provider="anthropic", method="subscription")
-    assert found["CLAUDE_CODE_OAUTH_TOKEN"] == "sk-ant-oat01-test-5678" and "ANTHROPIC_API_KEY" not in found
-    remember(provider="anthropic", token="")
-    assert get()["providers"][1]["token"] == ""
-    edit(data={"providers": {"openai": {"key": None}}})
+    assert normalized(given={"order": ["subscription", "api_key"], "enabled": {"api_key": False}}) == [{"id": "plan_key", "enabled": True}, {"id": "api_key", "enabled": False}]
+    assert normalized(given={"methods": [{"id": "plan_key"}, {"id": "../x"}, {"id": "api_key_2", "enabled": False}]}) == [{"id": "plan_key", "enabled": True}, {"id": "api_key_2", "enabled": False}]
+    assert label(method="plan_key") == "Plan login" and label(method="plan_key_2") == "Plan login 2"
+    assert methods(provider="openai") == ["plan_key"]
+    edit(data={"providers": {"openai": {"add": "plan_key"}}})
+    edit(data={"providers": {"openai": {"add": "api_key"}}})
+    assert ids("openai") == ["plan_key", "api_key", "plan_key_2", "api_key_2"], ids("openai")
+    edit(data={"providers": {"openai": {"keys": {"api_key_2": "sk-two-2222"}}}})
+    assert methods(provider="openai") == ["plan_key", "plan_key_2", "api_key_2"]
+    assert environment(provider="openai", method="api_key_2")["CODEX_API_KEY"] == "sk-two-2222"
+    assert environment(provider="openai", method="plan_key_2")["CODEX_HOME"] == str(folder / "codex" / "plan_key_2")
+    edit(data={"providers": {"openai": {"order": ["api_key_2", "plan_key", "api_key", "plan_key_2"], "enabled": {"plan_key": False}}}})
+    assert ids("openai") == ["api_key_2", "api_key", "plan_key_2", "plan_key"]
+    (folder / "codex" / "plan_key_2" / "auth.json").write_text('{"tokens": "login-2"}')
+    environment(provider="openai", method="plan_key_2")
+    assert {m["id"]: m["secret"] for m in by()["openai"]["methods"]}["plan_key_2"] == "…-2\"}"
+    (folder / "codex" / "plan_key_2" / "auth.json").unlink()
+    environment(provider="openai", method="plan_key_2")
+    assert (folder / "codex" / "plan_key_2" / "auth.json").read_text() == '{"tokens": "login-2"}'
+    assert oct((folder / "codex" / "plan_key_2" / "auth.json").stat().st_mode & 0o777) == "0o600"
+    edit(data={"providers": {"openai": {"remove": "plan_key_2"}}})
+    assert "plan_key_2" not in ids("openai") and not (folder / "codex" / "plan_key_2").exists()
     with store.session() as connection:
-        assert not connection.execute("SELECT 1 FROM user_meta WHERE kind = 'openai_api_key'").fetchone()
-    HOMES = {"openai": ("CODEX_HOME", folder / "codex")}
-    environment(provider="openai", method="subscription")
-    assert get()["providers"][0]["token"] == ""
-    (folder / "codex" / "auth.json").write_text('{"tokens": "login-1"}')
-    assert environment(provider="openai", method="subscription")["CODEX_HOME"] == str(folder / "codex")
-    assert get()["providers"][0]["token"] == "…-1\"}"
-    (folder / "codex" / "auth.json").unlink()
-    environment(provider="openai", method="subscription")
-    assert (folder / "codex" / "auth.json").read_text() == '{"tokens": "login-1"}'
-    assert oct((folder / "codex" / "auth.json").stat().st_mode & 0o777) == "0o600"
-    os.utime(folder / "codex" / "auth.json", (2_000_000_000, 2_000_000_000))
-    (folder / "codex" / "auth.json").write_text('{"tokens": "refreshed-2"}')
-    os.utime(folder / "codex" / "auth.json", (2_000_000_000, 2_000_000_000))
-    environment(provider="openai", method="subscription")
-    assert load()[1]["openai"]["token"] == '{"tokens": "refreshed-2"}'
-    remember(provider="openai", token="")
-    (folder / "codex" / "auth.json").unlink()
-    assert normalized(given="api_key")["order"] == ["api_key", "subscription"]
-    assert unpacked(text="sk-legacy") == {"api_key": "sk-legacy", "token": ""}
+        assert not connection.execute("SELECT 1 FROM user_meta WHERE kind = 'openai_plan_key_2'").fetchone()
+    remember(provider="anthropic", method="plan_key", token="sk-ant-oat01-test-5678")
+    found = environment(provider="anthropic", method="plan_key")
+    assert found["CLAUDE_CODE_OAUTH_TOKEN"] == "sk-ant-oat01-test-5678" and "ANTHROPIC_API_KEY" not in found
     with store.session() as connection:
         connection.execute(
-            "INSERT INTO llm (id, provider, model, purpose, command, request, response, exit_code, started_at, finished_at, auth) VALUES ('1', 'claude', 'm', 'p', '[]', '', '', 0, ?, ?, 'api_key')",
+            "INSERT INTO llm (id, provider, model, purpose, command, request, response, exit_code, started_at, finished_at, auth) VALUES ('1', 'claude', 'm', 'p', '[]', '', '', 0, ?, ?, 'subscription')",
             (store.now(), store.now()),
         )
-    assert get()["providers"][1]["usage"]["api_key"]["month"] == 1
+    assert {m["id"]: m["usage"]["month"] for m in by()["anthropic"]["methods"]}["plan_key"] == 1
     KEY_FILE.unlink()
     KEY_FILE = folder / "other.key"
     try:
@@ -373,9 +421,11 @@ if __name__ == "__main__":
         raise AssertionError("undecryptable key")
     for broken in (
         {"x": {}},
-        {"openai": {"order": ["api_key"]}},
-        {"openai": {"enabled": {"subscription": False, "api_key": False}}},
-        {"openai": {"enabled": {"plan": True}}},
+        {"xai": {"order": ["api_key"]}},
+        {"xai": {"enabled": {"plan_key": False, "api_key": False}}},
+        {"xai": {"add": "token"}},
+        {"xai": {"keys": {"plan_key": "x"}}},
+        {"xai": {"remove": "nope"}},
     ):
         try:
             edit(data={"providers": broken})

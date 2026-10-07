@@ -80,7 +80,7 @@ class Handler(BaseHTTPRequestHandler):
             if not self.trusted():
                 return self.reply(code=403, payload={"error": "forbidden"})
             try:
-                return self.reply(code=200, payload=login.status(provider=(query.get("provider") or [""])[0]))
+                return self.reply(code=200, payload=login.status(provider=(query.get("provider") or [""])[0], method=(query.get("method") or ["plan_key"])[0]))
             except ValueError as error:
                 return self.reply(code=400, payload={"error": str(error)})
         if path == "/api/models":
@@ -162,9 +162,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(code=403, payload={"error": "forbidden"})
             try:
                 provider = body.get("provider") or ""
+                method = body.get("method") or "plan_key"
                 if body.get("code") is not None:
-                    return self.reply(code=200, payload=login.submit(provider=provider, code=body["code"]))
-                return self.reply(code=200, payload=login.start(provider=provider))
+                    return self.reply(code=200, payload=login.submit(provider=provider, method=method, code=body["code"]))
+                return self.reply(code=200, payload=login.start(provider=provider, method=method))
             except (ValueError, RuntimeError) as error:
                 return self.reply(code=400, payload={"error": str(error)})
         try:
@@ -219,10 +220,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(code=403, payload={"error": "forbidden"})
             asked = parse_qs(urlparse(self.path).query)
             provider = (asked.get("provider") or [""])[0]
+            method = (asked.get("method") or ["plan_key"])[0]
             try:
                 if asked.get("signout"):
-                    return self.reply(code=200, payload=login.signout(provider=provider))
-                login.cancel(provider=provider)
+                    return self.reply(code=200, payload=login.signout(provider=provider, method=method))
+                login.check(provider=provider, method=method)
+                login.cancel(provider=provider, method=method)
             except ValueError as error:
                 return self.reply(code=400, payload={"error": str(error)})
             return self.reply(code=200, payload={"ok": True})
