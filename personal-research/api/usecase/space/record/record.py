@@ -15,14 +15,23 @@ IDENTIFIER = re.compile(r"[a-zA-Z0-9_-]+")
 def listed() -> list[dict]:
     with store.session() as connection:
         rows = connection.execute(
-            """SELECT s.id, s.title, s.created_at, MAX(s.updated_at, COALESCE(MAX(c.updated_at), '')), COUNT(c.id)
+            """SELECT s.id, s.title, s.purpose, s.created_at, MAX(s.updated_at, COALESCE(MAX(c.updated_at), '')),
+                      COUNT(c.id), COUNT(DISTINCT NULLIF(c.collected_id, ''))
                FROM space AS s
                LEFT JOIN space_conversation AS c ON c.space_id = s.id
-               GROUP BY s.id ORDER BY 4 DESC"""
+               GROUP BY s.id ORDER BY 5 DESC"""
         ).fetchall()
 
     return [
-        {"id": r[0], "title": r[1], "created_at": r[2], "updated_at": r[3], "conversation_count": r[4]}
+        {
+            "id": r[0],
+            "title": r[1],
+            "purpose": r[2][:200],
+            "created_at": r[3],
+            "updated_at": r[4],
+            "conversation_count": r[5],
+            "collected_count": r[6],
+        }
         for r in rows
     ]
 
@@ -46,7 +55,26 @@ def get(*, id: str) -> dict | None:
         "created_at": row[4],
         "updated_at": row[5],
         "conversations": conversation.listed(domain="space", space_id=row[0]),
+        "collected": collected(id=row[0]),
     }
+
+
+def collected(*, id: str) -> list[dict]:
+    with store.session() as connection:
+        rows = connection.execute(
+            """SELECT root.id, root.path, root.url, COUNT(DISTINCT c.id), MAX(c.updated_at),
+                      (SELECT COUNT(*) FROM collected AS d WHERE d.id = root.id OR d.path LIKE root.path || '/%')
+               FROM space_conversation AS c
+               JOIN collected AS root ON root.id = c.collected_id
+               WHERE c.space_id = ?
+               GROUP BY root.id ORDER BY 5 DESC""",
+            (id,),
+        ).fetchall()
+
+    return [
+        {"id": r[0], "path": r[1], "url": r[2], "conversation_count": r[3], "updated_at": r[4], "document_count": r[5]}
+        for r in rows
+    ]
 
 
 # #

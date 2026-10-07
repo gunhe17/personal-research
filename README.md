@@ -54,7 +54,7 @@ personal-research/
 - 모델을 부를 때마다(답변은 Codex, 수집할 때의 번역은 claude) `llm` 에 한 행이 남는다. `owner_id` 는 질문 메시지 id 나 번역한 문서 id 다.
 - DB 를 처음 열 때 `common/store.py` 의 `upgrade` 가 예전 구조(`extra` `body` 열, `opened` `conversations` `agent` `asked` 표, 대화를 JSON 으로 담던 `space`)를 지금 구조로 옮긴다.
 
-왼쪽 사이드바는 Home 과 Spaces(space 목록)다. 홈에서 시작한 대화는 채팅 머리의 Agent 에서 고른다. 수집물은 대화의 근거, 자료 메뉴, 홈 collect 결과로 연다. 사이드바 오른쪽에는 문서와 채팅을 둔다. 채팅 패널 머리에서 space(또는 Agent)와 대화를 고르고, `문서` `나란히` `채팅` 으로 배치를 고른다.
+왼쪽 사이드바는 Home 과 Space(space 목록)다. Space 를 누르면 space 목록 페이지(`/viewer/space`)가, space 이름을 누르면 상세 페이지(`/viewer/space?id=…`)가 열린다. 상세 페이지에서 이름과 목적을 고치고, 그 space 의 대화와 자료(대화들의 출발 수집물)를 본다. 홈에서 시작한 대화는 채팅 머리의 Agent 에서 고른다. 수집물은 대화의 근거, 자료 메뉴, 홈 collect 결과로 연다. 사이드바 오른쪽에는 문서와 채팅을 둔다. 채팅 패널 머리에서 space(또는 Agent)와 대화를 고르고, `문서` `나란히` `채팅` 으로 배치를 고른다.
 
 뷰어 서버는 Docker 로 띄운다. 환경은 둘이고, 포트와 경로는 `.env/.env.{환경}` 에서 정한다.
 

@@ -29,7 +29,6 @@
       resizingSidebar: false,
       layout: localStorage.getItem("layout") || "split",
       spaces: [],
-      spacesOpen: localStorage.getItem("spacesOpen") !== "0",
       chatWidthPct: clampChatWidth(parseFloat(localStorage.getItem("chatWidthPct") || "50") || 50),
       tree: [],
       currentPath: null,
@@ -213,16 +212,11 @@
         onClick: () => openHome(),
       }));
       tree.appendChild(sidebarRow({
-        label: "Spaces",
-        active: false,
+        label: "Space",
+        active: state.view === "space" && !params.get("id"),
         icon: SPACE_ICON,
-        onClick: () => {
-          state.spacesOpen = !state.spacesOpen;
-          localStorage.setItem("spacesOpen", state.spacesOpen ? "1" : "0");
-          renderTree();
-        },
+        onClick: () => { location.href = SPACE_URL; },
       }));
-      if (!state.spacesOpen) return;
       const box = document.createElement("div");
       box.className = "ml-3 border-l border-slate-100 pl-1";
       tree.appendChild(box);
@@ -230,10 +224,10 @@
       for (const item of state.spaces.slice(0, 12)) {
         box.appendChild(sidebarRow({
           label: item.title,
-          active: params.get("space") === item.id,
+          active: (params.get("space") || params.get("id")) === item.id,
           title: item.title,
           meta: sinceLabel(item.updated_at),
-          onClick: () => { location.href = `${COLLECTED_URL}?space=${encodeURIComponent(item.id)}`; },
+          onClick: () => { location.href = `${SPACE_URL}?id=${encodeURIComponent(item.id)}`; },
         }));
       }
     }
@@ -340,6 +334,7 @@
 
 
     const HOME_URL = "/viewer/";
+    const SPACE_URL = "/viewer/space";
 
     async function loadSpaces() {
       try {
@@ -350,6 +345,90 @@
       renderTree();
     }
     const COLLECTED_URL = "/viewer/collected";
+
+    async function renderSpacePage() {
+      const box = $("#space-content");
+      const id = new URLSearchParams(location.search).get("id");
+      try {
+        if (id) return renderSpaceDetail(box, await (await fetch(`/api/spaces/${encodeURIComponent(id)}`)).json());
+        renderSpaceList(box, (await (await fetch("/api/spaces")).json()).items || []);
+      } catch (e) {
+        box.innerHTML = `<p class="text-sm text-slate-500">Could not load: ${escapeHtml(e.message)}</p>`;
+      }
+    }
+
+    function renderSpaceList(box, items) {
+      box.innerHTML = `
+        <div class="mb-10 flex items-end justify-between gap-4">
+          <div>
+            <h1 class="text-[40px] font-semibold tracking-tight text-slate-900" style="letter-spacing: 0.44px">Space</h1>
+            <p class="mt-1 text-[17px] font-light text-slate-500">무엇을 배울지 목적 하나가 space 하나입니다.</p>
+          </div>
+          <button type="button" id="space-new" class="shrink-0 rounded-full bg-apple px-4 py-2 text-[15px] text-white hover:bg-apple-hover transition">새 space</button>
+        </div>
+        <div class="divide-y divide-slate-200 border-y border-slate-200">
+          ${items.length ? items.map((item) => `
+            <a href="${SPACE_URL}?id=${encodeURIComponent(item.id)}" class="group block py-5 hover:bg-white transition">
+              <div class="flex items-baseline justify-between gap-4 px-2">
+                <span class="truncate text-[21px] font-semibold tracking-tight text-slate-900 group-hover:text-apple-link">${escapeHtml(item.title)}</span>
+                <span class="shrink-0 text-[12px] text-slate-400">${escapeHtml(sinceLabel(item.updated_at))}</span>
+              </div>
+              <p class="mt-1 px-2 truncate text-[14px] text-slate-500">${escapeHtml(item.purpose || "목적이 아직 없습니다")}</p>
+              <p class="mt-2 px-2 text-[12px] text-slate-400">대화 ${item.conversation_count} · 자료 ${item.collected_count}</p>
+            </a>`).join("") : `<p class="py-10 text-center text-[15px] text-slate-500">아직 space 가 없습니다.</p>`}
+        </div>`;
+      $("#space-new").addEventListener("click", async () => {
+        const created = await (await fetch("/api/spaces", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: "새 space" }) })).json();
+        location.href = `${SPACE_URL}?id=${encodeURIComponent(created.id)}`;
+      });
+    }
+
+    function renderSpaceDetail(box, space) {
+      const chat = (extra) => `${COLLECTED_URL}?space=${encodeURIComponent(space.id)}${extra}`;
+      box.innerHTML = `
+        <a href="${SPACE_URL}" class="text-[13px] text-apple-link hover:underline">← Space</a>
+        <input id="space-name" value="${escapeHtml(space.title)}" aria-label="Space 이름"
+          class="mt-3 w-full bg-transparent text-[40px] font-semibold tracking-tight text-slate-900 rounded-xl px-1 -mx-1 focus:outline-none focus:ring-2 focus:ring-apple/30" style="letter-spacing: 0.44px" />
+        <section class="mt-8">
+          <div class="mb-2 flex items-center justify-between">
+            <h2 class="text-[13px] font-semibold uppercase tracking-wide text-slate-500">목적</h2>
+            <span id="space-saved" class="text-[12px] text-slate-400"></span>
+          </div>
+          <textarea id="space-purpose" rows="5" placeholder="무엇을, 어떤 순서로, 어디까지 배울지 적어 두면 튜터가 매 질문마다 읽습니다."
+            class="w-full resize-y rounded-xl bg-white px-4 py-3 text-[15px] leading-relaxed text-slate-800 ring-1 ring-slate-200 focus:outline-none focus:ring-2 focus:ring-apple/30">${escapeHtml(space.purpose)}</textarea>
+        </section>
+        <section class="mt-10">
+          <div class="mb-3 flex items-center justify-between">
+            <h2 class="text-[13px] font-semibold uppercase tracking-wide text-slate-500">대화 ${space.conversations.length}</h2>
+            <a href="${chat("&new=1")}" class="rounded-full border border-apple-link px-3 py-1 text-[13px] text-apple-link hover:bg-white transition">새 대화</a>
+          </div>
+          <div class="divide-y divide-slate-200 border-y border-slate-200">
+            ${space.conversations.length ? space.conversations.map((c) => `
+              <a href="${chat(`&conversation=${encodeURIComponent(c.id)}`)}" class="flex items-baseline justify-between gap-4 px-2 py-3.5 hover:bg-white transition">
+                <span class="truncate text-[15px] text-slate-900">${escapeHtml(c.title)}</span>
+                <span class="shrink-0 text-[12px] text-slate-400">메시지 ${c.message_count} · ${escapeHtml(sinceLabel(c.updated_at))}</span>
+              </a>`).join("") : `<p class="px-2 py-6 text-[14px] text-slate-500">아직 대화가 없습니다.</p>`}
+          </div>
+        </section>
+        <section class="mt-10">
+          <h2 class="mb-3 text-[13px] font-semibold uppercase tracking-wide text-slate-500">자료 ${space.collected.length}</h2>
+          <div class="divide-y divide-slate-200 border-y border-slate-200">
+            ${space.collected.length ? space.collected.map((d) => `
+              <a href="${chat(`&conversation=${encodeURIComponent(space.conversations.find((c) => c.collected_id === d.id)?.id || "")}&doc=${encodeURIComponent(d.id)}`)}" class="block px-2 py-3.5 hover:bg-white transition">
+                <span class="block truncate font-mono text-[13px] text-slate-900">${escapeHtml(d.path)}</span>
+                <span class="mt-0.5 block text-[12px] text-slate-400">대화 ${d.conversation_count}${d.document_count > 1 ? ` · 문서 ${d.document_count}` : ""}</span>
+              </a>`).join("") : `<p class="px-2 py-6 text-[14px] text-slate-500">대화에서 문서를 자료로 두면 여기에 모입니다.</p>`}
+          </div>
+        </section>`;
+      const save = async (data) => {
+        const res = await fetch(`/api/spaces/${encodeURIComponent(space.id)}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+        $("#space-saved").textContent = res.ok ? "저장됨" : "저장하지 못했습니다";
+        if (res.ok && data.title) loadSpaces();
+      };
+      $("#space-name").addEventListener("change", (e) => e.target.value.trim() && save({ title: e.target.value.trim() }));
+      $("#space-name").addEventListener("keydown", (e) => { if (e.key === "Enter") e.target.blur(); });
+      $("#space-purpose").addEventListener("change", (e) => save({ purpose: e.target.value }));
+    }
 
     function openHome() {
       location.href = HOME_URL;
@@ -604,6 +683,7 @@
     }
 
     async function openDocFromUrl() {
+      if (state.view === "space") return renderSpacePage();
       if (state.view === "home") {
         applyHomeMode();
         autoResizeHome();

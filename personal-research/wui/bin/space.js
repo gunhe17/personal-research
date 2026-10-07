@@ -355,6 +355,7 @@ async function start() {
   const url = new URL(location.href), agent = url.searchParams.get('agent'), space = url.searchParams.get('space'), conversation = url.searchParams.get('conversation');
   if (agent) return open('agent', agent);
   if (conversation) return open('space', conversation);
+  if (space && url.searchParams.get('new')) { scope = { domain: 'space', space: await json(`/api/spaces/${space}`) }; return open('space', null); }
   if (space) return choose({ domain: 'space', space: await json(`/api/spaces/${space}`) });
   renderHeader(); follow(research.current());
 }
