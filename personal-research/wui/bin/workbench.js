@@ -1,7 +1,6 @@
 const $ = (s) => document.querySelector(s);
 const KEY = "workbench";
 const LIMIT = 4;
-const ICON = window.RESEARCH_ICON;
 const itemKey = window.itemKey;
 const root = $("#workbench");
 const frames = new Map();
@@ -12,7 +11,11 @@ let drag = null;
 function load() {
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) || "null");
-    if (saved?.groups?.length) return saved;
+    if (saved?.groups?.length) {
+      saved.groups.forEach((g) => { g.tabs = g.tabs.filter((t) => itemKey(t) === g.active).slice(0, 1); });
+      saved.groups = saved.groups.filter((g) => g.tabs.length);
+      return saved;
+    }
   } catch (_) {}
   return { groups: [], focus: 0 };
 }
@@ -32,11 +35,6 @@ function source(item) {
   if (item.kind === "agent") return `/viewer/pane-chat?agent=${encodeURIComponent(item.agent)}`;
   if (item.kind === "doc") return `/viewer/pane-doc?doc=${encodeURIComponent(item.id)}`;
   return `/viewer/pane-material?id=${encodeURIComponent(item.id)}`;
-}
-
-function kindIcon(item) {
-  const name = item.kind === "doc" ? (item.path || "docs/").split("/")[0] : item.kind === "material" ? item.material || "lesson" : "chat";
-  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${ICON[name] || ICON.docs}</svg>`;
 }
 
 function frameFor(group, item) {
@@ -81,8 +79,14 @@ function group() {
 
 function add(target, item) {
   const key = itemKey(item);
-  if (!target.tabs.some((t) => itemKey(t) === key)) target.tabs.push(item);
+  target.tabs.filter((t) => itemKey(t) !== key).forEach((t) => drop(target, itemKey(t)));
+  target.tabs = [item];
   target.active = key;
+}
+
+function drop(target, key) {
+  frames.get(`${target.id}|${key}`)?.remove();
+  frames.delete(`${target.id}|${key}`);
 }
 
 function split(item, index, side) {
@@ -104,8 +108,7 @@ function close(groupIndex, key) {
   const position = target.tabs.findIndex((t) => itemKey(t) === key);
   if (position < 0) return;
   target.tabs.splice(position, 1);
-  frames.get(`${target.id}|${key}`)?.remove();
-  frames.delete(`${target.id}|${key}`);
+  drop(target, key);
   if (target.active === key) target.active = target.tabs[Math.max(0, position - 1)] ? itemKey(target.tabs[Math.max(0, position - 1)]) : "";
   if (!target.tabs.length && state.groups.length > 1) {
     state.groups.splice(groupIndex, 1);
@@ -150,14 +153,13 @@ function render() {
       element = document.createElement("section");
       element.className = "group";
       element.dataset.groupId = g.id;
-      element.innerHTML = `<div class="tabs" role="tablist"></div><div class="body"><div class="shield"></div><div class="drop"></div></div>`;
+      element.innerHTML = `<div class="body"><div class="shield"></div><div class="drop"></div></div>`;
       element.addEventListener("pointerdown", () => { if (state.focus !== index) { state.focus = state.groups.indexOf(g); save(); paintFocus(); window.research?.renderTree?.(); } }, true);
       attachDrop(element.querySelector(".body"), g.id);
     }
     if (root.children[index] !== element) root.insertBefore(element, root.children[index] || null);
     kept.add(g.id);
     element.classList.toggle("focused", index === state.focus);
-    renderTabs(element.querySelector(".tabs"), g, index);
     const body = element.querySelector(".body");
     g.tabs.forEach((item) => {
       const frame = frameFor(g, item);
@@ -170,32 +172,6 @@ function render() {
   root.querySelectorAll("[data-group-id]").forEach((element) => {
     if (!kept.has(element.dataset.groupId)) element.remove();
   });
-}
-
-function renderTabs(bar, g, index) {
-  bar.replaceChildren(...g.tabs.map((item) => {
-    const key = itemKey(item);
-    const tab = document.createElement("div");
-    tab.className = `tab ${key === g.active ? "active" : ""}`;
-    tab.setAttribute("role", "tab");
-    tab.draggable = true;
-    tab.title = item.path || item.title || "";
-    tab.innerHTML = `<span class="tab-icon">${kindIcon(item)}</span><span class="tab-title"></span><button type="button" class="tab-close" aria-label="닫기">×</button>`;
-    tab.querySelector(".tab-title").textContent = item.title || "새 대화";
-    tab.addEventListener("click", (e) => {
-      if (e.target.closest(".tab-close")) return close(index, key);
-      g.active = key;
-      state.focus = index;
-      commit();
-    });
-    tab.addEventListener("auxclick", (e) => { if (e.button === 1) close(index, key); });
-    tab.addEventListener("dragstart", (e) => {
-      e.dataTransfer.setData("application/x-research-tab", JSON.stringify({ group: g.id, key }));
-      e.dataTransfer.effectAllowed = "move";
-      startDrag();
-    });
-    return tab;
-  }));
 }
 
 function paintFocus() {
@@ -264,6 +240,20 @@ function locate(frame) {
 
 window.workbench = {
   open,
+  close(frame) {
+    const found = locate(frame);
+    if (found) close(found.index, itemKey(found.item));
+  },
+  focus(frame) {
+    const found = locate(frame);
+    if (!found || state.focus === found.index) return;
+    state.focus = found.index;
+    save();
+    paintFocus();
+    window.research?.renderTree?.();
+  },
+  dragStart: startDrag,
+  dragEnd: endDrag,
   lastDoc: () => last.doc,
   activeKey: () => state.groups[state.focus]?.active || "",
   activeSpace: () => last.space,

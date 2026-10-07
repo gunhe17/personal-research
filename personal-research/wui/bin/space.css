@@ -75,13 +75,15 @@
 :is(#chat-panel, #space-page, #doc-pane) .pg-caption { color: var(--ash); font-size: 13px; margin: 8px 0; }
 :is(#chat-panel, #space-page, #doc-pane) .pg-task { margin: 12px 0 0; font-weight: 600; }
 
-:is(#chat-panel, #space-page, #doc-pane) .space-dock { padding: 8px 12px 4px; border-top: 1px solid var(--hair); background: #fff; }
+:is(#chat-panel, #space-page, #doc-pane) .space-dock { padding: 8px 16px 4px; background: transparent; }
 :is(#chat-panel, #space-page, #doc-pane) .space-dock > * { max-width: 760px; margin-left: auto; margin-right: auto; }
-:is(#chat-panel, #space-page, #doc-pane) .composer { display: flex; align-items: flex-end; gap: 8px; padding: 6px 6px 6px 14px; background: var(--frost); border: 1px solid transparent; border-radius: 12px; }
-:is(#chat-panel, #space-page, #doc-pane) .composer:focus-within { background: #fff; border-color: var(--apple); }
-:is(#chat-panel, #space-page, #doc-pane) .composer textarea { flex: 1; border: 0; outline: 0; resize: none; background: none; font-size: 15px; line-height: 1.5; max-height: 180px; padding: 5px 0; }
-:is(#chat-panel, #space-page, #doc-pane) .send-button { width: 32px; height: 32px; border: 0; border-radius: 980px; background: var(--apple); color: #fff; font-size: 16px; }
-:is(#chat-panel, #space-page, #doc-pane) .send-button:disabled { opacity: .4; }
+:is(#chat-panel, #space-page, #doc-pane) .composer { display: flex; align-items: center; gap: 10px; padding: 10px; background: #fff; border-radius: 16px; box-shadow: 0 0 0 1px #e2e8f0; transition: box-shadow 150ms; }
+:is(#chat-panel, #space-page, #doc-pane) .composer:focus-within { box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.2); }
+:is(#chat-panel, #space-page, #doc-pane) .composer textarea { flex: 1; min-width: 0; border: 0; outline: 0; resize: none; background: none; font-size: 17px; line-height: 1.5; color: #0f172a; max-height: 180px; padding: 4px; }
+:is(#chat-panel, #space-page, #doc-pane) .composer textarea::placeholder { color: #94a3b8; }
+:is(#chat-panel, #space-page, #doc-pane) .send-button { display: inline-flex; flex-shrink: 0; width: 32px; height: 32px; align-items: center; justify-content: center; border: 0; border-radius: 980px; background: var(--apple); color: #fff; }
+:is(#chat-panel, #space-page, #doc-pane) .send-button:hover { background: #0077ed; }
+:is(#chat-panel, #space-page, #doc-pane) .send-button:disabled { opacity: .4; cursor: not-allowed; }
 :is(#chat-panel, #space-page, #doc-pane) .form-status { min-height: 16px; margin: 4px auto; font-size: 12px; color: var(--ash); }
 :is(#chat-panel, #space-page, #doc-pane) .attachment-tray { display: grid; gap: 6px; }
 :is(#chat-panel, #space-page, #doc-pane) .attachment-tray:has(> :not([hidden])) { margin-bottom: 6px; }
@@ -138,7 +140,7 @@
 #links-menu .tree-empty { padding: 4px 12px 6px 36px; font-size: 12px; color: #858585; }
 #links-menu .tree-action { display: block; margin: 2px 12px 4px 36px; font-size: 12px; color: #0066cc; text-align: left; }
 #links-menu .tree-action:hover { text-decoration: underline; }
-.pane-bar { display: flex; height: 34px; flex-shrink: 0; align-items: center; gap: 6px; padding: 0 10px; border-bottom: 1px solid #e8e8ed; background: #fff; }
+.pane-bar { display: flex; height: 34px; flex-shrink: 0; align-items: center; gap: 6px; padding: 0 10px; border-bottom: 1px solid #e8e8ed; background: transparent; }
 .source-chip { display: inline-flex; height: 22px; min-width: 0; align-items: center; border-radius: 980px; background: #f5f5f7; padding: 0 2px 0 8px; }
 .source-open { display: inline-flex; min-width: 0; max-width: 14rem; align-items: center; gap: 5px; font-size: 12px; color: #333333; }
 .source-open svg { width: 12px; height: 12px; flex-shrink: 0; color: #707070; }
@@ -148,4 +150,7 @@
 .source-hint { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: #858585; }
 .pane-kind { font-size: 12px; color: #858585; }
 .pane-sep { font-size: 12px; color: #d2d2d7; }
-.pane-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: #333333; }
+.pane-name { min-width: 0; margin-right: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: #333333; }
+.pane-bar { cursor: grab; user-select: none; }
+.pane-button { display: inline-flex; width: 22px; height: 22px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 6px; font-size: 15px; line-height: 1; color: #858585; cursor: pointer; }
+.pane-button:hover, .pane-button[aria-expanded="true"] { background: #e2e2e5; color: #1d1d1f; }

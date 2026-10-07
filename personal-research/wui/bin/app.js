@@ -1502,7 +1502,7 @@
       const isHtml = /\.html?$/i.test(state.currentPath || "");
       if (!hasPair && state.dlLang !== "orig") state.dlLang = "orig";
       if (isHtml && state.dlFmt === "pdf") state.dlFmt = "md";
-      $("#dl-langs").querySelectorAll("[data-dl-lang]").forEach((b) => {
+      document.querySelectorAll("#dl-langs [data-dl-lang]").forEach((b) => {
         const off = b.dataset.dlLang !== "orig" && !hasPair;
         b.disabled = off;
         b.classList.toggle("opacity-40", off);
@@ -1510,7 +1510,7 @@
         b.title = off ? "This document has no translation" : "";
         b.setAttribute("aria-selected", b.dataset.dlLang === state.dlLang ? "true" : "false");
       });
-      $("#dl-fmts").querySelectorAll("[data-dl-fmt]").forEach((b) => {
+      document.querySelectorAll("#dl-fmts [data-dl-fmt]").forEach((b) => {
         const off = b.dataset.dlFmt === "pdf" && isHtml;
         b.disabled = off;
         b.classList.toggle("opacity-40", off);
@@ -1524,6 +1524,7 @@
     function updateDownload() {
       const has = state.view === "collected" && !!state.currentPath;
       const btn = $("#btn-download");
+      if (!btn) return;
       btn.disabled = !has;
       btn.classList.toggle("opacity-40", !has);
       if (!has) return setDownloadOpen(false);
@@ -1712,13 +1713,13 @@
       e.stopPropagation();
       setDownloadOpen(!isDownloadOpen());
     });
-    $("#dl-langs").querySelectorAll("[data-dl-lang]").forEach((b) => {
+    document.querySelectorAll("#dl-langs [data-dl-lang]").forEach((b) => {
       b.addEventListener("click", () => {
         state.dlLang = b.dataset.dlLang;
         renderDownloadChoices();
       });
     });
-    $("#dl-fmts").querySelectorAll("[data-dl-fmt]").forEach((b) => {
+    document.querySelectorAll("#dl-fmts [data-dl-fmt]").forEach((b) => {
       b.addEventListener("click", () => {
         state.dlFmt = b.dataset.dlFmt;
         localStorage.setItem("dlFmt", state.dlFmt);

@@ -13,7 +13,7 @@
   };
 </script>
 </head>
-<body class="h-full bg-white text-slate-900 font-sans antialiased overflow-hidden select-text">
+<body class="h-full bg-slate-50 text-slate-900 font-sans antialiased overflow-hidden select-text">
   <div class="h-full flex flex-col">
     <!-- breadcrumb -->
     <div class="pane-bar"><span class="pane-kind">conversation</span><span class="pane-sep">/</span><span id="pane-name" class="pane-name">새 대화</span></div>
@@ -25,5 +25,6 @@
   <div id="annotation-markers"></div>
   <div id="annotation-editor" class="annotation-editor" hidden><input id="annotation-comment" maxlength="2000" aria-label="주석 코멘트" placeholder="코멘트 (선택)"><button id="annotation-done" type="button" aria-label="코멘트 완료">✓</button></div>
   <script type="module" src="/viewer/space.js"></script>
+  <script src="/viewer/pane.js"></script>
 </body>
 </html>
