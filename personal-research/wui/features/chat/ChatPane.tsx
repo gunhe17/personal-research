@@ -165,7 +165,7 @@ export default function ChatPane({ group }: { group: Group }) {
     try {
       let current = chat;
       if (!current) {
-        let target = space;
+        let target = space || (group.item.kind === "chat" ? await api.space(group.item.space).catch(() => null) : null);
         if (domain === "space" && !target) {
           const created = await api.createSpace(named(content, workbench.doc?.path), "");
           target = await api.space(created.id);
