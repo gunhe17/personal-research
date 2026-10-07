@@ -18,28 +18,9 @@ from usecase.setting.record import record as setting
 from usecase.space.record import record as spaces
 
 BIN = os.environ.get("CODEX_BIN") or shutil.which("codex") or "codex"
-MODEL = os.environ.get("CODEX_MODEL") or ""
 CLAUDE = os.environ.get("CLAUDE_BIN") or shutil.which("claude") or str(Path.home() / ".local" / "bin" / "claude")
-MODELS = {
-    "openai": {
-        "label": "OpenAI",
-        "models": [
-            {"id": "gpt-6-astra", "label": "GPT-6-Astra"},
-            {"id": "gpt-6-sol", "label": "GPT-6-Sol"},
-            {"id": "gpt-6-luna", "label": "GPT-6-Luna"},
-            {"id": "gpt-6.1-sol", "label": "GPT-6.1-Sol"},
-        ],
-    },
-    "anthropic": {
-        "label": "Anthropic",
-        "models": [
-            {"id": "claude-opus-5-5", "label": "Claude Opus 5.5"},
-            {"id": "claude-sonnet-5-5", "label": "Claude Sonnet 5.5"},
-            {"id": "claude-fable-5-1", "label": "Claude Fable 5.1"},
-            {"id": "claude-haiku-4-5-20251001", "label": "Claude Haiku 4.5"},
-        ],
-    },
-}
+GROK = os.environ.get("GROK_BIN") or shutil.which("grok") or str(Path.home() / ".grok" / "bin" / "grok")
+RUNNERS = {"openai": "codex", "anthropic": "claude", "xai": "grok"}
 CORPUS = store.API / "data" / "corpus"
 TIMEOUT = 600
 TURN = threading.Lock()
@@ -110,23 +91,29 @@ def available() -> bool:
 
 
 def models() -> dict:
+    providers = [
+        {
+            "id": id,
+            "label": p["label"],
+            "models": p["models"],
+            "model": next((m["id"] for m in p["models"] if m["id"] == os.environ.get("CODEX_MODEL")), p["models"][0]["id"]),
+        }
+        for id, p in setting.PROVIDERS.items()
+    ]
+
     return {
-        "default": default(),
-        "providers": [{"id": k, **v} for k, v in MODELS.items()],
+        "default": {"provider": providers[0]["id"], "model": providers[0]["model"]},
+        "providers": providers,
     }
-
-
-def default() -> dict:
-    return {"provider": "openai", "model": MODEL or MODELS["openai"]["models"][0]["id"]}
 
 
 def chosen(*, question: dict) -> dict:
     picked = (question.get("context") or {}).get("model") or {}
-    known = MODELS.get(picked.get("provider"), {}).get("models", [])
+    known = setting.PROVIDERS.get(picked.get("provider"), {}).get("models", [])
     if any(m["id"] == picked.get("model") for m in known):
         return {"provider": picked["provider"], "model": picked["model"]}
 
-    return default()
+    return models()["default"]
 
 
 # #
@@ -175,10 +162,9 @@ def generate(*, conversation: dict, question: dict) -> dict:
     refresh()
     picked = chosen(question=question)
     request = prompt(conversation=conversation, question=question)
-    if picked["provider"] == "anthropic":
-        return claude(conversation=conversation, question=question, request=request, model=picked["model"])
+    runner = {"openai": codex, "anthropic": claude, "xai": grok}[picked["provider"]]
 
-    return codex(conversation=conversation, question=question, request=request, model=picked["model"])
+    return runner(conversation=conversation, question=question, request=request, model=picked["model"])
 
 
 def codex(*, conversation: dict, question: dict, request: str, model: str) -> dict:
@@ -235,12 +221,43 @@ def claude(*, conversation: dict, question: dict, request: str, model: str) -> d
     return generated
 
 
+def grok(*, conversation: dict, question: dict, request: str, model: str) -> dict:
+    session_id = conversation["meta"].get("grok", {}).get("session_id")
+    with tempfile.TemporaryDirectory(prefix="conversation-") as folder:
+        prompt_file = Path(folder) / "prompt.txt"
+        prompt_file.write_text(request, encoding="utf-8")
+        command = [
+            GROK if Path(GROK).exists() else "grok",
+            "--prompt-file", str(prompt_file),
+            "--output-format", "json",
+            "--json-schema", json.dumps(SCHEMA),
+            "-m", model,
+            "--tools", "read_file,grep,list_dir",
+            "--disallowed-tools", "Agent",
+            "--disable-web-search",
+        ]
+        command += ["-r", session_id] if session_id else []
+        exit_code, stdout, stderr = call(command=command, request=request, conversation=conversation, question=question, provider="grok", model=model)
+    try:
+        result = json.loads(stdout)
+    except json.JSONDecodeError:
+        result = {}
+    if result.get("sessionId") and not session_id:
+        record.remember(domain=conversation["domain"], id=conversation["id"], provider="grok", values={"session_id": result["sessionId"], "model": model})
+    if exit_code != 0 or not isinstance(result.get("structuredOutput"), dict):
+        failed = str(result.get("text") or stderr or stdout)
+        raise RuntimeError(f"Grok 이 답하지 못했습니다 (exit {exit_code}). {failed.strip()[-300:]}")
+    generated = validate(answer=result["structuredOutput"])
+
+    return generated
+
+
 def call(*, command: list, request: str, conversation: dict, question: dict, provider: str, model: str) -> tuple[int, str, str]:
     started_at = store.now()
     process = subprocess.Popen(
         command,
         cwd=CORPUS,
-        env=setting.environment(provider="anthropic" if provider == "claude" else "openai"),
+        env=setting.environment(provider=next(k for k, v in RUNNERS.items() if v == provider)),
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -370,8 +387,9 @@ if __name__ == "__main__":
     good = {"x": 2, "y": 6, "w": 2, "h": 0.1, "learning_rate": 0.05}
     assert supported(config=good)
     assert chosen(question={"context": {"model": {"provider": "anthropic", "model": "claude-opus-5-5"}}})["provider"] == "anthropic"
-    assert chosen(question={"context": {"model": {"provider": "anthropic", "model": "gpt-6-sol"}}}) == default()
-    assert chosen(question={"context": {}}) == default()
+    assert chosen(question={"context": {"model": {"provider": "xai", "model": "grok-4.5"}}})["provider"] == "xai"
+    assert chosen(question={"context": {"model": {"provider": "anthropic", "model": "gpt-6-sol"}}}) == models()["default"]
+    assert chosen(question={"context": {}}) == models()["default"]
     assert not supported(config={**good, "h": 0})
     assert not supported(config={**good, "x": True})
     assert validate(answer={"blocks": [{"kind": "paragraph", "text": "a", "playground": None}]})

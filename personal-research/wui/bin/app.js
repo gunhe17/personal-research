@@ -117,25 +117,92 @@
       const data = await fetch("/api/settings").then((r) => r.json()).catch(() => null);
       if (!data) return;
       box.innerHTML = data.providers.map((p) => `
-        <div data-provider="${p.id}" data-auth="${p.auth}">
-          <div class="mb-1.5 flex items-baseline gap-1.5"><span class="text-sm font-medium text-slate-800">${p.label}</span><span class="text-[11px] text-slate-400">${p.cli}</span></div>
+        <div data-provider="${p.id}" data-auth="${p.auth}" class="rounded-xl border border-slate-200 p-3">
+          <div class="mb-2.5 flex items-center gap-1.5">
+            <span class="text-sm font-medium text-slate-800">${p.label}</span>
+            <span class="flex-1 text-[11px] text-slate-400">${p.cli}</span>
+            <span data-status class="inline-flex items-center gap-1.5 text-[11px] text-slate-400"><span data-dot class="h-1.5 w-1.5 rounded-full bg-slate-300"></span><span data-status-text>Checking…</span></span>
+          </div>
           <div class="inline-flex items-center rounded-full bg-slate-100 p-0.5" role="group" aria-label="${p.label} access">
             <button type="button" data-auth-choice="subscription" class="seg-btn">Plan login</button>
             <button type="button" data-auth-choice="api_key" class="seg-btn">API key</button>
           </div>
-          <input type="password" autocomplete="off" spellcheck="false" placeholder="${p.key ? `Saved ${p.key} · enter to replace` : `${p.label} API key`}" class="mt-2 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-apple focus:bg-white focus:outline-none" />
+          <div data-plan class="mt-2.5">
+            <div class="flex items-center gap-2">
+              <button type="button" data-login class="shrink-0 rounded-full border border-[#0066cc] px-3 py-1 text-[12px] text-[#0066cc] hover:bg-[#0066cc]/5 transition disabled:opacity-40">Log in</button>
+              <span data-detail class="min-w-0 truncate text-[11px] text-slate-400"></span>
+            </div>
+            <div data-pending hidden class="mt-2.5 space-y-2 rounded-lg bg-slate-50 p-3 text-[12px] text-slate-600">
+              <a data-url target="_blank" rel="noopener noreferrer" class="inline-flex text-[#0066cc] hover:underline">Open the sign-in page ↗</a>
+              <div data-code-row hidden>Enter this code there <span data-code class="ml-1 select-all font-mono text-[15px] font-semibold tracking-wider text-slate-900"></span></div>
+              <div data-paste class="hidden gap-2">
+                <input data-code-input type="text" autocomplete="off" spellcheck="false" placeholder="Paste the code shown after sign-in" class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-apple focus:outline-none" />
+                <button type="button" data-submit class="shrink-0 rounded-full bg-apple px-3 py-1 text-[12px] text-white hover:bg-apple-hover">Submit</button>
+              </div>
+              <div class="flex items-center gap-2"><span data-hint class="flex-1 text-slate-400">Waiting for approval…</span><button type="button" data-cancel class="text-slate-500 hover:text-slate-800">Cancel</button></div>
+            </div>
+          </div>
+          <input type="password" autocomplete="off" spellcheck="false" placeholder="${p.key ? `Saved ${p.key} · enter to replace` : `${p.label} API key`}" class="mt-2.5 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-apple focus:bg-white focus:outline-none" />
         </div>`).join("");
-      box.querySelectorAll("[data-provider]").forEach(paintProvider);
-      box.querySelectorAll("[data-auth-choice]").forEach((b) => b.addEventListener("click", () => {
-        const item = b.closest("[data-provider]");
-        item.dataset.auth = b.dataset.authChoice;
+      box.querySelectorAll("[data-provider]").forEach((item) => {
         paintProvider(item);
-      }));
+        item.querySelectorAll("[data-auth-choice]").forEach((b) => b.addEventListener("click", () => {
+          item.dataset.auth = b.dataset.authChoice;
+          paintProvider(item);
+        }));
+        item.querySelector("[data-login]").addEventListener("click", () => loginAction(item, { method: "POST", body: { provider: item.dataset.provider } }));
+        item.querySelector("[data-submit]").addEventListener("click", () => loginAction(item, { method: "POST", body: { provider: item.dataset.provider, code: item.querySelector("[data-code-input]").value } }));
+        item.querySelector("[data-cancel]").addEventListener("click", () => loginAction(item, { method: "DELETE" }));
+        loginAction(item, { method: "GET" });
+      });
     }
 
     function paintProvider(item) {
       item.querySelectorAll("[data-auth-choice]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.authChoice === item.dataset.auth)));
-      item.querySelector("input").hidden = item.dataset.auth !== "api_key";
+      item.querySelector("input[type=password]").hidden = item.dataset.auth !== "api_key";
+      item.querySelector("[data-plan]").hidden = item.dataset.auth !== "subscription";
+    }
+
+    async function loginAction(item, { method, body }) {
+      const provider = item.dataset.provider;
+      const button = item.querySelector("[data-login]");
+      if (method === "POST" && !body.code) { button.disabled = true; item.querySelector("[data-detail]").textContent = "Starting sign-in…"; }
+      if (body?.code !== undefined) item.querySelector("[data-hint]").textContent = "Checking the code…";
+      const query = method === "POST" ? "" : `?provider=${encodeURIComponent(provider)}`;
+      const response = await fetch(`/api/login${query}`, {
+        method,
+        headers: body ? { "Content-Type": "application/json" } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+      }).catch(() => null);
+      button.disabled = false;
+      if (method === "DELETE") return loginAction(item, { method: "GET" });
+      const data = response ? await response.json().catch(() => ({})) : { error: "Could not reach the server" };
+      if (!response?.ok) {
+        item.querySelector("[data-detail]").textContent = data.error || "Sign-in failed";
+        return;
+      }
+      paintLogin(item, data);
+      clearTimeout(item.loginTimer);
+      if (data.pending && !$("#settings-modal").classList.contains("hidden")) {
+        item.loginTimer = setTimeout(() => { if (document.body.contains(item)) loginAction(item, { method: "GET" }); }, 2500);
+      }
+    }
+
+    function paintLogin(item, data) {
+      item.querySelector("[data-dot]").className = `h-1.5 w-1.5 rounded-full ${data.logged_in ? "bg-[#34c759]" : "bg-slate-300"}`;
+      item.querySelector("[data-status-text]").textContent = data.logged_in ? "Logged in" : "Not logged in";
+      item.querySelector("[data-status]").classList.toggle("text-slate-600", data.logged_in);
+      item.querySelector("[data-detail]").textContent = data.detail || "";
+      item.querySelector("[data-login]").textContent = data.logged_in ? "Log in again" : "Log in";
+      const pending = data.pending;
+      item.querySelector("[data-pending]").hidden = !pending;
+      if (!pending) return;
+      item.querySelector("[data-url]").href = pending.url;
+      item.querySelector("[data-code-row]").hidden = !pending.code;
+      item.querySelector("[data-code]").textContent = pending.code;
+      item.querySelector("[data-paste]").classList.toggle("hidden", !pending.needs_code);
+      item.querySelector("[data-paste]").classList.toggle("flex", pending.needs_code);
+      item.querySelector("[data-hint]").textContent = pending.error || (pending.needs_code ? "Sign in, then paste the code here." : "Waiting for approval…");
     }
 
     function closeSettings() {
@@ -1764,7 +1831,7 @@
     });
     on("#btn-save-settings", "click", async () => {
       const providers = Object.fromEntries([...document.querySelectorAll("[data-provider]")].map((box) => {
-        const key = box.querySelector("input").value.trim();
+        const key = box.querySelector("input[type=password]").value.trim();
         return [box.dataset.provider, { auth: box.dataset.auth, ...(key ? { key } : {}) }];
       }));
       const response = await fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ providers }) }).catch(() => null);
@@ -1774,6 +1841,7 @@
         $("#settings-error").hidden = false;
         return;
       }
+      document.querySelectorAll("iframe").forEach((f) => f.contentWindow?.dispatchEvent(new Event("research:settings")));
       closeSettings();
       toast("Settings saved");
     });

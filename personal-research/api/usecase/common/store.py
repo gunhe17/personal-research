@@ -124,6 +124,7 @@ CREATE TABLE IF NOT EXISTS user_meta (
     value        TEXT NOT NULL DEFAULT '{}',
     openai       TEXT NOT NULL DEFAULT '',
     anthropic    TEXT NOT NULL DEFAULT '',
+    xai          TEXT NOT NULL DEFAULT '',
     updated_at   TEXT NOT NULL,
     PRIMARY KEY (user_id, kind, collected_id)
 );
@@ -425,7 +426,7 @@ def upgrade(*, connection) -> None:
         )
         connection.execute("DROP TABLE opened")
     # credential
-    for provider in ("openai", "anthropic"):
+    for provider in ("openai", "anthropic", "xai"):
         if provider not in columns(connection=connection, table="user_meta"):
             connection.execute(f"ALTER TABLE user_meta ADD COLUMN {provider} TEXT NOT NULL DEFAULT ''")
     # conversation

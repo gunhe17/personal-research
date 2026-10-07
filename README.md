@@ -71,14 +71,15 @@ docker compose --env-file .env/.env.develop -f .docker/docker-compose.develop.ym
 docker compose --env-file .env/.env.production -f .docker/docker-compose.production.yml up -d --build
 ```
 
-컨테이너 안의 codex 와 claude 는 개인 요금제로 로그인해 쓴다. 로그인은 환경마다 따로 볼륨에 남으므로 환경별로 처음 한 번만 하면 된다.
+컨테이너 안의 codex, claude, grok 은 개인 요금제로 로그인해 쓴다. 로그인은 설정의 Model access 에서 `Log in` 을 눌러 한다. codex 와 grok 은 기기 코드를 보여 주고, 승인하면 CLI 가 스스로 인증 정보를 볼륨(`codex-auth` `grok-auth`)에 남긴다. claude 는 로그인 주소를 열어 승인한 뒤 화면에 나온 코드를 붙여 넣으면, `claude setup-token` 이 준 1년짜리 토큰을 `user_meta` 에 암호화해 두고 실행할 때 `CLAUDE_CODE_OAUTH_TOKEN` 으로 넘긴다. 환경마다 처음 한 번만 하면 된다. 터미널로 할 수도 있다.
 
-1. codex 는 `docker exec -it personal-research-{환경}-api codex login --device-auth` 를 실행하고, 화면의 코드를 브라우저에서 승인한다. 대화의 답변을 만든다. ChatGPT 계정은 Codex 기본 모델을 쓰지 못할 수 있으므로 `CODEX_MODEL` 을 비우지 않는다.
-2. claude 는 자기 컴퓨터에서 `claude setup-token` 으로 받은 토큰을 `.env/.env.{환경}` 의 `CLAUDE_CODE_OAUTH_TOKEN` 에 넣고 컨테이너를 다시 띄운다. 수집할 때 번역을 맡는다.
+1. codex 는 `docker exec -it personal-research-{환경}-api codex login --device-auth` 를 실행하고, 화면의 코드를 브라우저에서 승인한다. ChatGPT 계정은 Codex 기본 모델을 쓰지 못할 수 있으므로 `CODEX_MODEL` 을 비우지 않는다.
+2. claude 는 자기 컴퓨터에서 `claude setup-token` 으로 받은 토큰을 `.env/.env.{환경}` 의 `CLAUDE_CODE_OAUTH_TOKEN` 에 넣고 컨테이너를 다시 띄운다. 수집할 때 번역도 맡는다.
+3. grok 은 `docker exec -it personal-research-{환경}-api grok login --device-auth` 를 실행하고, 화면의 코드를 브라우저에서 승인한다.
 
-답변은 두 제공사 모두 만든다. OpenAI 는 codex, Anthropic 은 claude 가 맡고, 입력창의 제공사와 모델 드롭다운으로 메시지마다 고른다. 기본값은 OpenAI 의 `CODEX_MODEL` 이다. 입력창에 `/` 를 치면 `/next` `/retrieval` 명령 목록이 뜬다.
+답변은 세 제공사 모두 만든다. OpenAI 는 codex, Anthropic 은 claude, xAI 는 grok 이 수집물 사본을 읽기 전용으로 조사해 맡고, 입력창의 제공사와 모델 드롭다운으로 메시지마다 고른다. 기본값은 OpenAI 의 `CODEX_MODEL` 이다. 입력창에 `/` 를 치면 `/next` `/retrieval` 명령 목록이 뜬다.
 
-설정의 Model access 에서 제공사마다 요금제 로그인과 API 키 중 하나를 고른다. 선택은 `user_meta` 의 `credential` 행에 남는다. 인증 방식은 `value` 에, API 키는 제공사별 컬럼(`openai` `anthropic`)에 Fernet 으로 암호화해 둔다. 암호화 키는 `ENCRYPTION_KEY` 환경 변수이고, 없으면 처음 저장할 때 `api/database/encryption.key` 를 권한 600 으로 만든다. 그 파일은 DB 와 같은 폴더라서, 서버에서는 `python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` 로 만든 값을 `.env/.env.{환경}` 의 `ENCRYPTION_KEY` 에 넣는다. 이 파일을 잃으면 저장한 API 키를 다시 입력해야 한다. 화면에는 키의 끝 네 자리만 보인다. API 키를 고르면 그 제공사 CLI 에 `CODEX_API_KEY` 나 `ANTHROPIC_API_KEY` 로 넘겨 API 과금으로 바뀐다. 요금제 로그인을 고르면 환경 변수에 키가 있어도 지우고 CLI 로그인을 쓴다. 번역의 claude 도 같은 설정을 따른다. 서버의 채팅 API 에는 인증이 없으므로, 외부 서버에 둘 때도 포트는 `127.0.0.1` 에만 열고 Tailscale 이나 SSH 터널로 접속한다.
+설정의 Model access 는 제공사마다 로그인 상태를 보여 주고, 요금제 로그인과 API 키 중 하나를 고르게 한다. 모델 목록은 `usecase/setting/record/record.py` 의 `PROVIDERS` 에 있다. 선택은 `user_meta` 의 `credential` 행에 남는다. 인증 방식은 `value` 에, API 키와 claude 토큰은 제공사별 컬럼(`openai` `anthropic` `xai`)에 Fernet 으로 암호화해 둔다. 암호화 키는 `ENCRYPTION_KEY` 환경 변수이고, 없으면 처음 저장할 때 `api/database/encryption.key` 를 권한 600 으로 만든다. 그 파일은 DB 와 같은 폴더라서, 서버에서는 `python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` 로 만든 값을 `.env/.env.{환경}` 의 `ENCRYPTION_KEY` 에 넣는다. 이 파일을 잃으면 저장한 API 키를 다시 입력해야 한다. 화면에는 키의 끝 네 자리만 보인다. API 키를 고르면 그 제공사 CLI 에 `CODEX_API_KEY` `ANTHROPIC_API_KEY` `XAI_API_KEY` 로 넘겨 API 과금으로 바뀐다. 요금제 로그인을 고르면 환경 변수에 키가 있어도 지우고 CLI 로그인을 쓴다. 번역의 claude 도 같은 설정을 따른다. 설정과 로그인 API 는 다른 출처의 요청을 거부하지만, 서버의 채팅 API 에는 인증이 없으므로, 외부 서버에 둘 때도 포트는 `127.0.0.1` 에만 열고 Tailscale 이나 SSH 터널로 접속한다.
 
 뷰어를 열면 홈이 먼저 나온다. 입력창 왼쪽 배지로 `ask` 와 `collect` 를 고른다. `ask` 는 질문으로 새 agent 대화를 열고, `collect` 는 주소를 받아 원문을 받고 한국어판까지 만든다.
 

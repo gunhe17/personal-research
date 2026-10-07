@@ -19,6 +19,7 @@ from usecase.common import store
 from usecase.conversation.converse import converse
 from usecase.conversation.record import record
 from usecase.space.record import record as spaces
+from usecase.setting.login import login
 from usecase.setting.record import record as setting
 from usecase.collected.collect import pipeline
 from usecase.collected.read import read
@@ -75,6 +76,13 @@ class Handler(BaseHTTPRequestHandler):
             return self.serve(path=VIEWER / path[len("/viewer/"):])
         if path == "/api/settings":
             return self.reply(code=200, payload=setting.get())
+        if path == "/api/login":
+            if not self.trusted():
+                return self.reply(code=403, payload={"error": "forbidden"})
+            try:
+                return self.reply(code=200, payload=login.status(provider=(query.get("provider") or [""])[0]))
+            except ValueError as error:
+                return self.reply(code=400, payload={"error": str(error)})
         if path == "/api/models":
             return self.reply(code=200, payload=converse.models())
         if path == "/api/health":
@@ -149,6 +157,16 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(code=400, payload={"error": "id 가 비어 있다"})
             store.touch(id=wanted)
             return self.reply(code=200, payload={"id": wanted})
+        if parsed.path == "/api/login":
+            if not self.trusted():
+                return self.reply(code=403, payload={"error": "forbidden"})
+            try:
+                provider = body.get("provider") or ""
+                if body.get("code") is not None:
+                    return self.reply(code=200, payload=login.submit(provider=provider, code=body["code"]))
+                return self.reply(code=200, payload=login.start(provider=provider))
+            except (ValueError, RuntimeError) as error:
+                return self.reply(code=400, payload={"error": str(error)})
         try:
             if parsed.path == "/api/spaces":
                 return self.reply(code=200, payload=spaces.create(data=body))
@@ -176,7 +194,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(code=400, payload={"error": "invalid json"})
         try:
             if path == "/api/settings":
-                if self.headers.get("Origin") not in (None, f"http://{self.headers.get('Host')}"):
+                if not self.trusted():
                     return self.reply(code=403, payload={"error": "forbidden"})
                 return self.reply(code=200, payload=setting.edit(data=body))
             if SPACE.fullmatch(path):
@@ -196,6 +214,11 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_DELETE(self) -> None:
         path = urlparse(self.path).path
+        if path == "/api/login":
+            if not self.trusted():
+                return self.reply(code=403, payload={"error": "forbidden"})
+            login.cancel(provider=(parse_qs(urlparse(self.path).query).get("provider") or [""])[0])
+            return self.reply(code=200, payload={"ok": True})
         matched = CONVERSATION.fullmatch(path)
         if SPACE.fullmatch(path):
             removed = spaces.remove(id=SPACE.fullmatch(path).group(1))
@@ -278,6 +301,9 @@ class Handler(BaseHTTPRequestHandler):
             return None
 
         return body if isinstance(body, dict) else {}
+
+    def trusted(self) -> bool:
+        return self.headers.get("Origin") in (None, f"http://{self.headers.get('Host')}")
 
     def cors(self) -> None:
         self.send_header("Access-Control-Allow-Origin", "*")

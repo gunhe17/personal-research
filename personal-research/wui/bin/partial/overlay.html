@@ -7,14 +7,6 @@
         </button>
       </div>
       <div class="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-5">
-        <!-- Model access -->
-        <section>
-          <h4 class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Model access</h4>
-          <p class="text-[11px] text-slate-400 mb-3">Plan login uses the CLI's own sign-in. API key bills the provider account.</p>
-          <div id="settings-providers" class="space-y-4"></div>
-          <p id="settings-error" class="mt-2 text-[12px] text-red-600" hidden></p>
-        </section>
-
         <!-- Document font size -->
         <section>
           <h4 class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Document text size</h4>
@@ -37,6 +29,14 @@
             <button type="button" id="btn-chat-font-up" class="h-9 w-9 rounded-full border border-slate-200 text-slate-800 hover:bg-slate-50 font-semibold text-sm" aria-label="Larger chat text">A+</button>
             <button type="button" id="btn-chat-font-reset" class="ml-1 rounded-full border border-slate-200 px-3 h-9 text-[11px] font-medium text-slate-600 hover:bg-slate-50" aria-label="Default chat size">Default</button>
           </div>
+        </section>
+
+        <!-- Model access -->
+        <section>
+          <h4 class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Model access</h4>
+          <p class="text-[11px] text-slate-400 mb-3">Plan login signs the CLI in with your subscription. API key bills the provider account.</p>
+          <div id="settings-providers" class="space-y-4"></div>
+          <p id="settings-error" class="mt-2 text-[12px] text-red-600" hidden></p>
         </section>
       </div>
       <div class="shrink-0 flex justify-end gap-2 px-5 py-3 bg-slate-50/80">
