@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ko" class="h-full">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Method Lab</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: { extend: {
+      fontFamily: {
+        sans: ['"SF Pro Text"', "-apple-system", "BlinkMacSystemFont", "Inter", "Pretendard", "system-ui", "sans-serif"],
+        mono: ['"SF Mono"', "ui-monospace", "monospace"],
+      },
+      colors: {
+        slate: { 50: "#f5f5f7", 100: "#e8e8ed", 200: "#d2d2d7", 300: "#b4b4b9", 400: "#858585",
+                 500: "#707070", 600: "#474747", 700: "#333333", 800: "#1d1d1f", 900: "#1d1d1f" },
+        apple: { DEFAULT: "#0071e3", hover: "#0077ed", link: "#0066cc" },
+        ice: "#f4f8fb",
+        ok: "#34c759",
+      },
+    } },
+  };
+</script>
+<style type="text/tailwindcss">
+  body { letter-spacing: -0.016em; }
+  .label { @apply text-[11px] font-semibold uppercase tracking-wide text-slate-500; }
+  .dot { @apply inline-block h-1.5 w-1.5 shrink-0 rounded-full; }
+  .switch { @apply relative inline-block h-5 w-9 shrink-0 rounded-full bg-slate-200; }
+  .switch::after { content: ""; @apply absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition; }
+  .switch[aria-checked=true] { @apply bg-ok; }
+  .switch[aria-checked=true]::after { @apply translate-x-4; }
+  .frame { @apply mx-auto flex w-full max-w-2xl overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200; }
+  .row { @apply flex items-center gap-1.5 rounded-lg py-1.5 pl-1 pr-1.5 text-sm hover:bg-slate-50; }
+  .pill { @apply inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px]; }
+</style>
+</head>
+<body class="h-full bg-slate-50 text-slate-800 font-sans antialiased">
+
+<div class="mx-auto max-w-5xl px-6 py-12">
+  <header class="mb-12">
+    <h1 class="text-[40px] font-semibold tracking-tight" style="letter-spacing: 0.44px">Method Lab</h1>
+    <p class="mt-2 text-[17px] font-light text-slate-500">"Try in this order" 목록에서 무엇을 아래로 내릴지 비교합니다. 상황은 모두 같습니다: OpenAI 에 Plan login(켜짐, 로그인), Plan login 2(켜짐, 로그아웃), API key(꺼짐), API key 2(꺼짐, 키 있음).</p>
+  </header>
+
+  <section class="mb-16" data-variant="m0"><h2 class="text-[21px] font-semibold tracking-tight">M0. 기준</h2><p class="mb-4 mt-1 text-[14px] text-slate-500">지금. 켜진 것 먼저, 꺼진 것은 그 아래에 이어서. 줄 끝에 On/Off 글과 스위치가 둘 다 있고, 추가 줄 둘이 목록 끝에 붙어 있습니다.</p></section>
+  <section class="mb-16" data-variant="m1"><h2 class="text-[21px] font-semibold tracking-tight">M1. 꺼진 수단을 아래 묶음으로</h2><p class="mb-4 mt-1 text-[14px] text-slate-500">켜진 수단만 "Try in this order" 에 번호와 함께. 꺼진 수단은 맨 아래 "Off" 묶음으로 내려가 번호도 순서 버튼도 없습니다. 스위치를 켜면 위 목록 끝으로 올라갑니다. 시도되지 않는다는 것이 자리로 드러납니다.</p></section>
+  <section class="mb-16" data-variant="m2"><h2 class="text-[21px] font-semibold tracking-tight">M2. 상태 글을 없애고 스위치가 상태</h2><p class="mb-4 mt-1 text-[14px] text-slate-500">On/Off 글과 스위치가 같은 말을 두 번 하므로 글을 뺍니다. 쓸 수 없는 이유(로그아웃, 키 없음)만 작은 배지로 남깁니다. 줄이 가장 짧습니다.</p></section>
+  <section class="mb-16" data-variant="m3"><h2 class="text-[21px] font-semibold tracking-tight">M3. 상태를 이름 아래 줄로</h2><p class="mb-4 mt-1 text-[14px] text-slate-500">이름 아래 작은 회색 줄에 상태와 계정. 두 줄 행이 되어 길어지지만, 오른쪽 끝은 순서 버튼과 스위치만 남아 정돈됩니다.</p></section>
+  <section class="mb-16" data-variant="m4"><h2 class="text-[21px] font-semibold tracking-tight">M4. 추가 버튼을 맨 아래 하나로</h2><p class="mb-4 mt-1 text-[14px] text-slate-500">"+ Plan login", "+ API key" 두 줄 대신 섹션 맨 아래 "+ Add" 하나. 누르면 작은 메뉴에서 종류를 고릅니다. 목록과 추가 동작이 시각적으로 분리됩니다.</p></section>
+  <section class="mb-16" data-variant="m5"><h2 class="text-[21px] font-semibold tracking-tight">M5. 종류별 묶음 + 꺼진 것 아래</h2><p class="mb-4 mt-1 text-[14px] text-slate-500">순서 목록은 켜진 것만 하나로 두고, 아래에 "Plan logins", "API keys" 종류별 보관함. 보관함의 각 묶음 끝에 추가 줄. 계정이 많아질 때 관리가 쉽습니다.</p></section>
+
+  <section class="rounded-2xl bg-white p-6">
+    <h2 class="mb-3 text-[13px] font-semibold uppercase tracking-wide text-slate-500">공통</h2>
+    <ul class="space-y-1.5 text-[14px] text-slate-600">
+      <li>켜진 수단만 시도되고, 순서는 위에서 아래</li>
+      <li>초록 점 = 지금 쓸 수 있음(켜짐 + 로그인/키 있음)</li>
+      <li>꺼진 수단은 순서 버튼이 없거나 막힘</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+  const methods = [
+    { id: "plan_key", label: "Plan login", plan: true, enabled: true, ready: true, why: "", account: "ChatGPT" },
+    { id: "plan_key_2", label: "Plan login 2", plan: true, enabled: true, ready: false, why: "Logged out", account: "" },
+    { id: "api_key", label: "API key", plan: false, enabled: false, ready: false, why: "No key", account: "" },
+    { id: "api_key_2", label: "API key 2", plan: false, enabled: false, ready: false, why: "", account: "…9f2c" },
+  ];
+  const on = methods.filter((m) => m.enabled), off = methods.filter((m) => !m.enabled);
+  const chevron = `<span class="inline-flex h-4 w-4 items-center justify-center text-slate-400"><svg viewBox="0 0 16 16" class="h-3 w-3"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
+  const plus = `<span class="inline-flex h-4 w-4 items-center justify-center"><svg viewBox="0 0 16 16" class="h-3 w-3"><path d="M8 3.5v9M3.5 8h9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>`;
+  const icon = (m) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5 shrink-0 ${m.enabled ? "text-slate-500" : "text-slate-300"}">${m.plan ? '<circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-3.5 4.5-5 8-5s6.5 1.5 8 5"/>' : '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M14 9l2 2"/>'}</svg>`;
+  const dot = (m) => `<span class="dot ${m.ready ? "bg-ok" : "bg-slate-300"}"></span>`;
+  const arrows = (up, down) => `<span class="flex text-slate-400"><span class="flex h-6 w-5 items-center justify-center ${up ? "" : "opacity-25"}"><svg viewBox="0 0 16 16" class="h-3 w-3"><path d="M4 10l4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="flex h-6 w-5 items-center justify-center ${down ? "" : "opacity-25"}"><svg viewBox="0 0 16 16" class="h-3 w-3"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>`;
+  const sw = (m) => `<span class="switch ml-1" aria-checked="${m.enabled}"></span>`;
+  const num = (m, list) => `<span class="w-4 shrink-0 text-center text-[11px] font-semibold ${list.indexOf(m) === 0 && m.ready ? "text-apple" : "text-slate-400"}">${list.includes(m) ? list.indexOf(m) + 1 : "–"}</span>`;
+  const name = (m) => `<span class="flex w-[7rem] shrink-0 items-center gap-2 ${m.enabled ? "text-slate-800" : "text-slate-400"}">${dot(m)}<span class="truncate">${m.label}</span></span>`;
+  const add = (text) => `<div class="row text-[13px] text-apple-link">${plus}<span>${text}</span></div>`;
+  const head = `<div><h3 class="text-[21px] font-semibold tracking-tight">OpenAI</h3><div class="mt-1 flex items-center gap-1.5 text-[12px] text-slate-500"><span class="dot bg-ok"></span>Ready · Plan login first</div></div>`;
+  const frame = (body) => `<div class="frame"><nav class="w-44 shrink-0 border-r border-slate-100 px-2 pb-2 pt-3 text-sm"><div class="mb-2 px-2 font-semibold">Settings</div><div class="px-2 py-1.5 text-slate-600">General</div><div class="px-2 py-1.5 text-slate-600">Models</div><div class="ml-3 border-l border-slate-100 pl-1"><div class="flex items-center rounded-lg bg-apple px-2 py-1.5 font-medium text-white"><span class="flex-1">OpenAI</span><span class="dot bg-ok"></span></div><div class="px-2 py-1.5 text-slate-600">Anthropic</div><div class="px-2 py-1.5 text-slate-600">xAI</div></div></nav><div class="min-w-0 flex-1 space-y-6 p-6">${head}${body}</div></div>`;
+  const section = (title, inner) => `<section><h4 class="label mb-1.5">${title}</h4><div class="space-y-0.5">${inner}</div></section>`;
+  const status = (m) => (m.enabled && m.ready ? "On" : "Off");
+
+  const variants = {
+    m0: () => section("Try in this order", [...on, ...off].map((m, i, all) => `
+      <div class="row">${chevron}${icon(m)}${num(m, on)}${name(m)}<span class="min-w-0 flex-1 truncate text-[12px] text-slate-400">${status(m)}</span>${arrows(i > 0 && all[i - 1].enabled === m.enabled, i < all.length - 1 && all[i + 1].enabled === m.enabled)}${sw(m)}</div>`).join("") + add("Plan login") + add("API key")),
+
+    m1: () => section("Try in this order", on.map((m, i) => `
+      <div class="row">${chevron}${icon(m)}${num(m, on)}${name(m)}<span class="min-w-0 flex-1 truncate text-[12px] text-slate-400">${m.ready ? m.account : m.why}</span>${arrows(i > 0, i < on.length - 1)}${sw(m)}</div>`).join("")) +
+      section("Off", off.map((m) => `
+      <div class="row">${chevron}${icon(m)}<span class="w-4"></span>${name(m)}<span class="min-w-0 flex-1 truncate text-[12px] text-slate-400">${m.why || m.account}</span>${sw(m)}</div>`).join("") + add("Plan login") + add("API key")),
+
+    m2: () => section("Try in this order", [...on, ...off].map((m, i, all) => `
+      <div class="row">${chevron}${icon(m)}${num(m, on)}${name(m)}<span class="min-w-0 flex-1">${m.enabled && !m.ready ? `<span class="pill bg-slate-100 text-slate-500">${m.why}</span>` : ""}</span>${arrows(i > 0 && all[i - 1].enabled === m.enabled, i < all.length - 1 && all[i + 1].enabled === m.enabled)}${sw(m)}</div>`).join("") + add("Plan login") + add("API key")),
+
+    m3: () => section("Try in this order", [...on, ...off].map((m, i, all) => `
+      <div class="row items-start">${chevron}<span class="mt-0.5">${icon(m)}</span>${num(m, on)}
+        <span class="min-w-0 flex-1"><span class="flex items-center gap-2 ${m.enabled ? "text-slate-800" : "text-slate-400"}">${dot(m)}${m.label}</span><span class="block pl-3.5 text-[11px] text-slate-400">${m.enabled ? (m.ready ? `On · ${m.account}` : `Off · ${m.why}`) : "Off"}</span></span>
+        ${arrows(i > 0 && all[i - 1].enabled === m.enabled, i < all.length - 1 && all[i + 1].enabled === m.enabled)}${sw(m)}</div>`).join("") + add("Plan login") + add("API key")),
+
+    m4: () => section("Try in this order", [...on, ...off].map((m, i, all) => `
+      <div class="row">${chevron}${icon(m)}${num(m, on)}${name(m)}<span class="min-w-0 flex-1 truncate text-[12px] text-slate-400">${status(m)}</span>${arrows(i > 0 && all[i - 1].enabled === m.enabled, i < all.length - 1 && all[i + 1].enabled === m.enabled)}${sw(m)}</div>`).join("")) + `
+      <div class="relative border-t border-slate-100 pt-3">
+        <span class="inline-flex items-center gap-1 rounded-full border border-apple-link px-3 py-1 text-[12px] text-apple-link">${plus}Add</span>
+        <div class="absolute left-0 top-12 z-10 w-48 space-y-1 rounded-xl bg-white p-1.5 ring-1 ring-slate-200">
+          <div class="flex items-center gap-2 rounded-lg bg-slate-50 px-2.5 py-1.5 text-[13px]">${icon({ plan: true, enabled: true })}Plan login</div>
+          <div class="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px]">${icon({ plan: false, enabled: true })}API key</div>
+        </div>
+      </div><div class="h-16"></div>`,
+
+    m5: () => section("Try in this order", on.map((m, i) => `
+      <div class="row">${chevron}${icon(m)}${num(m, on)}${name(m)}<span class="min-w-0 flex-1 truncate text-[12px] text-slate-400">${m.ready ? "On" : m.why}</span>${arrows(i > 0, i < on.length - 1)}${sw(m)}</div>`).join("")) +
+      section("Plan logins", methods.filter((m) => m.plan).map((m) => `
+      <div class="row">${chevron}${icon(m)}<span class="w-4"></span>${name(m)}<span class="min-w-0 flex-1 truncate text-[12px] text-slate-400">${m.ready ? m.account : m.why}</span>${sw(m)}</div>`).join("") + add("Plan login")) +
+      section("API keys", methods.filter((m) => !m.plan).map((m) => `
+      <div class="row">${chevron}${icon(m)}<span class="w-4"></span>${name(m)}<span class="min-w-0 flex-1 truncate text-[12px] text-slate-400">${m.account || m.why}</span>${sw(m)}</div>`).join("") + add("API key")),
+  };
+  document.querySelectorAll("[data-variant]").forEach((el) => el.insertAdjacentHTML("beforeend", frame(variants[el.dataset.variant]())));
+</script>
+</body>
+</html>
