@@ -140,10 +140,7 @@ function render() {
   root.dataset.count = String(state.groups.length);
   root.dataset.direction = state.direction;
   if (!state.groups.length || state.groups.every((g) => !g.tabs.length)) {
-    root.innerHTML = `
-      <div class="welcome">
-        <p class="welcome-title">personal-research</p>
-      </div>`;
+    root.innerHTML = `<div class="welcome"></div>`;
     attachDrop(root.querySelector(".welcome"), null);
     return;
   }
