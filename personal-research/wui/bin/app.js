@@ -364,7 +364,7 @@
             <h1 class="text-[40px] font-semibold tracking-tight text-slate-900" style="letter-spacing: 0.44px">Space</h1>
             <p class="mt-1 text-[17px] font-light text-slate-500">무엇을 배울지 목적 하나가 space 하나입니다.</p>
           </div>
-          <button type="button" id="space-new" class="shrink-0 rounded-full border border-apple-link px-4 py-1.5 text-[15px] text-apple-link hover:bg-white transition">새 space</button>
+          <button type="button" id="space-new" class="shrink-0 rounded-full border border-apple-link px-4 py-1.5 text-[15px] text-apple-link hover:bg-white transition">+ new</button>
         </div>
         <div class="overflow-hidden rounded-2xl bg-white">
           ${items.length ? items.map((item, i) => `
@@ -383,11 +383,55 @@
         if (e.target.closest("[data-research]")) return;
         location.href = `${SPACE_URL}?id=${encodeURIComponent(row.dataset.space)}`;
       }));
-      $("#space-new").addEventListener("click", async () => {
-        const created = await (await fetch("/api/spaces", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: "새 space" }) })).json();
-        location.href = `${SPACE_URL}?id=${encodeURIComponent(created.id)}`;
-      });
+      $("#space-new").addEventListener("click", openSpaceModal);
     }
+
+    function openSpaceModal() {
+      const modal = $("#space-modal");
+      $("#space-modal-title").value = "";
+      $("#space-modal-purpose").value = "";
+      $("#space-modal-error").classList.add("hidden");
+      modal.classList.remove("hidden", "leave-fade");
+      modal.classList.add("flex");
+      setTimeout(() => $("#space-modal-title").focus(), 50);
+    }
+
+    function closeSpaceModal() {
+      const modal = $("#space-modal");
+      if (modal.classList.contains("hidden")) return;
+      leave(modal, "leave-fade", () => modal.classList.remove("flex"));
+    }
+
+    async function createSpace() {
+      const title = $("#space-modal-title").value.trim();
+      const error = $("#space-modal-error");
+      if (!title) {
+        error.textContent = "이름을 적어 주세요.";
+        error.classList.remove("hidden");
+        $("#space-modal-title").focus();
+        return;
+      }
+      const res = await fetch("/api/spaces", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, purpose: $("#space-modal-purpose").value }),
+      });
+      if (!res.ok) {
+        error.textContent = (await res.json()).error || "만들지 못했습니다.";
+        error.classList.remove("hidden");
+        return;
+      }
+      closeSpaceModal();
+      loadSpaces();
+      renderSpacePage();
+    }
+
+    on("#space-modal-close", "click", closeSpaceModal);
+    on("#space-modal-cancel", "click", closeSpaceModal);
+    on("#space-modal-create", "click", createSpace);
+    on("#space-modal", "click", (e) => { if (e.target === $("#space-modal")) closeSpaceModal(); });
+    on("#space-modal-title", "keydown", (e) => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); createSpace(); } });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSpaceModal(); });
 
     function renderSpaceDetail(box, space) {
       const chat = (extra) => `${COLLECTED_URL}?space=${encodeURIComponent(space.id)}${extra}`;
