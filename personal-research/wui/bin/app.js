@@ -208,7 +208,7 @@
         onClick: () => openHome(),
       }));
       const spacesOpen = state.expanded.spaces !== false;
-      tree.appendChild(folderRow({ label: "Space", icon: SPACE_ICON, open: spacesOpen, depth: 0, onToggle: () => expandSpace("spaces", !spacesOpen) }));
+      tree.appendChild(folderRow({ label: "Space", icon: SPACE_ICON, open: spacesOpen, depth: 0, bare: true, onToggle: () => expandSpace("spaces", !spacesOpen) }));
       if (!spacesOpen) return;
       const box = document.createElement("div");
       box.className = "ml-3 border-l border-slate-100 pl-1";
@@ -237,13 +237,13 @@
       return `<span class="inline-flex h-4 w-4 shrink-0 items-center justify-center text-slate-400"><svg viewBox="0 0 16 16" class="h-3 w-3 transition-transform duration-150 ${open ? "rotate-90" : ""}" style="transform-origin: 50% 50%"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg></span>`;
     }
 
-    function folderRow({ label, icon, open, depth, strong, meta, count, onToggle }) {
+    function folderRow({ label, icon, open, depth, strong, meta, count, bare, onToggle }) {
       const row = document.createElement("button");
       row.type = "button";
       row.setAttribute("aria-expanded", String(open));
-      row.style.paddingLeft = `${4 + depth * 12}px`;
-      row.className = `flex w-full items-center gap-1.5 rounded-lg py-1.5 pr-2 text-left text-sm transition duration-150 hover:bg-slate-50 ${strong ? "font-semibold text-slate-900" : "text-slate-700"}`;
-      row.innerHTML = `${chevronHtml(open)}${icon || ""}<span class="min-w-0 flex-1 truncate">${escapeHtml(label)}</span>${
+      row.style.paddingLeft = `${(bare ? 8 : 4) + depth * 12}px`;
+      row.className = `flex w-full items-center ${bare ? "gap-2" : "gap-1.5"} rounded-lg py-1.5 pr-2 text-left text-sm transition duration-150 hover:bg-slate-50 ${strong ? "font-semibold text-slate-900" : bare ? "text-slate-600" : "text-slate-700"}`;
+      row.innerHTML = `${bare ? "" : chevronHtml(open)}${icon || ""}<span class="min-w-0 flex-1 truncate">${escapeHtml(label)}</span>${
         meta ? `<span class="shrink-0 text-[10px] font-normal text-slate-400">${escapeHtml(meta)}</span>` : ""
       }${count !== undefined ? `<span class="shrink-0 text-[10px] font-normal text-slate-400">${count}</span>` : ""}`;
       row.addEventListener("click", onToggle);
