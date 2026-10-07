@@ -1,0 +1,139 @@
+# 프런트엔드 규칙
+
+적용 범위: `personal-research/wui/` 의 Next 앱 전체(`bin/` 옛 화면과 `design/` 랩은 제외). 주석과 커밋 메시지는 [global-convention](global-convention.md), 색과 글꼴과 여백의 근거는 [design-rule](design-rule.md) 을 따른다.
+
+## 이 문서
+
+| 섹션 | 핵심 |
+|---|---|
+| **구성** | Next.js App Router 서버가 별도 컨테이너로 돌고, `/api` 를 compose 네트워크의 `api` 서비스로 넘긴다 |
+| **폴더와 계층** | `app` → `features` → `ui` → `lib` 한 방향으로만 가져온다 |
+| **공용 부품** | 버튼, 행, 접기, 메뉴, 모달 같은 모양은 `ui/` 의 부품으로만 그린다 |
+| **스타일** | Tailwind 클래스와 `globals.css` 토큰만. 새 색과 새 반경을 만들지 않는다 |
+| **상태와 데이터** | 화면 상태는 컴포넌트 안에, fetch 는 `lib/api.ts` 에서만 |
+| **이름** | 파일 하나에 컴포넌트 하나, 이름은 파일 이름과 같다 |
+| **검증** | `npm run build` 와 `check/` 의 화면 점검 |
+
+---
+
+## 구성
+
+| 항목 | 정한 것 |
+|---|---|
+| 프레임워크 | Next.js App Router, React, TypeScript strict |
+| 실행 | `next build` 의 `output: "standalone"` 을 `node server.js` 로 띄운다. compose 의 `wui` 서비스 |
+| 경로 | 화면은 `/`, `/space`, `/collected` 셋. 식별자는 경로가 아니라 쿼리(`?id=` `?doc=`)로 받는다 |
+| API | Python `api` 서비스의 `/api/*` 를 그대로 쓴다. `next.config.ts` 의 rewrites 가 `/api/*` 를 `API_URL` 로 넘긴다. compose 안에서는 `http://api:8765`, 로컬 개발은 `http://127.0.0.1:8768`. Next 의 Route Handler, Server Action 을 쓰지 않는다 |
+| 네트워크 | 브라우저는 wui 하나만 본다. wui 와 api 는 compose 기본 네트워크에서 서비스 이름으로 만난다 |
+| 스타일 | Tailwind v4. 토큰은 `app/globals.css` 의 `@theme` 한 곳 |
+| 의존성 | `next` `react` `react-dom` `marked` 뿐. 상태 관리, 데이터 패칭, UI 킷, 아이콘 라이브러리를 들이지 않는다 |
+
+모든 화면 컴포넌트는 브라우저에서만 돈다(`"use client"`). 쿼리를 읽는 페이지는 `<Suspense>` 로 감싼다.
+
+## 폴더와 계층
+
+```
+wui/
+  app/                    라우트. 페이지는 feature 컴포넌트 하나를 감싸기만 한다
+    layout.tsx            Shell(헤더, 사이드바, 설정 모달, 토스트)
+    page.tsx              홈
+    space/page.tsx        space 목록과 상세
+    collected/page.tsx    작업대
+    globals.css           토큰, 전역 글자 스타일(prose), 애니메이션
+  features/<이름>/         한 화면 영역의 컴포넌트 묶음
+  ui/                     어디서나 쓰는 모양 부품
+  lib/                    React 가 없는 함수(api, cx, storage, time, markdown, events)
+  check/                  화면 점검 스크립트(smoke, workbench, chat)
+  design/                 디자인 랩. 앱이 가져오지 않는다
+```
+
+가져오기는 한 방향이다.
+
+| 어디서 | 가져올 수 있는 것 |
+|---|---|
+| `app/` | `features/` `ui/` `lib/` |
+| `features/<a>/` | 같은 feature, 다른 feature 의 컴포넌트 파일, `ui/`, `lib/` |
+| `ui/` | `ui/` `lib/` |
+| `lib/` | `lib/` |
+
+`ui/` 는 어떤 feature 도 모른다. 특정 화면에서만 쓰는 모양이면 그 feature 안에 둔다. 두 번째 feature 가 쓰게 되면 그때 `ui/` 로 올린다.
+
+| feature | 맡는 것 |
+|---|---|
+| `shell` | 헤더, 사이드바 트리, 사이드바 폭 조절 |
+| `home` | 홈 입력창, ask/collect 모드, 수집 진행 표시 |
+| `space` | space 목록, 상세, 새 space 모달, 노트 편집 |
+| `workbench` | 그룹(최대 4), 좌우 분할, 드롭 구역, 패널 바, 작업대 Context |
+| `chat` | 대화 패널, 질문과 답변, 입력창(명령어, 제공사·모델), 인용, 주석 |
+| `doc` | 문서 패널, 언어 전환, 내려받기, 선택 막대 |
+| `material` | 자료 패널 |
+| `blocks` | 답변·수업 블록 렌더러, 그래프 실험(Playground) |
+| `settings` | 설정 모달, General, 제공사 화면, 로그인 시트 |
+
+## 공용 부품
+
+같은 모양은 같은 부품으로 그린다. 화면에서 `rounded-full border ...` 같은 버튼 클래스를 직접 조합하지 않는다.
+
+| 부품 | 모양 | 쓰는 곳 |
+|---|---|---|
+| `Button tone="fill"` | 파란 채움 알약 | 그 화면의 주 동작 하나(Create, Log in, Save, research) |
+| `Button tone="line"` | 파란 윤곽 알약 | 섹션 동작(새 노트, 새 대화, + Plan login, + new) |
+| `Button tone="quiet"` | 회색 바탕 알약 | 보조 동작(Cancel, Log out, Remove, Default) |
+| `Button tone="link"` | 파란 글자 | 문장 안의 동작(이 답변에 질문하기, 고치기) |
+| `IconButton` | 28px 사각, 올리면 회색 | 헤더 아이콘(사이드바, 설정), 모달 닫기 |
+| `IconButton size="sm"` | 22px 사각 | 패널 바(내려받기, 닫기) |
+| `MenuButton` | 회색 글자 + ⌄, 누르면 `Menu` | 홈 모드(ask ⌄), 제공사·모델 선택. 바깥을 누르면 닫힌다 |
+| `InputBar` `SendButton` | 흰 둥근 입력 틀, 파란 원형 보내기 | 홈 입력창, 대화 입력창 |
+| `Segmented` | 회색 바탕 안의 흰 선택 | 언어, 형식, 홈 모드 |
+| `Switch` | 초록 켜짐 | 켜기/끄기 하나 |
+| `Dot` | 6px 점, 초록 또는 회색 | 상태 |
+| `SectionHeader` | 13px 대문자 회색 제목, 개수, 오른쪽 동작 | 모든 섹션 머리 |
+| `TreeRow` `Chevron` `Fold` | 사이드바의 줄, 회전 화살표, 접기 애니메이션 | 사이드바 트리, 설정의 수단 목록 |
+| `Menu` `MenuItem` | 흰 바탕, 얇은 테두리, 그림자 없음 | 드롭다운, 명령어, 모델 선택 |
+| `Modal` | 어두운 배경 위 흰 패널, Esc 와 바깥 클릭으로 닫힘 | 새 space, 설정 |
+| `KeyValue` | 왼쪽 96px 회색 키, 오른쪽 값과 버튼 | 설정의 세부 |
+| `Icon` | 24 격자 1.5 선. 이름으로 고른다 | 모든 아이콘 |
+| `toast()` (`ui/Toaster.tsx`) | 화면 아래 흰 알약 | 짧은 알림 |
+
+버튼 규칙:
+
+- 채움 버튼은 한 화면(모달, 패널)에 하나. 두 번째 동작은 윤곽이나 회색이다.
+- 버튼 안 글자 크기는 `size="sm"`(12px) 과 `size="md"`(13px) 둘. 15px 는 페이지 머리의 `size="lg"` 만.
+- 올림은 `tone` 이 정한다. 화면에서 hover 클래스를 덧붙이지 않는다.
+- 아이콘만 있는 버튼에는 `label` 을 준다(aria-label 과 title 이 된다).
+
+## 스타일
+
+- 색은 토큰 이름으로만 쓴다: `slate-*`(Apple 회색 단계로 덮어씀), `apple` `apple-hover` `apple-link` `apple-signal` `ice` `ok`. `#0071e3` 같은 값을 클래스에 쓰지 않는다.
+- 반경은 `rounded-md`(6) `rounded-lg`(8) `rounded-xl`(8) `rounded-2xl`(12) `rounded-full` 만.
+- 그림자를 쓰지 않는다. 경계는 `ring-1 ring-slate-200` 이나 `border-slate-100`.
+- 글자 크기는 11, 12, 13, 14, 15, 17, 21, 40px. 대문자 머리는 `text-[11px]` 이나 `text-[13px]` + `font-semibold uppercase tracking-wide text-slate-500`.
+- `style={{}}` 는 계산된 값(폭, 위치, CSS 변수)에만 쓴다.
+- 클래스를 조건으로 붙일 때는 `lib/cx.ts` 의 `cx()` 를 쓴다.
+- 마크다운 본문은 `globals.css` 의 `.prose-doc`(문서) `.md-chat`(대화) `.article`(답변·수업) 셋 중 하나로 감싼다.
+- 움직임은 `Fold`, `Chevron`, `enter-*` 클래스로만 만든다. 길이는 들어올 때 180~280ms, 나갈 때 120~180ms. `prefers-reduced-motion` 이면 움직이지 않는다.
+
+## 상태와 데이터
+
+- 화면 상태는 그 컴포넌트의 `useState` 에 둔다. 전역 Context 는 작업대(`WorkbenchProvider`) 하나뿐이다. 패널 사이의 일(근거 문서 열기 `open`, 인용 보내기 `sendQuote`, 지금 문서 `doc`, 포커스)은 모두 이 Context 를 거친다.
+- 기능 사이의 짧은 신호는 `lib/events.ts` 의 이름 있는 이벤트로 보낸다: `spaces`(space 목록이 바뀜), `settings`(제공사 설정이 바뀜). 새 신호도 여기에 이름을 더한다.
+- `fetch` 는 `lib/api.ts` 에서만 부른다. 엔드포인트마다 함수 하나, 응답 타입을 함께 둔다. 실패하면 서버의 `error` 문장으로 `ApiError` 를 던지고, 화면이 그 문장을 보여 준다.
+- 브라우저 저장은 `lib/storage.ts` 의 `load` `save` 만 쓴다. 키는 옛 화면과 같게 둔다: `workbench` `sidebarWidth` `spaceExpanded` `docZoom` `chatZoom` `docLang` `dlFmt` `homeMode` `lastDoc` `model` `space-draft` `pg:<key>`.
+- 문서와 대화 글자 크기는 `<html>` 의 CSS 변수 `--doc-zoom` `--chat-zoom` 으로 퍼뜨린다.
+
+## 이름
+
+- 컴포넌트 파일은 PascalCase, 파일 하나에 `export default` 컴포넌트 하나. 그 컴포넌트만 쓰는 작은 부속은 같은 파일 아래에 둔다.
+- 훅은 `useX`, 그 feature 의 파일로 둔다. 두 feature 이상이 쓰면 `ui/` 나 `lib/`.
+- props 이름은 하는 일로 짓는다(`onOpen`, `onRemove`). `data` `info` `handle*` 같은 뜻 없는 이름을 쓰지 않는다.
+- 준말을 쓰지 않는다(`id` 만 예외).
+
+## 주석
+
+[global-convention](global-convention.md) 그대로다. TSX 와 CSS 에도 설명 주석을 쓰지 않고, `{/* sidebar */}` 처럼 세 단어 이하 라벨만 둔다.
+
+## 검증
+
+- 바꾼 뒤에는 `npm run build` 가 경고 없이 끝나야 한다.
+- 화면 흐름은 `check/` 의 Playwright 스크립트로 눌러 본다(`uv run --with playwright python check/<이름>.py <스크린샷 폴더>`). api(8768) 와 `npm run dev`(3000) 가 떠 있어야 한다. 다른 주소는 `WUI_URL`, 창을 보려면 `HEADED=1`.
+- 새 화면 흐름을 만들면 그 흐름의 점검 스크립트도 하나 둔다.
