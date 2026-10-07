@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ko" class="h-full">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Table Lab</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: { extend: {
+      fontFamily: {
+        sans: ['"SF Pro Text"', "-apple-system", "BlinkMacSystemFont", "Inter", "Pretendard", "system-ui", "sans-serif"],
+        mono: ['"SF Mono"', "ui-monospace", "monospace"],
+      },
+      colors: {
+        slate: { 50: "#f5f5f7", 100: "#e8e8ed", 200: "#d2d2d7", 300: "#b4b4b9", 400: "#858585",
+                 500: "#707070", 600: "#474747", 700: "#333333", 800: "#1d1d1f", 900: "#1d1d1f" },
+        apple: { DEFAULT: "#0071e3", hover: "#0077ed", link: "#0066cc" },
+        ice: "#f4f8fb",
+        pebble: "#e2e2e5",
+      },
+      transitionTimingFunction: { spring: "cubic-bezier(0.22, 1, 0.36, 1)" },
+    } },
+  };
+</script>
+<style type="text/tailwindcss">
+  body { letter-spacing: -0.016em; }
+  .num { font-variant-numeric: tabular-nums; }
+  @keyframes enter-fade { from { opacity: 0; transform: translateY(-2px); } }
+  .enter-fade { animation: enter-fade 180ms cubic-bezier(0.22, 1, 0.36, 1); }
+  th[data-sort] { cursor: pointer; user-select: none; }
+  th[data-sort] .arrow { opacity: 0; transition: opacity 150ms; }
+  th[data-sort]:hover .arrow, th[aria-sort] .arrow { opacity: 1; }
+  @media (max-width: 640px) {
+    .stack thead { display: none; }
+    .stack tr { display: block; padding: 14px 4px; }
+    .stack td { display: flex; justify-content: space-between; gap: 16px; padding: 2px 0 !important; border: 0 !important; }
+    .stack td::before { content: attr(data-label); color: #858585; font-size: 12px; }
+    .stack td:first-child { display: block; font-size: 17px; font-weight: 600; padding-bottom: 6px !important; }
+    .stack td:first-child::before { display: none; }
+  }
+</style>
+</head>
+<body class="h-full bg-slate-50 text-slate-800 font-sans antialiased">
+
+<div class="mx-auto max-w-5xl px-6 py-12">
+
+  <header class="mb-12">
+    <h1 class="text-[40px] font-semibold tracking-tight text-slate-800" style="letter-spacing: 0.44px">Table Lab</h1>
+    <p class="mt-2 text-[17px] font-light text-slate-500">같은 데이터를 일곱 가지 표로 그려 봅니다. 쓸 곳에 맞는 형태를 고르세요.</p>
+  </header>
+
+  <!-- A -->
+  <section class="mb-16">
+    <div class="mb-4 flex items-baseline justify-between">
+      <h2 class="text-[21px] font-semibold tracking-tight">A. Hairline</h2>
+      <span class="text-[12px] text-slate-400">목록 페이지 · 정렬</span>
+    </div>
+    <p class="mb-4 text-[14px] text-slate-500">카드 없이 캔버스 위에 가는 선만 둡니다. 지금 space 목록과 같은 결이고, 머리를 누르면 정렬됩니다.</p>
+    <table id="table-a" class="w-full text-left text-[15px]">
+      <thead>
+        <tr class="border-b border-slate-200 text-[12px] text-slate-400">
+          <th data-sort="title" class="py-2 pl-2 font-normal">Space <span class="arrow">↓</span></th>
+          <th data-sort="conversations" class="py-2 text-right font-normal">대화 <span class="arrow">↓</span></th>
+          <th data-sort="materials" class="py-2 text-right font-normal">자료 <span class="arrow">↓</span></th>
+          <th data-sort="updated" class="py-2 pr-2 text-right font-normal">바뀐 때 <span class="arrow">↓</span></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-200 border-b border-slate-200"></tbody>
+    </table>
+  </section>
+
+  <!-- B -->
+  <section class="mb-16">
+    <div class="mb-4 flex items-baseline justify-between">
+      <h2 class="text-[21px] font-semibold tracking-tight">B. Inset group</h2>
+      <span class="text-[12px] text-slate-400">상세 페이지의 묶음</span>
+    </div>
+    <p class="mb-4 text-[14px] text-slate-500">흰 바탕을 한 덩어리로 묶고 구분선을 안쪽에서 시작합니다. 설정 화면 같은 짧은 목록에 맞습니다.</p>
+    <div class="overflow-hidden rounded-xl bg-white">
+      <table class="w-full text-left text-[15px]">
+        <tbody id="table-b"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- C -->
+  <section class="mb-16">
+    <div class="mb-4 flex items-baseline justify-between">
+      <h2 class="text-[21px] font-semibold tracking-tight">C. Dense data</h2>
+      <span class="text-[12px] text-slate-400">llm 호출 · 로그</span>
+    </div>
+    <p class="mb-4 text-[14px] text-slate-500">글자를 줄이고 숫자는 고정폭으로 오른쪽에 맞춥니다. 머리는 스크롤해도 남습니다.</p>
+    <div class="max-h-64 overflow-auto rounded-xl ring-1 ring-slate-200 bg-white">
+      <table class="w-full text-left text-[13px]">
+        <thead class="sticky top-0 bg-white/95 backdrop-blur">
+          <tr class="border-b border-slate-200 text-[11px] uppercase tracking-wide text-slate-400">
+            <th class="py-2 pl-4 font-medium">시각</th>
+            <th class="py-2 font-medium">모델</th>
+            <th class="py-2 font-medium">목적</th>
+            <th class="py-2 text-right font-medium">요청</th>
+            <th class="py-2 text-right font-medium">응답</th>
+            <th class="py-2 text-right font-medium">걸린 시간</th>
+            <th class="py-2 pr-4 text-right font-medium">종료</th>
+          </tr>
+        </thead>
+        <tbody id="table-c" class="divide-y divide-slate-100"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- D -->
+  <section class="mb-16">
+    <div class="mb-4 flex items-baseline justify-between">
+      <h2 class="text-[21px] font-semibold tracking-tight">D. Compare</h2>
+      <span class="text-[12px] text-slate-400">비교 · 결정</span>
+    </div>
+    <p class="mb-4 text-[14px] text-slate-500">제품 비교표처럼 열이 주인공입니다. 선택지 몇 개를 기준별로 나란히 볼 때 씁니다.</p>
+    <table class="w-full table-fixed text-center text-[15px]">
+      <thead>
+        <tr>
+          <th class="w-1/4"></th>
+          <th class="pb-4"><div class="text-[21px] font-semibold">collected</div><div class="text-[12px] font-light text-slate-500">원문 미러</div></th>
+          <th class="pb-4"><div class="text-[21px] font-semibold">space</div><div class="text-[12px] font-light text-slate-500">학습 목적</div></th>
+          <th class="pb-4"><div class="text-[21px] font-semibold">agent</div><div class="text-[12px] font-light text-slate-500">홈 대화</div></th>
+        </tr>
+      </thead>
+      <tbody id="table-d" class="border-t border-slate-200"></tbody>
+    </table>
+  </section>
+
+  <!-- E -->
+  <section class="mb-16">
+    <div class="mb-4 flex items-baseline justify-between">
+      <h2 class="text-[21px] font-semibold tracking-tight">E. Expandable</h2>
+      <span class="text-[12px] text-slate-400">자료 · 대화</span>
+    </div>
+    <p class="mb-4 text-[14px] text-slate-500">행을 누르면 그 자리에서 펼쳐집니다. 목록을 떠나지 않고 내용을 훑을 때 씁니다.</p>
+    <table class="w-full text-left text-[15px]">
+      <tbody id="table-e" class="divide-y divide-slate-200 border-y border-slate-200"></tbody>
+    </table>
+  </section>
+
+  <!-- F -->
+  <section class="mb-16">
+    <div class="mb-4 flex items-baseline justify-between">
+      <h2 class="text-[21px] font-semibold tracking-tight">F. Selectable</h2>
+      <span class="text-[12px] text-slate-400">여러 개를 한 번에</span>
+    </div>
+    <p class="mb-4 text-[14px] text-slate-500">행을 고르면 위에 작업 막대가 뜹니다. 수집물을 여러 개 대화에 넣거나 지울 때 씁니다.</p>
+    <div id="toolbar-f" class="mb-2 flex h-10 items-center justify-between rounded-full bg-ice px-4 text-[13px] opacity-0 transition">
+      <span id="count-f" class="text-slate-600">0개 선택</span>
+      <div class="flex gap-2">
+        <button class="rounded-full border border-apple-link px-3 py-1 text-apple-link">대화 자료로</button>
+        <button class="rounded-full bg-apple px-3 py-1 text-white">새 대화 시작</button>
+      </div>
+    </div>
+    <table class="w-full text-left text-[15px]">
+      <thead>
+        <tr class="border-b border-slate-200 text-[12px] text-slate-400">
+          <th class="w-10 py-2 pl-2"><input id="all-f" type="checkbox" class="h-4 w-4 accent-[#0071e3]" aria-label="모두 고르기" /></th>
+          <th class="py-2 font-normal">경로</th>
+          <th class="py-2 font-normal">언어</th>
+          <th class="py-2 pr-2 text-right font-normal">글자</th>
+        </tr>
+      </thead>
+      <tbody id="table-f" class="divide-y divide-slate-200 border-b border-slate-200"></tbody>
+    </table>
+  </section>
+
+  <!-- G -->
+  <section class="mb-16">
+    <div class="mb-4 flex items-baseline justify-between">
+      <h2 class="text-[21px] font-semibold tracking-tight">G. Stacking</h2>
+      <span class="text-[12px] text-slate-400">모바일</span>
+    </div>
+    <p class="mb-4 text-[14px] text-slate-500">넓을 때는 표, 640px 아래에서는 행마다 카드처럼 쌓입니다. 창을 좁혀 보세요. A 와 F 에 함께 쓸 수 있습니다.</p>
+    <table class="stack w-full text-left text-[15px]">
+      <thead>
+        <tr class="border-b border-slate-200 text-[12px] text-slate-400">
+          <th class="py-2 pl-2 font-normal">대화</th>
+          <th class="py-2 font-normal">Space</th>
+          <th class="py-2 text-right font-normal">메시지</th>
+          <th class="py-2 pr-2 text-right font-normal">바뀐 때</th>
+        </tr>
+      </thead>
+      <tbody id="table-g" class="divide-y divide-slate-200 border-b border-slate-200"></tbody>
+    </table>
+  </section>
+
+  <section class="rounded-xl bg-white p-6">
+    <h2 class="mb-3 text-[13px] font-semibold uppercase tracking-wide text-slate-500">공통 규칙</h2>
+    <ul class="space-y-1.5 text-[14px] text-slate-600">
+      <li>선은 <code class="font-mono text-[12px]">#d2d2d7</code> 한 가지, 그림자 없음</li>
+      <li>머리 글자 12px 회색, 본문 15px, 숫자는 고정폭으로 오른쪽 정렬</li>
+      <li>행에 마우스를 올리면 흰 바탕, 선택된 행은 <code class="font-mono text-[12px]">#f4f8fb</code></li>
+      <li>파란색은 링크와 주 버튼에만 씁니다</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+  const spaces = [
+    { title: "트랜스포머 학습", conversations: 3, materials: 3, updated: "2026-10-07T02:51:00", purpose: "벡터, 임베딩, 트랜스포머를 직관부터" },
+    { title: "openai/codex", conversations: 2, materials: 1, updated: "2026-10-07T02:31:00", purpose: "Codex CLI 설치와 사용" },
+    { title: "Claude Agent SDK", conversations: 5, materials: 4, updated: "2026-10-05T11:02:00", purpose: "에이전트 루프와 도구 정의" },
+    { title: "MIDI 표현", conversations: 1, materials: 0, updated: "2026-09-28T08:40:00", purpose: "음높이와 시간 토큰화" },
+  ];
+  const calls = [
+    ["02:51:12", "gpt-6-astra", "space_answer", 18420, 92311, 31.2, 0],
+    ["02:49:03", "gpt-6-astra", "agent_answer", 1417, 1884, 17.4, 0],
+    ["02:31:44", "gpt-6-astra", "space_answer", 2210, 4810, 21.9, 0],
+    ["02:27:06", "claude", "translate", 6120, 2894, 31.5, 0],
+    ["02:15:29", "gpt-6.1-sol", "space_answer", 1586, 912, 3.1, 1],
+    ["02:15:10", "gpt-6-astra", "space_answer", 1586, 2651, 19.0, 0],
+    ["01:28:01", "gpt-6-astra", "space_answer", 1320, 3302, 22.8, 0],
+  ];
+  const kinds = { plan: "목적", lesson: "수업", note: "노트", log: "기록" };
+  const materials = [
+    { kind: "lesson", title: "손실에서 미분까지", meta: "42 블록 · 그래프 2", body: "손실은 곡선의 높이예요. 입력과 정답은 그대로 두고, 모델의 파라미터만 바꿔 봅니다. 두 점 사이의 변화를 비교하고, 한 지점의 기울기를 찾아요." },
+    { kind: "note", title: "도함수 메모", meta: "3줄", body: "L(w) = (2w − 6)² 의 도함수는 8w − 24. w = 2 에서 −8, w = 4 에서 +8." },
+    { kind: "log", title: "웹 이전 학습 기록", meta: "71,573자", body: "2026년 10월 1일 평균 변화율에서 미분으로 연결. 사용자는 가로 변화량과 기울기의 구별을 이해했다고 진술했다…" },
+  ];
+  const files = [
+    ["repos/github/openai/codex/README.md", "eng · kor", 3496],
+    ["docs/anthropic/docs/en/agents-and-tools/tool-use/overview.md", "eng · kor", 18240],
+    ["papers/arxiv/attention-is-all-you-need.html", "eng · kor", 98211],
+    ["docs/x/karpathy/article/1882544526033924438.md", "eng", 7120],
+  ];
+  const conversations = [
+    ["이 README 에서 설치하고 처음 실행하는 방법을 세 단계로", "openai/codex", 4, "2026-10-07T02:31:00"],
+    ["w=4에서 미분값이 왜 양수인지", "트랜스포머 학습", 16, "2026-10-07T02:51:00"],
+    ["도구 결과를 다음 턴에 넣는 순서", "Claude Agent SDK", 9, "2026-10-05T11:02:00"],
+  ];
+  const since = (iso) => {
+    const minutes = Math.round((new Date("2026-10-07T03:00:00") - new Date(iso)) / 60000);
+    if (minutes < 60) return `${minutes}m ago`;
+    if (minutes < 1440) return `${Math.round(minutes / 60)}h ago`;
+    return `${Math.round(minutes / 1440)}d ago`;
+  };
+  const $ = (s) => document.querySelector(s);
+
+  // A
+  let order = { key: "updated", desc: true };
+  function drawA() {
+    const rows = [...spaces].sort((a, b) => (a[order.key] > b[order.key] ? 1 : -1) * (order.desc ? -1 : 1));
+    $("#table-a tbody").innerHTML = rows.map((s) => `
+      <tr class="group cursor-pointer hover:bg-white transition">
+        <td class="py-4 pl-2"><div class="font-semibold text-[17px] text-slate-900 group-hover:text-apple-link">${s.title}</div><div class="mt-0.5 text-[13px] text-slate-500">${s.purpose}</div></td>
+        <td class="num py-4 text-right text-slate-600">${s.conversations}</td>
+        <td class="num py-4 text-right text-slate-600">${s.materials}</td>
+        <td class="py-4 pr-2 text-right text-[13px] text-slate-400">${since(s.updated)}</td>
+      </tr>`).join("");
+    document.querySelectorAll("#table-a th[data-sort]").forEach((th) => {
+      const on = th.dataset.sort === order.key;
+      th.toggleAttribute("aria-sort", on);
+      th.querySelector(".arrow").textContent = on && !order.desc ? "↑" : "↓";
+    });
+  }
+  document.querySelectorAll("#table-a th[data-sort]").forEach((th) => th.addEventListener("click", () => {
+    order = { key: th.dataset.sort, desc: order.key === th.dataset.sort ? !order.desc : true };
+    drawA();
+  }));
+  drawA();
+
+  // B
+  $("#table-b").innerHTML = materials.map((m, i) => `
+    <tr class="cursor-pointer hover:bg-slate-50 transition">
+      <td class="w-16 py-3 pl-4"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">${kinds[m.kind]}</span></td>
+      <td class="py-3 ${i ? "border-t border-slate-200" : ""}"><span class="text-slate-900">${m.title}</span></td>
+      <td class="py-3 pr-4 text-right text-[13px] text-slate-400 ${i ? "border-t border-slate-200" : ""}">${m.meta} <span class="ml-1 text-slate-300">›</span></td>
+    </tr>`).join("");
+
+  // C
+  $("#table-c").innerHTML = calls.map(([time, model, purpose, request, response, seconds, code]) => `
+    <tr class="hover:bg-slate-50">
+      <td class="num py-2 pl-4 font-mono text-[12px] text-slate-500">${time}</td>
+      <td class="py-2 font-mono text-[12px]">${model}</td>
+      <td class="py-2 text-slate-600">${purpose}</td>
+      <td class="num py-2 text-right font-mono text-[12px]">${request.toLocaleString()}</td>
+      <td class="num py-2 text-right font-mono text-[12px]">${response.toLocaleString()}</td>
+      <td class="num py-2 text-right font-mono text-[12px]">${seconds.toFixed(1)}s</td>
+      <td class="py-2 pr-4 text-right">${code ? `<span class="rounded-full bg-[#fdecea] px-2 py-0.5 text-[11px] text-[#b3261e]">exit ${code}</span>` : `<span class="text-[11px] text-slate-400">0</span>`}</td>
+    </tr>`).join("");
+
+  // D
+  const compare = [
+    ["누가 쓰나", "상류 원문", "사람과 튜터", "홈의 질문"],
+    ["url", "✓", "", ""],
+    ["판과 번역", "✓", "", ""],
+    ["대화", "", "여럿", "하나씩"],
+    ["자료", "", "목적 · 수업 · 노트", ""],
+    ["sync 로 갱신", "✓", "", ""],
+  ];
+  $("#table-d").innerHTML = compare.map(([label, ...cells]) => `
+    <tr class="border-b border-slate-200">
+      <th class="py-4 text-left text-[13px] font-normal text-slate-500">${label}</th>
+      ${cells.map((c) => `<td class="py-4 ${c === "✓" ? "text-apple text-[17px]" : "text-slate-700"}">${c || `<span class="text-slate-300">—</span>`}</td>`).join("")}
+    </tr>`).join("");
+
+  // E
+  $("#table-e").innerHTML = materials.map((m, i) => `
+    <tr data-row="${i}" class="cursor-pointer hover:bg-white transition">
+      <td class="w-16 py-3.5 pl-2"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">${kinds[m.kind]}</span></td>
+      <td class="py-3.5 text-slate-900">${m.title}</td>
+      <td class="py-3.5 pr-2 text-right text-[13px] text-slate-400"><span class="mr-2">${m.meta}</span><span data-chevron class="inline-block transition-transform">›</span></td>
+    </tr>
+    <tr data-detail="${i}" class="hidden"><td></td><td colspan="2" class="pb-5 pr-2 text-[15px] leading-relaxed text-slate-600">${m.body}</td></tr>`).join("");
+  document.querySelectorAll("#table-e [data-row]").forEach((row) => row.addEventListener("click", () => {
+    const detail = document.querySelector(`#table-e [data-detail="${row.dataset.row}"]`);
+    const open = detail.classList.toggle("hidden") === false;
+    detail.classList.toggle("enter-fade", open);
+    row.querySelector("[data-chevron]").style.transform = open ? "rotate(90deg)" : "";
+    row.classList.toggle("bg-white", open);
+  }));
+
+  // F
+  $("#table-f").innerHTML = files.map(([path, languages, chars]) => `
+    <tr class="transition">
+      <td class="py-3 pl-2"><input type="checkbox" class="pick h-4 w-4 accent-[#0071e3]" aria-label="${path}" /></td>
+      <td class="py-3 font-mono text-[13px] text-slate-900">${path}</td>
+      <td class="py-3 text-[13px] text-slate-500">${languages}</td>
+      <td class="num py-3 pr-2 text-right text-[13px] text-slate-500">${chars.toLocaleString()}</td>
+    </tr>`).join("");
+  const picks = [...document.querySelectorAll("#table-f .pick")];
+  const syncF = () => {
+    const n = picks.filter((p) => p.checked).length;
+    picks.forEach((p) => p.closest("tr").classList.toggle("bg-ice", p.checked));
+    $("#count-f").textContent = `${n}개 선택`;
+    $("#toolbar-f").classList.toggle("opacity-0", !n);
+    $("#all-f").checked = n === picks.length;
+    $("#all-f").indeterminate = n > 0 && n < picks.length;
+  };
+  picks.forEach((p) => p.addEventListener("change", syncF));
+  $("#all-f").addEventListener("change", (e) => { picks.forEach((p) => (p.checked = e.target.checked)); syncF(); });
+
+  // G
+  $("#table-g").innerHTML = conversations.map(([title, space, count, updated]) => `
+    <tr class="hover:bg-white transition">
+      <td data-label="대화" class="py-3.5 pl-2 text-slate-900">${title}</td>
+      <td data-label="Space" class="py-3.5 text-slate-600">${space}</td>
+      <td data-label="메시지" class="num py-3.5 text-right text-slate-600">${count}</td>
+      <td data-label="바뀐 때" class="py-3.5 pr-2 text-right text-[13px] text-slate-400">${since(updated)}</td>
+    </tr>`).join("");
+</script>
+</body>
+</html>
