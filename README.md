@@ -55,7 +55,9 @@ personal-research/
 - 모델을 부를 때마다(답변은 Codex, 수집할 때의 번역은 claude) `llm` 에 한 행이 남는다. `owner_id` 는 질문 메시지 id 나 번역한 문서 id 다.
 - DB 를 처음 열 때 `common/store.py` 의 `upgrade` 가 예전 구조(`extra` `body` 열, `opened` `conversations` `agent` `asked` 표, 대화를 JSON 으로 담던 `space`, `space` 의 `purpose` `log` 열, 대화 첫머리에 끼워 둔 수업)를 지금 구조로 옮긴다.
 
-왼쪽 사이드바는 Home 과 Space(space 목록)다. space 마다 › 로 펼치면 Collected 와 자료 폴더가 나오고, 항목을 누르면 대화 화면에서 그 문서나 자료가 열린다. Space 를 누르면 space 목록 페이지(`/viewer/space`)가, space 이름을 누르면 상세 페이지(`/viewer/space?id=…`)가 열린다. 상세 페이지에서 이름과 목적을 고치고, 자료(수업, 노트, 기록)를 펼쳐 읽거나 노트를 쓰고, 대화와 수집물(대화들의 출발 문서)을 본다. 튜터는 매 질문마다 목적, 기록의 끝부분, 수업, 노트를 함께 읽는다. 대화 화면은 채팅이 본문이다. 맨 위 헤더 가운데에 space 이름(누르면 상세 페이지)과 대화 선택이 있다. 오른쪽 위 자료 버튼(⌘N)이 오른쪽 자료 사이드바를 여닫는다. 사이드바 위쪽은 space 의 두 폴더다. Collected 는 space 의 대화들이 쓴 원문(종류별 아이콘, 파일이 여럿이면 하위 폴더), 자료는 수업·노트·기록이다. 아래는 고른 문서나 자료를 보는 곳이다. 수집물은 이 목록, 답변의 근거, 홈 collect 결과로 연다.
+왼쪽 사이드바는 Home 과 Space 다. Space, space 이름, 그 아래 대화·Collected·자료 폴더는 모두 펼치고 접는 폴더이고, 실제로 여는 것은 대화, 수집물, 자료 항목뿐이다. space 목록과 상세 페이지(`/viewer/space`, `/viewer/space?id=…`)는 대화 화면의 space 메뉴에서 간다.
+
+본문(`/viewer/collected`)은 VS Code 같은 편집기 그룹이다. 사이드바 항목을 누르면 지금 그룹에 탭으로 열리고, 끌어서 그룹 가장자리에 놓으면 그 쪽으로 화면이 나뉜다(최대 4개, 4개면 2×2). 탭도 그룹 사이로 끌어 옮긴다. 탭마다 유형에 맞는 화면이 iframe 으로 뜬다: 대화는 `pane-chat`, 수집물은 `pane-doc`, 자료는 `pane-material`. 답변의 근거를 누르면 옆 그룹에 문서가 열리고, 문서에서 인용하면 열린 대화로 들어간다. 탭 배치는 브라우저에 남아 다시 열어도 그대로다.
 
 뷰어 서버는 Docker 로 띄운다. 환경은 둘이고, 포트와 경로는 `.env/.env.{환경}` 에서 정한다.
 
