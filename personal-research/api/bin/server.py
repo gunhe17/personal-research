@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from usecase.common import log
 from usecase.common import store
 
+from usecase.agent.ask import ask
 from usecase.conversation.converse import converse
 from usecase.conversation.record import record
 from usecase.collected.collect import pipeline
@@ -138,7 +139,7 @@ class Handler(BaseHTTPRequestHandler):
             question = (body.get("question") or "").strip()
             if not question:
                 return self.reply(code=400, payload={"error": "question 이 비어 있다"})
-            return self.stream(work=lambda send: converse.ask(question=question, send=send))
+            return self.stream(work=lambda send: ask.run(question=question, send=send))
         if parsed.path == "/api/collect":
             given = (body.get("input") or "").strip()
             if not given:
