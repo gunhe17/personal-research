@@ -27,7 +27,7 @@
       sidebarOpen: false,
       sidebarWidth: clampSidebar(parseFloat(localStorage.getItem("sidebarWidth") || "288") || 288),
       resizingSidebar: false,
-      layout: localStorage.getItem("layout") || "split",
+      layout: localStorage.getItem("layout") === "split" ? "split" : "chat",
       spaces: [],
       chatWidthPct: clampChatWidth(parseFloat(localStorage.getItem("chatWidthPct") || "50") || 50),
       tree: [],
@@ -398,7 +398,7 @@
 
     function closeSpaceModal() {
       const modal = $("#space-modal");
-      if (modal.classList.contains("hidden")) return;
+      if (!modal || modal.classList.contains("hidden")) return;
       leave(modal, "leave-fade", () => modal.classList.remove("flex"));
     }
 
@@ -822,8 +822,8 @@
       }
       $("#doc-content").innerHTML = `
         <div class="enter-fade py-24 text-center">
-          <p class="text-[21px] font-semibold tracking-tight text-slate-800">Collected</p>
-          <p class="mt-2 text-[15px] font-light text-slate-500">Open a source from a chat, or collect a URL from Home.</p>
+          <p class="text-[21px] font-semibold tracking-tight text-slate-800">자료</p>
+          <p class="mt-2 text-[15px] font-light text-slate-500">위 목록에서 문서를 고르거나, 답변의 근거를 누르세요.</p>
         </div>`;
     }
 
@@ -1106,39 +1106,30 @@
 
     function addCitation(text) {
       window.dispatchEvent(new CustomEvent("research:quote", { detail: { text, path: state.currentPath || "", id: state.currentId } }));
-      if (state.layout === "doc") setLayout("split");
       toast("Quoted");
     }
 
     // Chat split layout
     function applyChatSplit() {
-      const panel = $("#chat-panel");
+      const panel = $("#doc-pane");
       const resizer = $("#split-resizer");
       const navBtn = $("#btn-toggle-chat");
       if (!panel || !resizer) {
-        if (navBtn) {
-          navBtn.classList.add("text-apple");
-          navBtn.disabled = true;
-          navBtn.title = "Home is the chat";
-        }
+        if (navBtn) navBtn.disabled = true;
         return;
       }
-      const chat = state.layout === "chat";
-      const open = state.layout !== "doc";
-      $("#doc-pane").style.display = chat ? "none" : "";
+      const open = state.layout === "split";
       if (open) {
         panel.classList.remove("hidden", "leave-panel");
         panel.style.display = "flex";
-        panel.style.width = chat ? "100%" : state.chatWidthPct + "%";
-        panel.style.flex = chat ? "1 1 auto" : "";
-        resizer.style.display = chat ? "none" : "";
+        panel.style.width = state.chatWidthPct + "%";
+        resizer.style.display = "";
       } else if (panel.style.display !== "none") {
         closePanel(panel, resizer);
       }
       if (navBtn) navBtn.classList.toggle("text-apple", open);
       localStorage.setItem("layout", state.layout);
       localStorage.setItem("chatWidthPct", String(state.chatWidthPct));
-      window.dispatchEvent(new CustomEvent("research:layout", { detail: state.layout }));
     }
 
     function setLayout(layout) {
@@ -1159,11 +1150,9 @@
     }
 
     function openChat(open) {
-      if (!$("#chat-panel")) return;
-      const want = open !== undefined ? open : state.layout === "doc";
-      if (want === (state.layout !== "doc")) return;
-      setLayout(want ? "split" : "doc");
-      if (want) setTimeout(() => $("#message-input")?.focus(), 100);
+      if (!$("#doc-pane")) return;
+      const want = open !== undefined ? open : state.layout !== "split";
+      setLayout(want ? "split" : "chat");
     }
 
     function initSidebarResizer() {
@@ -1685,11 +1674,9 @@
 
     // init
     const opened = new URLSearchParams(location.search);
-    if ((opened.get("space") || opened.get("conversation") || opened.get("agent")) && !opened.get("doc")) state.layout = "chat";
-    if (opened.get("doc") && state.layout === "chat") state.layout = "split";
+    if (opened.get("doc")) state.layout = "split";
     if (window.matchMedia("(max-width: 767px)").matches) {
       state.sidebarOpen = false;
-      if (state.layout === "split") state.layout = "doc";
     }
     applySidebar();
     updateDownload();

@@ -5,6 +5,7 @@ import { el, fmt } from './playground.js';
 const $ = id => document.getElementById(id);
 const KEY = 'space-draft';
 const research = window.research;
+document.getElementById('header-center')?.append(document.getElementById('space-header'));
 let cache = {};
 try { cache = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (_) {}
 let scope = { domain: 'space', space: null }, chat = null, sending = false, timer = null, doc = null;
@@ -100,9 +101,9 @@ function renderMessages() {
 
 function renderHeader() {
   $('space-title').textContent = scope.domain === 'agent' ? 'Agent' : scope.space?.title || '새 space';
+  $('space-link').href = scope.domain === 'agent' ? '/viewer/' : scope.space ? `/viewer/space?id=${encodeURIComponent(scope.space.id)}` : '/viewer/space';
   $('conversation-title').textContent = chat?.title || '새 대화';
   $('space-empty').hidden = Boolean(chat?.messages.length);
-  $('links-count').textContent = String(chat?.documents.length || 0);
   $('space-banner').hidden = !chat || chat.codex_available;
   if (chat && !chat.codex_available) $('space-banner').textContent = '서버에서 codex CLI 를 찾지 못했습니다. 컨테이너에서 codex login --device-auth 를 확인해 주세요.';
 }
@@ -112,8 +113,8 @@ function renderLinks() {
   const documents = chat?.documents || [];
   menu.append(el('div', 'link-head', documents.length ? `이 대화의 자료 ${documents.length}` : '이 대화의 자료가 없습니다'));
   documents.forEach((item, index) => {
-    const row = el('div', 'link-row');
-    row.append(button(item.path, 'open', () => { research.openFile(item.id); menu.classList.add('hidden'); }));
+    const row = el('div', doc?.id === item.id ? 'link-row active' : 'link-row');
+    row.append(button(item.path, 'open', () => { research.openFile(item.id); }));
     if (index === 0 && chat) row.append(button('×', 'drop', () => relink('')));
     menu.append(row);
   });
@@ -125,15 +126,6 @@ function row(title, meta, selected, fn) {
   const item = button('', 'menu-row', fn); item.setAttribute('aria-selected', String(selected));
   item.append(el('strong', '', title), el('span', '', meta));
   return item;
-}
-
-async function renderSpaces() {
-  const menu = $('space-menu'), spaces = (await json('/api/spaces')).items || [];
-  menu.replaceChildren(
-    row('Agent', '홈에서 시작한 대화', scope.domain === 'agent', () => choose({ domain: 'agent', space: null })),
-    ...spaces.map(item => row(item.title, `${(item.updated_at || '').slice(0, 10)} · 대화 ${item.conversation_count}`, item.id === scope.space?.id, () => choose({ domain: 'space', space: item }))),
-    row('+ 새 space', '다음 질문으로 새 space 를 시작합니다', false, () => choose({ domain: 'space', space: null })),
-  );
 }
 
 async function renderConversations() {
@@ -179,7 +171,6 @@ async function choose(next) {
   scope = next;
   const latest = scope.domain === 'space' && scope.space ? (await json(`/api/spaces/${scope.space.id}`)).conversations[0] : null;
   await open(scope.domain, latest?.id || null);
-  $('space-menu').classList.add('hidden');
 }
 
 async function open(domain, id) {
@@ -240,11 +231,11 @@ function named(text) {
   return text.length > 24 ? `${text.slice(0, 24)}…` : text;
 }
 
-function rename(target) {
-  const trigger = $(target === 'space' ? 'btn-space' : 'btn-conversation');
-  const owner = target === 'space' ? scope.space : chat;
+function rename() {
+  const trigger = $('btn-conversation');
+  const owner = chat;
   if (!owner || trigger.hidden) return;
-  only(null);
+  $('conversation-menu').classList.add('hidden');
   const input = el('input', 'rename-input'); input.value = owner.title; input.setAttribute('aria-label', '이름');
   trigger.hidden = true; trigger.after(input); input.focus(); input.select();
   let finished = false;
@@ -253,8 +244,7 @@ function rename(target) {
     const title = input.value.trim();
     input.remove(); trigger.hidden = false;
     if (!save || !title || title === owner.title) return;
-    const url = target === 'space' ? `/api/spaces/${owner.id}` : base();
-    try { await post(url, { title }, 'PUT'); owner.title = title; research.spacesChanged(); } catch (error) { $('form-status').textContent = error.message; }
+    try { await post(base(), { title }, 'PUT'); owner.title = title; research.spacesChanged(); } catch (error) { $('form-status').textContent = error.message; }
     renderHeader();
   };
   input.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); done(true); } if (event.key === 'Escape') done(false); });
@@ -270,25 +260,15 @@ $('message-input').addEventListener('keydown', event => { if (event.key === 'Ent
 $('composer').addEventListener('submit', send);
 $('jump-bottom').addEventListener('click', scrollBottom);
 $('clear-quote').addEventListener('click', () => { quote = null; renderQuote(); persist(); });
-$('btn-space').addEventListener('click', async event => {
-  event.stopPropagation(); only('space-menu');
-  if (!$('space-menu').classList.toggle('hidden')) await renderSpaces();
-});
 $('btn-conversation').addEventListener('click', async event => {
-  event.stopPropagation(); only('conversation-menu');
+  event.stopPropagation();
   if (!$('conversation-menu').classList.toggle('hidden')) await renderConversations();
 });
-function only(keep) { ['space-menu', 'conversation-menu', 'links-menu'].filter(id => id !== keep).forEach(id => $(id).classList.add('hidden')); }
-document.addEventListener('keydown', event => { if (event.key === 'Escape') only(null); });
-$('btn-space').addEventListener('dblclick', () => rename('space'));
-$('btn-conversation').addEventListener('dblclick', () => rename('conversation'));
-$('btn-links').addEventListener('click', event => { event.stopPropagation(); only('links-menu'); renderLinks(); $('links-menu').classList.toggle('hidden'); });
+document.addEventListener('keydown', event => { if (event.key === 'Escape') $('conversation-menu').classList.add('hidden'); });
+$('btn-conversation').addEventListener('dblclick', () => rename());
 document.addEventListener('click', event => {
-  if (!$('space-dd').contains(event.target)) $('space-menu').classList.add('hidden');
   if (!$('conversation-dd').contains(event.target)) $('conversation-menu').classList.add('hidden');
-  if (!$('links-dd').contains(event.target)) $('links-menu').classList.add('hidden');
 });
-$('layout-seg').querySelectorAll('[data-layout]').forEach(b => b.addEventListener('click', () => research.setLayout(b.dataset.layout)));
 scroller().addEventListener('scroll', () => {
   annotations.paint();
   if (scroller().scrollTop + scroller().clientHeight >= scroller().scrollHeight - 300) $('jump-bottom').hidden = true;
@@ -317,9 +297,6 @@ async function follow(current) {
   if (found.length && !chat) { scope = { domain: 'space', space: null }; await open('space', found[0].id); }
 }
 window.addEventListener('research:doc', event => follow(event.detail));
-window.addEventListener('research:layout', event => {
-  $('layout-seg').querySelectorAll('[data-layout]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.layout === event.detail)));
-});
 document.addEventListener('visibilitychange', () => { if (!document.hidden && chat) refresh(); });
 
 renderQuote(); resizeInput();
@@ -332,4 +309,3 @@ async function start() {
   renderHeader(); follow(research.current());
 }
 start();
-window.dispatchEvent(new CustomEvent('research:layout', { detail: localStorage.getItem('layout') || 'split' }));

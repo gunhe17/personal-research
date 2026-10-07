@@ -1,50 +1,8 @@
-      <!-- Horizontal resizer -->
-      <div
-        id="split-resizer"
-        title="Drag to resize"
-        class="group relative z-20 w-px shrink-0 cursor-col-resize bg-slate-100 hover:bg-slate-300 active:bg-apple transition-colors max-md:!hidden"
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize the chat panel"
-      >
-        <div class="absolute inset-y-0 -left-2.5 -right-2.5"></div>
-        <div class="pointer-events-none absolute left-1/2 top-1/2 h-10 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-slate-400 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-      </div>
-
       <!-- Chat panel -->
       <aside
         id="chat-panel"
-        class="relative h-full shrink-0 flex flex-col min-w-0 bg-white overflow-hidden select-text max-md:absolute max-md:inset-0 max-md:!w-full max-md:z-20"
-        style="width: 50%"
+        class="relative h-full flex-1 flex flex-col min-w-0 bg-white overflow-hidden select-text"
       >
-        <!-- space header -->
-        <div class="shrink-0 h-11 flex items-center gap-1 border-b border-slate-100 bg-white px-3 relative z-20">
-          <div id="space-dd" class="relative min-w-0 shrink">
-            <button type="button" id="btn-space" aria-haspopup="listbox" aria-expanded="false" class="flex max-w-[16rem] items-center gap-1 rounded-lg px-2 py-1 text-left hover:bg-slate-50 transition duration-150">
-              <span id="space-title" class="truncate text-[13px] font-semibold tracking-tight text-slate-900">Space</span>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-3.5 w-3.5 shrink-0 text-slate-400"><path d="M6 9l6 6 6-6" /></svg>
-            </button>
-            <div id="space-menu" role="listbox" class="hidden absolute left-0 top-full mt-1 z-50 w-72 max-h-80 overflow-y-auto rounded-xl bg-white p-1 shadow-lg ring-1 ring-slate-200"></div>
-          </div>
-          <span class="text-slate-300">/</span>
-          <div id="conversation-dd" class="relative min-w-0 flex-1">
-            <button type="button" id="btn-conversation" aria-haspopup="listbox" aria-expanded="false" class="flex w-full items-center gap-1 rounded-lg px-2 py-1 text-left hover:bg-slate-50 transition duration-150">
-              <span id="conversation-title" class="min-w-0 flex-1 truncate text-[12px] text-slate-500">새 대화</span>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-3.5 w-3.5 shrink-0 text-slate-400"><path d="M6 9l6 6 6-6" /></svg>
-            </button>
-            <div id="conversation-menu" role="listbox" class="hidden absolute left-0 top-full mt-1 z-50 w-72 max-h-80 overflow-y-auto rounded-xl bg-white p-1 shadow-lg ring-1 ring-slate-200"></div>
-          </div>
-          <div id="links-dd" class="relative shrink-0">
-            <button type="button" id="btn-links" title="이 대화의 자료" class="rounded-full px-2.5 py-1 text-[12px] text-apple-link hover:bg-slate-50">자료 <span id="links-count">0</span></button>
-            <div id="links-menu" class="hidden absolute right-0 top-full mt-1 z-50 w-80 max-h-96 overflow-y-auto rounded-xl bg-white p-1 shadow-lg ring-1 ring-slate-200"></div>
-          </div>
-          <div id="layout-seg" class="inline-flex shrink-0 items-center rounded-full bg-slate-100 p-0.5 max-md:!hidden" role="group" aria-label="Layout">
-            <button type="button" data-layout="doc" class="seg-btn">문서</button>
-            <button type="button" data-layout="split" class="seg-btn">나란히</button>
-            <button type="button" data-layout="chat" class="seg-btn">채팅</button>
-          </div>
-        </div>
-
         <div id="space-scroll" class="relative flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-slate-50">
           <div id="space-banner" class="space-banner" role="alert" hidden></div>
           <div id="space-empty" class="space-empty">
@@ -70,3 +28,18 @@
           <p id="form-status" class="form-status" role="status"></p>
         </div>
       </aside>
+
+      <!-- space header -->
+      <div id="space-header" class="flex min-w-0 items-center gap-1">
+        <a id="space-link" href="/viewer/space" class="min-w-0 shrink truncate rounded-lg px-2 py-1 hover:bg-slate-50 transition duration-150">
+          <span id="space-title" class="text-[13px] font-semibold tracking-tight text-slate-900">Space</span>
+        </a>
+        <span class="shrink-0 text-slate-300">/</span>
+        <div id="conversation-dd" class="relative min-w-0 shrink">
+          <button type="button" id="btn-conversation" aria-haspopup="listbox" aria-expanded="false" class="flex min-w-0 max-w-[20rem] items-center gap-1 rounded-lg px-2 py-1 text-left hover:bg-slate-50 transition duration-150">
+            <span id="conversation-title" class="min-w-0 truncate text-[13px] text-slate-500">새 대화</span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-3.5 w-3.5 shrink-0 text-slate-400"><path d="M6 9l6 6 6-6" /></svg>
+          </button>
+          <div id="conversation-menu" role="listbox" class="hidden absolute left-0 top-full mt-1 z-50 w-72 max-h-80 overflow-y-auto rounded-xl bg-white p-1 shadow-lg ring-1 ring-slate-200"></div>
+        </div>
+      </div>
