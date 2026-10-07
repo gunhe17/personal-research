@@ -260,6 +260,9 @@
       log: '<circle cx="12" cy="12" r="8" /><path d="M12 8v4l3 2" />',
       chat: '<path d="M21 11a8 8 0 0 1-8 8H6.5L3 21V11a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z" />',
       plus: '<path d="M12 5v14M5 12h14" />',
+      conversations: '<path d="M16 10a6 6 0 0 1-6 6H6l-3 2.5V10a6 6 0 0 1 6-6h1a6 6 0 0 1 6 6z" /><path d="M18.5 8.5A5 5 0 0 1 21 13v6l-2.5-2H15a5 5 0 0 1-3.6-1.5" />',
+      collected: '<rect x="3" y="4" width="18" height="5" rx="1" /><path d="M5 9v9.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V9" /><path d="M10 13h4" />',
+      materials: '<path d="M4 19.5V5.5A1.5 1.5 0 0 1 5.5 4H18v13H5.5A1.5 1.5 0 0 0 4 18.5 1.5 1.5 0 0 0 5.5 20H18" /><path d="M8 8h6M8 11h4" />',
     };
     window.RESEARCH_ICON = RESEARCH_ICON;
 
@@ -294,10 +297,10 @@
       const box = document.createElement("div");
       box.className = "ml-3 border-l border-slate-100 pl-1 mb-1";
       const active = window.workbench?.activeKey?.() || "";
-      const folder = (key, name, rows) => {
+      const folder = (key, name, rows, symbol) => {
         const id = `${spaceId}:${key}`;
         const open = state.expanded[id] !== false;
-        const head = folderRow({ label: name, icon: `<span class="text-apple-link">${iconHtml("folder")}</span>`, open, depth: 0, count: rows.length, onToggle: () => expandSpace(id, !open) });
+        const head = folderRow({ label: name, icon: `<span class="text-apple-link">${iconHtml(symbol)}</span>`, open, depth: 0, count: rows.length, onToggle: () => expandSpace(id, !open) });
         head.classList.replace("text-sm", "text-[12px]");
         head.classList.replace("py-1.5", "py-1");
         box.appendChild(head);
@@ -325,9 +328,9 @@
       const collected = detail.collected.flatMap((root) => (root.documents?.length ? root.documents : [root]).map((d) =>
         leaf({ kind: "doc", id: d.id, title: d.path.split("/").pop(), path: d.path }, d.path.split("/")[0], d.path.split("/").slice(2).join("/") || d.path, d.path)));
       const materials = detail.materials.map((m) => leaf({ kind: "material", id: m.id, title: m.title, material: m.kind }, m.kind, m.title));
-      folder("conversations", "대화", conversations);
-      folder("collected", "Collected", collected);
-      folder("materials", "자료", materials);
+      folder("conversations", "Conversations", conversations, "conversations");
+      folder("collected", "Collected", collected, "collected");
+      folder("materials", "Materials", materials, "materials");
       return box;
     }
 
