@@ -16,7 +16,9 @@ paths:
 | `collected` | 문서 하나의 신원과 원문 주소와 보관 경로 | `id` (uuid) |
 | `collected_content` | 원문과 번역본의 본문. 판마다 한 행 | `(collected_id, language, version)` |
 | `log` | 서버가 남긴 기록. `collect.py log` 로 본다 | `id` |
-| `conversations` | 뷰어의 대화 | `id` |
+| `conversations` | 문서 옆 대화 | `id` |
+| `agent` | 홈의 대화 | `id` |
+| `asked` | 학습 하나의 계획과 대화 | `id` |
 
 신원은 uuid 다. 원문 주소는 유일하지 않기 때문이다. Protégé 논문 한 편이 8절로 쪼개져 같은 주소를 공유하고, 저장소 카드와 그 README 도 주소가 같다. 주소로 묶으면 이것들이 한 문서가 되어 버린다.
 

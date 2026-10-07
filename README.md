@@ -16,9 +16,14 @@ personal-research/
 │   │   │   ├── check/      원문·번역·메타 정합 검사
 │   │   │   ├── list/       수집 목록을 표준 출력에
 │   │   │   └── search/     수집물 전문 검색
-│   │   └── conversation/
-│   │       ├── converse/   문서를 근거로 묻고 답한다
-│   │       └── record/     대화를 남긴다
+│   │   ├── conversation/
+│   │   │   ├── converse/   문서를 근거로 묻고 답한다
+│   │   │   └── record/     문서 옆 대화와 홈 대화를 남긴다
+│   │   ├── agent/
+│   │   │   └── ask/        수집물을 검색해 근거로 답한다
+│   │   └── asked/
+│   │       ├── converse/   Codex 튜터가 블록 답변을 만든다
+│   │       └── record/     학습 계획과 대화를 남긴다
 │   ├── common/           store.py 와 log.py
 │   └── database/         research.db 한 파일. git 밖
 └── wui/
@@ -27,6 +32,16 @@ personal-research/
 ```
 
 수집물과 대화와 서버 로그가 `personal-research/api/database/research.db` 한 파일에 있다. `collected` 가 문서의 신원(uuid)과 원문 주소와 보관 경로를, `collected_content` 가 원문과 번역본의 본문을 판(version)별로 담는다. 같은 문서의 번역본은 그 문서의 `language = 'kor'` 행이고, 판 번호가 원문보다 낮으면 낡은 번역이다. git 은 바이너리를 diff 하지 못하고 grep 도 되지 않는다. 내용을 파일로 봐야 하면 `collect.py export` 가 `data/collected/` 에 트리를 풀어 준다. 그 폴더는 git 이 무시하는 일회용이다.
+
+대화는 어디서 시작했는지에 따라 셋으로 나뉜다.
+
+| 도메인 | 시작 | 중심 화면 | 모델 | 표 |
+|------|------|------|------|------|
+| collected | 수집한 문서 하나 | 문서 본문. 채팅은 옆 패널 | `CHAT_BACKEND` | `conversations` |
+| agent | 홈의 ask 와 collect | 홈 | `CHAT_BACKEND` | `agent` |
+| asked | 배우려는 주제 | 채팅. 블록 답변과 그래프가 이어진다 (`/viewer/asked`) | Codex (`ASKED_CODEX_MODEL`) | `asked` |
+
+`asked` 한 행이 학습 하나다. `plan` 에 학습 계획을, `log` 에 웹 이전의 학습 기록을, `messages` 에 질문과 블록 답변과 생성 상태를 담는다. `thread_id` 는 이어 가는 Codex 대화다. 답변마다 남는 `learning_note` 가 이후의 학습 기록이다.
 
 뷰어 서버는 Docker 로 띄운다. 환경은 둘이고, 포트와 경로는 `.env/.env.{환경}` 에서 정한다.
 
@@ -40,10 +55,11 @@ docker compose --env-file .env/.env.develop -f .docker/docker-compose.develop.ym
 docker compose --env-file .env/.env.production -f .docker/docker-compose.production.yml up -d --build
 ```
 
-컨테이너 안의 grok 과 claude 는 개인 요금제로 로그인해 쓴다. 로그인은 환경마다 따로 볼륨에 남으므로 환경별로 처음 한 번만 하면 된다.
+컨테이너 안의 grok 과 codex 와 claude 는 개인 요금제로 로그인해 쓴다. 로그인은 환경마다 따로 볼륨에 남으므로 환경별로 처음 한 번만 하면 된다.
 
 1. grok 은 `docker exec -it personal-research-{환경}-api grok login --device-auth` 를 실행하고, 화면의 코드를 브라우저에서 승인한다.
-2. claude 는 자기 컴퓨터에서 `claude setup-token` 으로 받은 토큰을 `.env/.env.{환경}` 의 `CLAUDE_CODE_OAUTH_TOKEN` 에 넣고 컨테이너를 다시 띄운다.
+2. codex 는 `docker exec -it personal-research-{환경}-api codex login --device-auth` 를 실행하고, 화면의 코드를 브라우저에서 승인한다. ChatGPT 계정은 Codex 기본 모델을 쓰지 못할 수 있으므로 `ASKED_CODEX_MODEL` 을 비우지 않는다.
+3. claude 는 자기 컴퓨터에서 `claude setup-token` 으로 받은 토큰을 `.env/.env.{환경}` 의 `CLAUDE_CODE_OAUTH_TOKEN` 에 넣고 컨테이너를 다시 띄운다.
 
 `ANTHROPIC_API_KEY` 나 `XAI_API_KEY` 를 넣으면 요금제가 아니라 API 과금으로 바뀐다. 서버의 채팅 API 에는 인증이 없으므로, 외부 서버에 둘 때도 포트는 `127.0.0.1` 에만 열고 Tailscale 이나 SSH 터널로 접속한다.
 
