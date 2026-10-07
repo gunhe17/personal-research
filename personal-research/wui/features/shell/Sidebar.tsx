@@ -18,7 +18,6 @@ export default function Sidebar() {
   const [spaces, setSpaces] = useState<SpaceItem[] | null>(null);
   const [details, setDetails] = useState<Record<string, Space>>({});
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [pageSpace, setPageSpace] = useState<string | null>(null);
   const requested = useRef(new Set<string>());
 
   const refresh = useCallback(() => {
@@ -28,16 +27,12 @@ export default function Sidebar() {
   }, []);
 
   useEffect(() => {
-    setPageSpace(pathname === "/space" ? new URLSearchParams(location.search).get("id") : null);
-  }, [pathname]);
-
-  useEffect(() => {
     setExpanded(load("spaceExpanded", {}));
     refresh();
     return listen("spaces", refresh);
   }, [refresh]);
 
-  const current = workbench.activeSpace || pageSpace;
+  const current = workbench.activeSpace;
   const isOpen = (key: string, fallback = true) => expanded[key] ?? fallback;
   const toggle = (key: string, fallback = true) => {
     const next = { ...expanded, [key]: !isOpen(key, fallback) };

@@ -22,7 +22,7 @@
 |---|---|
 | 프레임워크 | Next.js App Router, React, TypeScript strict |
 | 실행 | `next build` 의 `output: "standalone"` 을 `node server.js` 로 띄운다. compose 의 `wui` 서비스 |
-| 경로 | 화면은 `/`, `/space`, `/collected` 셋. 식별자는 경로가 아니라 쿼리(`?id=` `?doc=`)로 받는다 |
+| 경로 | 화면은 `/`(홈), `/collected`(작업대) 둘. 식별자는 경로가 아니라 쿼리(`?id=` `?doc=`)로 받는다 |
 | API | Python `api` 서비스의 `/api/*` 를 그대로 쓴다. `next.config.ts` 의 rewrites 가 `/api/*` 를 `API_URL` 로 넘긴다. compose 안에서는 `http://api:8765`, 로컬 개발은 `http://127.0.0.1:8768`. Next 의 Route Handler, Server Action 을 쓰지 않는다 |
 | 네트워크 | 브라우저는 wui 하나만 본다. wui 와 api 는 compose 기본 네트워크에서 서비스 이름으로 만난다 |
 | 스타일 | Tailwind v4. 토큰은 `app/globals.css` 의 `@theme` 한 곳 |
@@ -37,7 +37,6 @@ wui/
   app/                    라우트. 페이지는 feature 컴포넌트 하나를 감싸기만 한다
     layout.tsx            Shell(헤더, 사이드바, 설정 모달, 토스트)
     page.tsx              홈
-    space/page.tsx        space 목록과 상세
     collected/page.tsx    작업대
     globals.css           토큰, 전역 글자 스타일(prose), 애니메이션
   features/<이름>/         한 화면 영역의 컴포넌트 묶음
@@ -62,7 +61,6 @@ wui/
 |---|---|
 | `shell` | 헤더, 사이드바 트리, 사이드바 폭 조절 |
 | `home` | 홈 입력창, ask/collect 모드, 수집 진행 표시 |
-| `space` | space 목록, 상세, 새 space 모달, 노트 편집 |
 | `workbench` | 그룹(최대 4), 좌우 분할, 드롭 구역, 패널 바, 작업대 Context |
 | `chat` | 대화 패널, 질문과 답변, 입력창(명령어, 제공사·모델), 인용, 주석 |
 | `doc` | 문서 패널, 언어 전환, 내려받기, 선택 막대 |
@@ -76,8 +74,8 @@ wui/
 
 | 부품 | 모양 | 쓰는 곳 |
 |---|---|---|
-| `Button tone="fill"` | 파란 채움 알약 | 그 화면의 주 동작 하나(Create, Log in, Save, research) |
-| `Button tone="line"` | 파란 윤곽 알약 | 섹션 동작(새 노트, 새 대화, + Plan login, + new) |
+| `Button tone="fill"` | 파란 채움 알약 | 그 화면의 주 동작 하나(Log in, Save, Submit) |
+| `Button tone="line"` | 파란 윤곽 알약 | 섹션 동작(+ Plan login, + API key), 그래프 도구 |
 | `Button tone="quiet"` | 회색 바탕 알약 | 보조 동작(Cancel, Log out, Remove, Default) |
 | `Button tone="link"` | 파란 글자 | 문장 안의 동작(이 답변에 질문하기, 고치기) |
 | `IconButton` | 28px 사각, 올리면 회색 | 헤더 아이콘(사이드바, 설정), 모달 닫기 |
@@ -90,7 +88,7 @@ wui/
 | `SectionHeader` | 13px 대문자 회색 제목, 개수, 오른쪽 동작 | 모든 섹션 머리 |
 | `TreeRow` `Chevron` `Fold` | 사이드바의 줄, 회전 화살표, 접기 애니메이션 | 사이드바 트리, 설정의 수단 목록 |
 | `Menu` `MenuItem` | 흰 바탕, 얇은 테두리, 그림자 없음 | 드롭다운, 명령어, 모델 선택 |
-| `Modal` | 어두운 배경 위 흰 패널, Esc 와 바깥 클릭으로 닫힘 | 새 space, 설정 |
+| `Modal` | 어두운 배경 위 흰 패널, Esc 와 바깥 클릭으로 닫힘 | 설정 |
 | `KeyValue` | 왼쪽 96px 회색 키, 오른쪽 값과 버튼 | 설정의 세부 |
 | `Icon` | 24 격자 1.5 선. 이름으로 고른다 | 모든 아이콘 |
 | `toast()` (`ui/Toaster.tsx`) | 화면 아래 흰 알약 | 짧은 알림 |

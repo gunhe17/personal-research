@@ -24,8 +24,8 @@ personal-research/
 │   ├── common/           store.py, log.py, llm.py
 │   └── database/         research.db 한 파일. git 밖
 └── wui/                  Next.js 화면. 규칙은 .claude/rules/frontend-rule.md
-    ├── app/              라우트(/ /space /collected)와 전역 스타일
-    ├── features/         화면 영역별 컴포넌트(shell, home, space, workbench, chat, doc, material, blocks, settings)
+    ├── app/              라우트(/ /collected)와 전역 스타일
+    ├── features/         화면 영역별 컴포넌트(shell, home, workbench, chat, doc, material, blocks, settings)
     ├── ui/               공용 부품(버튼, 행, 접기, 메뉴, 모달 …)
     ├── lib/              api, storage, markdown, events
     ├── check/            Playwright 화면 점검
@@ -59,7 +59,7 @@ personal-research/
 - 모델을 부를 때마다(답변은 Codex, 수집할 때의 번역은 claude) `llm` 에 한 행이 남는다. `owner_id` 는 질문 메시지 id 나 번역한 문서 id 다.
 - DB 를 처음 열 때 `common/store.py` 의 `upgrade` 가 예전 구조(`extra` `body` 열, `opened` `conversations` `agent` `asked` 표, 대화를 JSON 으로 담던 `space`, `space` 의 `purpose` `log` 열, 대화 첫머리에 끼워 둔 수업)를 지금 구조로 옮긴다.
 
-왼쪽 사이드바는 Home 과 Space 다. Space, space 이름, 그 아래 Conversations·Collected·Materials 폴더는 모두 펼치고 접는 폴더이고, 실제로 여는 것은 대화, 수집물, 자료 항목뿐이다. space 목록과 상세 페이지는 `/space`, `/space?id=…` 다.
+왼쪽 사이드바는 Home 과 Space 다. Space, space 이름, 그 아래 Conversations·Collected·Materials 폴더는 모두 펼치고 접는 폴더이고, 실제로 여는 것은 대화, 수집물, 자료 항목뿐이다.
 
 본문(`/collected`)은 VS Code 같은 편집기 그룹이다. 그룹 하나에 항목 하나만 뜬다. 사이드바 항목을 누르면 지금 그룹의 항목을 바꾸고, 끌어서 그룹 왼쪽이나 오른쪽 가장자리에 놓으면 그 쪽으로 화면이 나뉜다(최대 4개, 모두 나란히). 그룹 위의 `유형 / 이름` 줄을 끌면 그룹을 옮기고, 그 줄 오른쪽의 ×로 닫는다. 수집물은 × 왼쪽에 내려받기가 있다. 항목마다 유형에 맞는 패널이 뜬다: 대화는 `ChatPane`, 수집물은 `DocPane`, 자료는 `MaterialPane`. 패널 사이의 연결(근거 열기, 인용 보내기, 포커스)은 작업대 Context(`features/workbench/WorkbenchProvider.tsx`) 하나가 맡는다. 답변의 근거를 누르면 옆 그룹에 문서가 열리고, 문서에서 인용하면 열린 대화로 들어간다. 배치는 브라우저에 남아 다시 열어도 그대로다.
 

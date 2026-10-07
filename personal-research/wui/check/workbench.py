@@ -14,11 +14,10 @@ with sync_playwright() as p:
     page.on("console", lambda m: m.type == "error" and errors.append(m.text))
     page.set_default_timeout(15000)
 
-    page.goto(BASE + "/space")
-    page.wait_for_selector("text=research")
+    page.goto(BASE + "/")
     page.evaluate("localStorage.removeItem('workbench')")
-    page.locator("text=research").first.click()
-    page.wait_for_url("**/collected")
+    space = page.evaluate("fetch('/api/spaces').then(r => r.json()).then(d => (d.items.find(s => s.collected_count > 0) || d.items[0]).id)")
+    page.goto(f"{BASE}/collected?space={space}")
     page.get_by_label("Toggle sidebar").click()
     page.wait_for_timeout(800)
     nav = page.locator("nav").first

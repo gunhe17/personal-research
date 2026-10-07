@@ -156,12 +156,8 @@ export const api = {
   spaces: () => request<{ items: SpaceItem[] }>("/api/spaces"),
   space: (id: string) => request<Space>(`/api/spaces/${encodeURIComponent(id)}`),
   createSpace: (title: string, purpose: string) => send<{ id: string }>("/api/spaces", { title, purpose }),
-  editSpace: (id: string, values: { title?: string; purpose?: string }) => send<Space>(`/api/spaces/${encodeURIComponent(id)}`, values, "PUT"),
 
   material: (id: string) => request<Material>(`/api/materials/${encodeURIComponent(id)}`),
-  createNote: (space: string, title: string, content: string) => send<Material>(`/api/spaces/${encodeURIComponent(space)}/materials`, { kind: "note", title, content }),
-  editNote: (id: string, title: string, content: string) => send<Material>(`/api/materials/${encodeURIComponent(id)}`, { kind: "note", title, content }, "PUT"),
-  removeMaterial: (id: string) => request<{ ok: boolean }>(`/api/materials/${encodeURIComponent(id)}`, { method: "DELETE" }),
 
   conversation: (domain: Domain, id: string) => request<Conversation>(`/api/${domain}/conversations/${encodeURIComponent(id)}`),
   startAgent: (question: string) => send<{ id: string }>("/api/agent/conversations", { question, client_id: crypto.randomUUID() }),
