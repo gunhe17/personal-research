@@ -183,11 +183,7 @@
         ${row("Usage", used(m))}
         ${remove(m)}`;
       };
-      const plus = (type, label) => `
-            <button type="button" data-add="${type}" class="flex w-full items-center gap-1.5 rounded-lg py-1.5 pl-1 pr-1.5 text-left text-[13px] text-apple-link transition duration-150 hover:bg-slate-50">
-              <span class="inline-flex h-4 w-4 shrink-0 items-center justify-center"><svg viewBox="0 0 16 16" class="h-3 w-3"><path d="M8 3.5v9M3.5 8h9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg></span>
-              <span>${label}</span>
-            </button>`;
+      const choice = (type, label) => `<button type="button" role="menuitem" data-add="${type}" class="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] text-slate-800 hover:bg-slate-50">${methodIcon(type)}${label}</button>`;
       pane.innerHTML = `
         <div>
           <h3 class="text-[21px] font-semibold tracking-tight text-slate-900">${p.label}</h3>
@@ -195,7 +191,14 @@
           <p data-error class="mt-2 text-[12px] text-red-600" hidden></p>
         </div>
         <section>
-          <h4 class="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Try in this order</h4>
+          <div class="relative mb-1.5 flex items-center">
+            <h4 class="flex-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Try in this order</h4>
+            <button type="button" data-add-menu aria-haspopup="menu" aria-expanded="false" title="Add a login method" class="flex h-6 w-6 items-center justify-center rounded-md bg-slate-100 text-slate-700 transition hover:bg-slate-200"><svg viewBox="0 0 16 16" class="h-3 w-3"><path d="M8 3.5v9M3.5 8h9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg></button>
+            <div data-add-list role="menu" class="absolute right-0 top-7 z-10 hidden w-44 space-y-1 rounded-xl bg-white p-1.5 ring-1 ring-slate-200">
+              ${choice("plan_key", "Plan login")}
+              ${choice("api_key", "API key")}
+            </div>
+          </div>
           <div class="space-y-0.5">
             ${p.methods.map((m, i) => {
               const rank = enabled.indexOf(m);
@@ -220,8 +223,6 @@
               <div data-detail class="ml-3 border-l border-slate-100 pl-5" ${open ? "" : "hidden"}><div class="pb-2 pt-0.5">${detail(m)}</div></div>
             </div>`;
             }).join("")}
-            ${plus("plan_key", "Plan login")}
-            ${plus("api_key", "API key")}
           </div>
         </section>`;
       pane.querySelectorAll("[data-method]").forEach((li) => {
@@ -229,7 +230,13 @@
         li.querySelectorAll("[data-action]").forEach((b) => b.addEventListener("click", () => methodAction(id, m, b.dataset.action, li)));
         li.querySelector("input[type=password]")?.addEventListener("keydown", (e) => { if (e.key === "Enter") methodAction(id, m, "save-key", li); });
       });
+      const menu = pane.querySelector("[data-add-list]");
+      const toggle = pane.querySelector("[data-add-menu]");
+      const show = (open) => { menu.classList.toggle("hidden", !open); toggle.setAttribute("aria-expanded", String(open)); };
+      toggle.addEventListener("click", (e) => { e.stopPropagation(); show(menu.classList.contains("hidden")); });
+      pane.addEventListener("pointerdown", (e) => { if (!e.target.closest("[data-add-menu], [data-add-list]")) show(false); });
       pane.querySelectorAll("[data-add]").forEach((b) => b.addEventListener("click", async () => {
+        show(false);
         const before = new Set(p.methods.map((m) => m.id));
         if (!(await saveProvider(id, { add: b.dataset.add }))) return;
         const added = settings.providers.find((x) => x.id === id).methods.find((m) => !before.has(m.id));
