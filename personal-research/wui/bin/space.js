@@ -21,13 +21,22 @@ function inline(node, text) {
     else node.append(document.createTextNode(piece));
   });
 }
-function paragraph(parent, text, cls = '') { const p = el('p', cls); inline(p, text); parent.append(p); return p; }
-function author() { const n = el('div', 'author'); n.append(el('span', 'author-mark', '∂'), el('span', '', 'Codex')); return n; }
+function paragraph(parent, text, cls = '') {
+  const pieces = text.split(/`{2,3}[a-z]*\s*([\s\S]*?)`{2,3}/);
+  let last = null;
+  pieces.forEach((piece, index) => {
+    if (index % 2) { parent.append(el('pre', 'code-block', piece.trim())); return; }
+    if (!piece.trim()) return;
+    last = el('p', cls); inline(last, piece.trim()); parent.append(last);
+  });
+  return last || parent;
+}
+function author(label = 'Codex') { const n = el('div', 'author'); n.append(el('span', 'author-mark', label === 'Codex' ? '∂' : '↓'), el('span', '', label)); return n; }
 function scroller() { return $('space-scroll'); }
 
 // render
-function renderAnswer(answer) {
-  const article = el('article', 'assistant-message'); article.dataset.answerId = answer.id; article.append(author());
+function renderAnswer(answer, label) {
+  const article = el('article', 'assistant-message'); article.dataset.answerId = answer.id; article.append(author(label));
   const content = el('div', 'article-content');
   if (answer.rich) {
     content.append(el('h2', '', answer.rich.title));
@@ -38,6 +47,7 @@ function renderAnswer(answer) {
         playgrounds.set(key, pg); content.append(pg); if (block.text) paragraph(pg, block.text, 'pg-task');
       } else if (block.kind === 'heading') content.append(el('h3', '', block.text));
       else if (block.kind === 'formula') content.append(el('div', 'formula', block.text));
+      else if (block.kind === 'code') content.append(el('pre', 'code-block', block.text));
       else if (block.kind === 'bullet') { const list = el('ul'), item = el('li'); inline(item, block.text); list.append(item); content.append(list); }
       else paragraph(content, block.text);
     });
@@ -101,14 +111,16 @@ function renderStatus(question, entry) {
 
 function renderMessages() {
   const box = scroller(), nearBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 300;
-  let added = false;
+  let added = false, previous = null;
   for (const message of chat.messages) {
     if (message.role === 'user') {
+      previous = message;
       const entry = threads.get(message.id) || (added = true, renderQuestion(message));
       renderStatus(message, entry);
     } else if (!rendered.has(message.id)) {
-      const parent = threads.get(message.question_id)?.answers || $('messages');
-      parent.append(renderAnswer(message)); rendered.add(message.id); added = true;
+      const asked = chat.messages.find(m => m.id === message.question_id) || previous;
+      const parent = threads.get(asked?.id)?.answers || $('messages');
+      parent.append(renderAnswer(message, asked?.kind === 'collect' ? '수집' : 'Codex')); rendered.add(message.id); added = true;
     }
   }
   if (added) { if (nearBottom) scrollBottom(); else $('jump-bottom').hidden = false; }
@@ -237,7 +249,7 @@ async function send(event) {
   retryPayload = payload; sending = true; $('send').disabled = true; persist(); $('form-status').textContent = '보내는 중…';
   try {
     if (!chat) {
-      if (scope.domain === 'space' && !scope.space) scope.space = await post('/api/spaces', { title: text.slice(0, 48) });
+      if (scope.domain === 'space' && !scope.space) scope.space = await post('/api/spaces', { title: named(text) });
       const created = await post(`/api/${scope.domain}/conversations`, { space_id: scope.space?.id, collected_id: doc?.id || '' });
       await open(scope.domain, created.id);
     }
@@ -249,6 +261,34 @@ async function send(event) {
     $('form-status').textContent = `${error.message} 입력 내용은 유지됩니다.`; persist();
   } finally { sending = false; $('send').disabled = false; }
 }
+function named(text) {
+  const repository = doc?.path.match(/^repos\/github\/([^/]+\/[^/]+)/);
+  if (repository) return repository[1];
+  if (doc) return doc.path.split('/').pop().replace(/\.(md|html)$/, '');
+  return text.length > 24 ? `${text.slice(0, 24)}…` : text;
+}
+
+function rename(target) {
+  const trigger = $(target === 'space' ? 'btn-space' : 'btn-conversation');
+  const owner = target === 'space' ? scope.space : chat;
+  if (!owner || trigger.hidden) return;
+  only(null);
+  const input = el('input', 'rename-input'); input.value = owner.title; input.setAttribute('aria-label', '이름');
+  trigger.hidden = true; trigger.after(input); input.focus(); input.select();
+  let finished = false;
+  const done = async save => {
+    if (finished) return; finished = true;
+    const title = input.value.trim();
+    input.remove(); trigger.hidden = false;
+    if (!save || !title || title === owner.title) return;
+    const url = target === 'space' ? `/api/spaces/${owner.id}` : base();
+    try { await post(url, { title }, 'PUT'); owner.title = title; research.spacesChanged(); } catch (error) { $('form-status').textContent = error.message; }
+    renderHeader();
+  };
+  input.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); done(true); } if (event.key === 'Escape') done(false); });
+  input.addEventListener('blur', () => done(true));
+}
+
 function resizeInput() { const input = $('message-input'); input.style.height = 'auto'; input.style.height = `${Math.min(input.scrollHeight, 180)}px`; }
 
 // events
@@ -267,6 +307,9 @@ $('btn-conversation').addEventListener('click', async event => {
   if (!$('conversation-menu').classList.toggle('hidden')) await renderConversations();
 });
 function only(keep) { ['space-menu', 'conversation-menu', 'links-menu'].filter(id => id !== keep).forEach(id => $(id).classList.add('hidden')); }
+document.addEventListener('keydown', event => { if (event.key === 'Escape') only(null); });
+$('btn-space').addEventListener('dblclick', () => rename('space'));
+$('btn-conversation').addEventListener('dblclick', () => rename('conversation'));
 $('btn-links').addEventListener('click', event => { event.stopPropagation(); only('links-menu'); renderLinks(); $('links-menu').classList.toggle('hidden'); });
 document.addEventListener('click', event => {
   if (!$('space-dd').contains(event.target)) $('space-menu').classList.add('hidden');

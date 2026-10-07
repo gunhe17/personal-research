@@ -312,7 +312,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def collecting(*, given: str, send) -> None:
     started = record.create(domain="agent", data={})
-    record.ask(domain="agent", id=started["id"], data={"content": given, "kind": "collect", "status": "completed"})
+    question = record.ask(domain="agent", id=started["id"], data={"content": given, "kind": "collect", "status": "completed"})
     send({"type": "conversation", "domain": "agent", "id": started["id"]})
     outcome = {}
 
@@ -332,6 +332,7 @@ def collecting(*, given: str, send) -> None:
         record.add(domain="agent", id=started["id"], message={
             "id": str(uuid.uuid4()),
             "role": "assistant",
+            "question_id": question["id"],
             "content": outcome.get("text") or outcome.get("error") or "수집을 마치지 못했습니다.",
             "sources": [{"id": outcome["id"], "path": store.path_of(id=outcome["id"])}] if outcome.get("id") else None,
             "created_at": store.now(),

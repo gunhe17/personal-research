@@ -650,7 +650,7 @@
               assistant.content += ev.text;
             } else if (ev.type === "done") {
               if (ev.text) assistant.content = ev.text;
-              if (ev.id) assistant.sources = [{ id: ev.id, path: state.nodeById.get(ev.id)?.path || ev.id }];
+              if (ev.id && !assistant.sources) assistant.sources = [{ id: ev.id, path: state.nodeById.get(ev.id)?.path || ev.id }];
             } else if (ev.type === "error") {
               assistant.content = (assistant.content ? assistant.content + "\n\n" : "") + `Error: ${ev.error}`;
             }
