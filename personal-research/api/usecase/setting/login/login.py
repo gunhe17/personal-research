@@ -76,10 +76,12 @@ def signed(*, provider: str) -> dict:
         detail = (parsed.get("email") or parsed.get("authMethod") or "") if parsed.get("loggedIn") else ""
         return {"logged_in": bool(parsed.get("loggedIn")), "detail": f"{detail} · 토큰 {token}" if token else detail}
     if provider == "openai":
-        return {"logged_in": done.returncode == 0 and "Logged in" in output, "detail": output.splitlines()[0] if output else ""}
+        first = output.splitlines()[0] if output else ""
+        return {"logged_in": done.returncode == 0 and "Logged in" in output, "detail": first.removeprefix("Logged in using ").strip()}
 
     first = output.splitlines()[0] if output else ""
-    return {"logged_in": "logged in" in first.lower(), "detail": first}
+    via = re.search(r"logged in with (\S+?)\.?$", first, re.IGNORECASE)
+    return {"logged_in": "logged in" in first.lower(), "detail": via.group(1) if via else ""}
 
 
 # #

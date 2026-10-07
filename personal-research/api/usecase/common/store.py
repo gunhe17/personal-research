@@ -122,9 +122,7 @@ CREATE TABLE IF NOT EXISTS user_meta (
     kind         TEXT NOT NULL,
     collected_id TEXT NOT NULL DEFAULT '',
     value        TEXT NOT NULL DEFAULT '{}',
-    openai       TEXT NOT NULL DEFAULT '',
-    anthropic    TEXT NOT NULL DEFAULT '',
-    xai          TEXT NOT NULL DEFAULT '',
+    secret       TEXT NOT NULL DEFAULT '',
     updated_at   TEXT NOT NULL,
     PRIMARY KEY (user_id, kind, collected_id)
 );
@@ -429,9 +427,8 @@ def upgrade(*, connection) -> None:
     # credential
     if "auth" not in columns(connection=connection, table="llm"):
         connection.execute("ALTER TABLE llm ADD COLUMN auth TEXT NOT NULL DEFAULT ''")
-    for provider in ("openai", "anthropic", "xai"):
-        if provider not in columns(connection=connection, table="user_meta"):
-            connection.execute(f"ALTER TABLE user_meta ADD COLUMN {provider} TEXT NOT NULL DEFAULT ''")
+    if "secret" not in columns(connection=connection, table="user_meta"):
+        connection.execute("ALTER TABLE user_meta ADD COLUMN secret TEXT NOT NULL DEFAULT ''")
     # conversation
     paths = dict(connection.execute("SELECT path, id FROM collected").fetchall())
     for table in ("conversations", "agent"):
