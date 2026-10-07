@@ -21,6 +21,8 @@ BIN = os.environ.get("CODEX_BIN") or shutil.which("codex") or "codex"
 CLAUDE = os.environ.get("CLAUDE_BIN") or shutil.which("claude") or str(Path.home() / ".local" / "bin" / "claude")
 GROK = os.environ.get("GROK_BIN") or shutil.which("grok") or str(Path.home() / ".grok" / "bin" / "grok")
 RUNNERS = {"openai": "codex", "anthropic": "claude", "xai": "grok"}
+GROK_RESEARCH = "지금은 답하지 말고 조사만 하세요. 작업 폴더의 수집물을 읽고 grep 으로 관련 문서를 찾아, 답에 쓸 내용과 근거 path 를 짧게 정리해 두세요. 답변 JSON 은 다음 요청에서 만듭니다."
+GROK_ANSWER = "앞에서 조사한 내용으로 처음 요청에 대한 최종 답변을 요청된 JSON 하나로 만드세요. 근거로 쓴 문서의 path 를 sources 에 적으세요."
 CORPUS = store.API / "data" / "corpus"
 TIMEOUT = 600
 TURN = threading.Lock()
@@ -223,33 +225,43 @@ def claude(*, conversation: dict, question: dict, request: str, model: str) -> d
 
 def grok(*, conversation: dict, question: dict, request: str, model: str) -> dict:
     session_id = conversation["meta"].get("grok", {}).get("session_id")
+    base = [
+        GROK if Path(GROK).exists() else "grok",
+        "--output-format", "json",
+        "-m", model,
+        "--tools", "read_file,grep,list_dir",
+        "--disallowed-tools", "Agent",
+        "--disable-web-search",
+    ]
     with tempfile.TemporaryDirectory(prefix="conversation-") as folder:
-        prompt_file = Path(folder) / "prompt.txt"
-        prompt_file.write_text(request, encoding="utf-8")
-        command = [
-            GROK if Path(GROK).exists() else "grok",
-            "--prompt-file", str(prompt_file),
-            "--output-format", "json",
-            "--json-schema", json.dumps(SCHEMA),
-            "-m", model,
-            "--tools", "read_file,grep,list_dir",
-            "--disallowed-tools", "Agent",
-            "--disable-web-search",
-        ]
-        command += ["-r", session_id] if session_id else []
+        research = Path(folder) / "research.txt"
+        research.write_text(request + "\n\n" + GROK_RESEARCH, encoding="utf-8")
+        command = [*base, "--prompt-file", str(research), *(["-r", session_id] if session_id else [])]
         exit_code, stdout, stderr = call(command=command, request=request, conversation=conversation, question=question, provider="grok", model=model)
-    try:
-        result = json.loads(stdout)
-    except json.JSONDecodeError:
-        result = {}
-    if result.get("sessionId") and not session_id:
-        record.remember(domain=conversation["domain"], id=conversation["id"], provider="grok", values={"session_id": result["sessionId"], "model": model})
+        studied = parsed_json(text=stdout)
+        session_id = session_id or studied.get("sessionId")
+        if exit_code != 0 or not session_id:
+            raise RuntimeError(f"Grok 이 조사하지 못했습니다 (exit {exit_code}). {str(studied.get('text') or stderr or stdout).strip()[-300:]}")
+        record.remember(domain=conversation["domain"], id=conversation["id"], provider="grok", values={"session_id": session_id, "model": model})
+        answer = Path(folder) / "answer.txt"
+        answer.write_text(GROK_ANSWER, encoding="utf-8")
+        command = [*base, "--prompt-file", str(answer), "--json-schema", json.dumps(SCHEMA), "-r", session_id]
+        exit_code, stdout, stderr = call(command=command, request=GROK_ANSWER, conversation=conversation, question=question, provider="grok", model=model)
+    result = parsed_json(text=stdout)
     if exit_code != 0 or not isinstance(result.get("structuredOutput"), dict):
-        failed = str(result.get("text") or stderr or stdout)
-        raise RuntimeError(f"Grok 이 답하지 못했습니다 (exit {exit_code}). {failed.strip()[-300:]}")
+        raise RuntimeError(f"Grok 이 답하지 못했습니다 (exit {exit_code}). {str(result.get('text') or stderr or stdout).strip()[-300:]}")
     generated = validate(answer=result["structuredOutput"])
 
     return generated
+
+
+def parsed_json(*, text: str) -> dict:
+    try:
+        found = json.loads(text)
+    except json.JSONDecodeError:
+        return {}
+
+    return found if isinstance(found, dict) else {}
 
 
 def call(*, command: list, request: str, conversation: dict, question: dict, provider: str, model: str) -> tuple[int, str, str]:
