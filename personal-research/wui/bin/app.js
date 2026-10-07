@@ -183,7 +183,7 @@
         ${row("Usage", used(m))}
         ${remove(m)}`;
       };
-      const choice = (type, label) => `<button type="button" data-add="${type}" class="inline-flex shrink-0 items-center gap-1 rounded-full border border-apple-link px-3 py-1 text-[13px] text-apple-link transition hover:bg-ice"><svg viewBox="0 0 16 16" class="h-3 w-3"><path d="M8 3.5v9M3.5 8h9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg>${label}</button>`;
+      const choice = (type, label) => `<button type="button" data-add="${type}" class="rounded-full border border-apple-link px-3 py-1 text-[13px] text-apple-link hover:bg-white transition">+ ${label}</button>`;
       pane.innerHTML = `
         <div>
           <h3 class="text-[21px] font-semibold tracking-tight text-slate-900">${p.label}</h3>
