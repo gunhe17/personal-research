@@ -577,7 +577,7 @@
       }
       if (!collecting) {
         try {
-          const res = await fetch("/api/spaces", {
+          const res = await fetch("/api/agent/conversations", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ question: value, client_id: uid() }),
@@ -585,9 +585,9 @@
           const created = await res.json();
           if (!res.ok) throw new Error(created.error);
           localStorage.setItem("layout", "chat");
-          location.href = `${COLLECTED_URL}?space=${encodeURIComponent(created.id)}`;
+          location.href = `${COLLECTED_URL}?agent=${encodeURIComponent(created.id)}`;
         } catch (e) {
-          toast(`Could not start a space: ${e.message || e}`);
+          toast(`Could not start the chat: ${e.message || e}`);
         }
         return;
       }
@@ -1682,7 +1682,7 @@
 
     // init
     const opened = new URLSearchParams(location.search);
-    if (opened.get("space") && !opened.get("doc")) state.layout = "chat";
+    if ((opened.get("space") || opened.get("conversation") || opened.get("agent")) && !opened.get("doc")) state.layout = "chat";
     if (window.matchMedia("(max-width: 767px)").matches) {
       state.sidebarOpen = false;
       if (state.layout === "split") state.layout = "doc";

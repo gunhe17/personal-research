@@ -15,12 +15,17 @@ DATABASE = API / (os.environ.get("DATABASE_PATH") or "database/research.db")
 LANGUAGES = ("eng", "kor")
 DOCUMENT_SUFFIX = (".md", ".html")
 DECORATION = re.compile(r"\A(?:> ## Documentation Index\n(?:>.*\n)*|---\n(?s:.*?)\n---\n)\n*")
+USER = "default"
+MESSAGE = (
+    "id", "conversation_id", "role", "kind", "content", "context", "rich", "sources",
+    "question_id", "client_id", "status", "error", "created_at",
+)
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS collected (
-    id    TEXT PRIMARY KEY,
-    url   TEXT NOT NULL,
-    path  TEXT NOT NULL UNIQUE,
-    extra TEXT NOT NULL DEFAULT '{}'
+    id   TEXT PRIMARY KEY,
+    url  TEXT NOT NULL,
+    path TEXT NOT NULL UNIQUE,
+    meta TEXT NOT NULL DEFAULT '{}'
 );
 CREATE INDEX IF NOT EXISTS collected_url ON collected (url);
 
@@ -29,15 +34,104 @@ CREATE TABLE IF NOT EXISTS collected_content (
     language     TEXT NOT NULL,
     version      INTEGER NOT NULL,
     decoration   TEXT NOT NULL DEFAULT '',
-    body         TEXT NOT NULL,
+    content      TEXT NOT NULL,
     created_at   TEXT NOT NULL,
     PRIMARY KEY (collected_id, language, version)
 );
 
-CREATE TABLE IF NOT EXISTS opened (
-    collected_id TEXT PRIMARY KEY,
-    opened_at    TEXT NOT NULL
+CREATE TABLE IF NOT EXISTS space (
+    id         TEXT PRIMARY KEY,
+    title      TEXT NOT NULL,
+    purpose    TEXT NOT NULL DEFAULT '',
+    log        TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS space_conversation (
+    id           TEXT PRIMARY KEY,
+    space_id     TEXT NOT NULL,
+    collected_id TEXT NOT NULL DEFAULT '',
+    title        TEXT NOT NULL,
+    meta         TEXT NOT NULL DEFAULT '{}',
+    created_at   TEXT NOT NULL,
+    updated_at   TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS space_conversation_space ON space_conversation (space_id);
+
+CREATE TABLE IF NOT EXISTS space_message (
+    id              TEXT PRIMARY KEY,
+    conversation_id TEXT NOT NULL,
+    role            TEXT NOT NULL,
+    kind            TEXT,
+    content         TEXT NOT NULL,
+    context         TEXT,
+    rich            TEXT,
+    sources         TEXT,
+    question_id     TEXT,
+    client_id       TEXT,
+    status          TEXT,
+    error           TEXT,
+    created_at      TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS space_message_conversation ON space_message (conversation_id);
+
+CREATE TABLE IF NOT EXISTS agent_conversation (
+    id           TEXT PRIMARY KEY,
+    collected_id TEXT NOT NULL DEFAULT '',
+    title        TEXT NOT NULL,
+    meta         TEXT NOT NULL DEFAULT '{}',
+    created_at   TEXT NOT NULL,
+    updated_at   TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS agent_message (
+    id              TEXT PRIMARY KEY,
+    conversation_id TEXT NOT NULL,
+    role            TEXT NOT NULL,
+    kind            TEXT,
+    content         TEXT NOT NULL,
+    context         TEXT,
+    rich            TEXT,
+    sources         TEXT,
+    question_id     TEXT,
+    client_id       TEXT,
+    status          TEXT,
+    error           TEXT,
+    created_at      TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS agent_message_conversation ON agent_message (conversation_id);
+
+CREATE TABLE IF NOT EXISTS user (
+    id         TEXT PRIMARY KEY,
+    name       TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS user_meta (
+    user_id      TEXT NOT NULL,
+    kind         TEXT NOT NULL,
+    collected_id TEXT NOT NULL DEFAULT '',
+    value        TEXT NOT NULL DEFAULT '{}',
+    updated_at   TEXT NOT NULL,
+    PRIMARY KEY (user_id, kind, collected_id)
+);
+
+CREATE TABLE IF NOT EXISTS llm (
+    id          TEXT PRIMARY KEY,
+    provider    TEXT NOT NULL,
+    model       TEXT NOT NULL DEFAULT '',
+    purpose     TEXT NOT NULL,
+    owner_id    TEXT NOT NULL DEFAULT '',
+    command     TEXT NOT NULL,
+    request     TEXT NOT NULL,
+    response    TEXT NOT NULL,
+    stderr      TEXT NOT NULL DEFAULT '',
+    exit_code   INTEGER,
+    started_at  TEXT NOT NULL,
+    finished_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS llm_owner ON llm (owner_id);
 
 CREATE TABLE IF NOT EXISTS log (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -46,24 +140,6 @@ CREATE TABLE IF NOT EXISTS log (
     message    TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS log_created_at ON log (created_at);
-
-CREATE TABLE IF NOT EXISTS space (
-    id         TEXT PRIMARY KEY,
-    title      TEXT NOT NULL,
-    purpose    TEXT NOT NULL DEFAULT '',
-    log        TEXT NOT NULL DEFAULT '',
-    thread_id  TEXT,
-    messages   TEXT NOT NULL DEFAULT '[]',
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS space_collected (
-    space_id     TEXT NOT NULL,
-    collected_id TEXT NOT NULL,
-    linked_at    TEXT NOT NULL,
-    PRIMARY KEY (space_id, collected_id)
-);
 """
 
 
@@ -95,6 +171,8 @@ def session():
         connection.execute("PRAGMA journal_mode = WAL")
         connection.execute("PRAGMA busy_timeout = 30000")
         connection.executescript(SCHEMA)
+        if not UPGRADED:
+            upgrade(connection=connection)
         yield connection
         connection.commit()
     except Exception:
@@ -157,7 +235,7 @@ def read(*, id: str, language: str) -> str:
     if row is None:
         raise ValueError(f"No body for {id} {language}")
 
-    return row["body"]
+    return row["content"]
 
 
 def exists(*, id: str, language: str) -> bool:
@@ -187,7 +265,7 @@ def save(*, id: str, language: str, body: str, decoration: str = "") -> str:
     with session() as connection:
         current = latest(connection=connection, id=id, language=language)
         if language == "eng":
-            if current and current["body"] == body and current["decoration"] == decoration:
+            if current and current["content"] == body and current["decoration"] == decoration:
                 return id
             number = current["version"] + 1 if current else 1
         else:
@@ -229,7 +307,7 @@ def mirror(*, url: str, path: str, text: str) -> str:
 
 def meta(*, id: str) -> dict:
     with session() as connection:
-        row = connection.execute("SELECT url, path, extra FROM collected WHERE id = ?", (id,)).fetchone()
+        row = connection.execute("SELECT url, path, meta FROM collected WHERE id = ?", (id,)).fetchone()
     if row is None:
         return {}
 
@@ -270,8 +348,8 @@ def find(*, url: str) -> str | None:
 def touch(*, id: str) -> str:
     with session() as connection:
         connection.execute(
-            "INSERT OR REPLACE INTO opened VALUES (?, ?)",
-            (id, now()),
+            "INSERT OR REPLACE INTO user_meta (user_id, kind, collected_id, value, updated_at) VALUES (?, 'opened', ?, '{}', ?)",
+            (USER, id, now()),
         )
 
     return id
@@ -279,7 +357,10 @@ def touch(*, id: str) -> str:
 
 def opened() -> dict[str, str]:
     with session() as connection:
-        rows = connection.execute("SELECT collected_id, opened_at FROM opened").fetchall()
+        rows = connection.execute(
+            "SELECT collected_id, updated_at FROM user_meta WHERE user_id = ? AND kind = 'opened'",
+            (USER,),
+        ).fetchall()
 
     return dict(rows)
 
@@ -292,7 +373,7 @@ def export(*, folder: Path) -> str:
     with session() as connection:
         connection.row_factory = sqlite3.Row
         for row in connection.execute(
-            """SELECT collected.path, c.language, c.body FROM collected_content AS c
+            """SELECT collected.path, c.language, c.content FROM collected_content AS c
                JOIN collected ON collected.id = c.collected_id
                JOIN (SELECT collected_id, language, MAX(version) AS version
                      FROM collected_content GROUP BY collected_id, language) AS top
@@ -300,10 +381,10 @@ def export(*, folder: Path) -> str:
                 AND top.language = c.language
                 AND top.version = c.version"""
         ):
-            write_file(path=folder / row["language"] / row["path"], text=row["body"])
+            write_file(path=folder / row["language"] / row["path"], text=row["content"])
             documents += 1
-        for row in connection.execute("SELECT id, url, path, extra FROM collected"):
-            payload = {"id": row["id"], "url": row["url"], **json.loads(row["extra"])}
+        for row in connection.execute("SELECT id, url, path, meta FROM collected"):
+            payload = {"id": row["id"], "url": row["url"], **json.loads(row["meta"])}
             write_file(
                 path=folder / "meta" / f"{row['path']}.json",
                 text=json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
@@ -316,3 +397,119 @@ def export(*, folder: Path) -> str:
 def write_file(*, path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
+
+
+# #
+# upgrade
+
+UPGRADED = False
+
+
+def upgrade(*, connection) -> None:
+    global UPGRADED
+    tables = {r[0] for r in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+    # rename
+    if "extra" in columns(connection=connection, table="collected"):
+        connection.execute("ALTER TABLE collected RENAME COLUMN extra TO meta")
+    if "body" in columns(connection=connection, table="collected_content"):
+        connection.execute("ALTER TABLE collected_content RENAME COLUMN body TO content")
+    # user
+    connection.execute("INSERT OR IGNORE INTO user (id, name, created_at) VALUES (?, ?, ?)", (USER, "나", now()))
+    if "opened" in tables:
+        connection.execute(
+            """INSERT OR REPLACE INTO user_meta (user_id, kind, collected_id, value, updated_at)
+               SELECT ?, 'opened', collected_id, '{}', opened_at FROM opened""",
+            (USER,),
+        )
+        connection.execute("DROP TABLE opened")
+    # conversation
+    paths = dict(connection.execute("SELECT path, id FROM collected").fetchall())
+    for table in ("conversations", "agent"):
+        if table not in tables:
+            continue
+        for id, title, created_at, updated_at, messages in connection.execute(
+            f"SELECT id, title, createdAt, updatedAt, messages FROM {table}"
+        ).fetchall():
+            converted, cited = legacy(messages=json.loads(messages), created_at=created_at)
+            collected_id = next((paths[p] for p in cited if p in paths), "")
+            if table == "agent":
+                conversation(connection=connection, domain="agent", row={"id": id, "collected_id": collected_id, "title": title, "created_at": created_at, "updated_at": updated_at}, messages=converted)
+            else:
+                connection.execute("INSERT OR IGNORE INTO space (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)", (id, title, created_at, updated_at))
+                conversation(connection=connection, domain="space", row={"id": id, "space_id": id, "collected_id": collected_id, "title": title, "created_at": created_at, "updated_at": updated_at}, messages=converted)
+        connection.execute(f"DROP TABLE {table}")
+    if "asked" in tables:
+        for id, title, plan, log, thread_id, messages, created_at, updated_at in connection.execute(
+            "SELECT id, title, plan, log, thread_id, messages, created_at, updated_at FROM asked"
+        ).fetchall():
+            connection.execute("INSERT OR IGNORE INTO space (id, title, purpose, log, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)", (id, title, plan, log, created_at, updated_at))
+            conversation(connection=connection, domain="space", row={"id": id, "space_id": id, "title": title, "meta": codex(thread_id=thread_id), "created_at": created_at, "updated_at": updated_at}, messages=json.loads(messages))
+        connection.execute("DROP TABLE asked")
+    if "messages" in columns(connection=connection, table="space"):
+        links = dict(connection.execute("SELECT space_id, MIN(collected_id) FROM space_collected GROUP BY space_id").fetchall()) if "space_collected" in tables else {}
+        for id, title, thread_id, messages, created_at, updated_at in connection.execute(
+            "SELECT id, title, thread_id, messages, created_at, updated_at FROM space"
+        ).fetchall():
+            conversation(connection=connection, domain="space", row={"id": id, "space_id": id, "collected_id": links.get(id, ""), "title": title, "meta": codex(thread_id=thread_id), "created_at": created_at, "updated_at": updated_at}, messages=json.loads(messages))
+        connection.execute("ALTER TABLE space DROP COLUMN messages")
+        connection.execute("ALTER TABLE space DROP COLUMN thread_id")
+        connection.execute("DROP TABLE IF EXISTS space_collected")
+    UPGRADED = True
+
+
+def columns(*, connection, table: str) -> set[str]:
+    return {
+        r[1] for r in connection.execute(f"PRAGMA table_info({table})")
+    }
+
+
+def codex(*, thread_id: str | None) -> dict:
+    return {"codex": {"thread_id": thread_id}} if thread_id else {}
+
+
+def conversation(*, connection, domain: str, row: dict, messages: list[dict]) -> None:
+    fields = ["id", "collected_id", "title", "meta", "created_at", "updated_at"] + (["space_id"] if domain == "space" else [])
+    values = {**row, "collected_id": row.get("collected_id") or "", "meta": json.dumps(row.get("meta") or {}, ensure_ascii=False)}
+    connection.execute(
+        f"INSERT OR IGNORE INTO {domain}_conversation ({', '.join(fields)}) VALUES ({', '.join('?' * len(fields))})",
+        tuple(values[f] for f in fields),
+    )
+    for message in messages:
+        connection.execute(
+            f"INSERT OR IGNORE INTO {domain}_message ({', '.join(MESSAGE)}) VALUES ({', '.join('?' * len(MESSAGE))})",
+            stored(message=message, conversation_id=row["id"]),
+        )
+
+
+def stored(*, message: dict, conversation_id: str) -> tuple:
+    encoded = lambda value: None if value is None else json.dumps(value, ensure_ascii=False)
+
+    return (
+        message["id"],
+        conversation_id,
+        message["role"],
+        message.get("kind"),
+        message.get("content", message.get("body")) or "",
+        encoded(message.get("context")),
+        encoded(message.get("rich")),
+        encoded(message.get("sources")),
+        message.get("question_id"),
+        message.get("client_id"),
+        message.get("status"),
+        message.get("error"),
+        message.get("created_at") or now(),
+    )
+
+
+def legacy(*, messages: list[dict], created_at: str) -> tuple[list[dict], list[str]]:
+    converted, cited, question_id = [], [], None
+    for message in messages:
+        if message.get("role") == "user":
+            question_id = str(uuid.uuid4())
+            citations = message.get("citations") or []
+            cited += [c["path"] for c in citations if c.get("path")]
+            converted.append({"id": question_id, "role": "user", "kind": "question", "content": message.get("content") or "", "context": {"citations": citations}, "status": "completed", "created_at": created_at})
+        elif message.get("role") == "assistant":
+            converted.append({"id": str(uuid.uuid4()), "role": "assistant", "content": message.get("content") or "", "question_id": question_id, "created_at": created_at})
+
+    return converted, cited

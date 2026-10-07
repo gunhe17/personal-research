@@ -108,7 +108,7 @@
 #links-menu .link-head { padding: 6px 8px 4px; font-size: 11px; font-weight: 600; color: #707070; }
 #links-menu .link-action { display: block; width: 100%; margin-top: 4px; padding: 6px 8px; border-radius: 8px; text-align: left; font-size: 12px; color: #0066cc; }
 #links-menu .link-action:hover { background: #f5f5f7; }
-#space-menu .space-row { display: block; width: 100%; padding: 6px 8px; border-radius: 8px; text-align: left; }
-#space-menu .space-row:hover, #space-menu .space-row[aria-selected=true] { background: #f5f5f7; }
-#space-menu .space-row strong { display: block; font-size: 13px; font-weight: 500; color: #1d1d1f; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#space-menu .space-row span { font-size: 11px; color: #858585; }
+#chat-panel .menu-row { display: block; width: 100%; padding: 6px 8px; border-radius: 8px; text-align: left; }
+#chat-panel .menu-row:hover, #chat-panel .menu-row[aria-selected=true] { background: #f5f5f7; }
+#chat-panel .menu-row strong { display: block; font-size: 13px; font-weight: 500; color: #1d1d1f; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#chat-panel .menu-row span { font-size: 11px; color: #858585; }

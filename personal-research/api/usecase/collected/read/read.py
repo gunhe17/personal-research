@@ -12,7 +12,7 @@ from usecase.common import store
 def tree() -> list[dict]:
     with store.session() as connection:
         rows = connection.execute(
-            """SELECT collected.id, collected.path, collected.extra,
+            """SELECT collected.id, collected.path, collected.meta,
                       GROUP_CONCAT(DISTINCT collected_content.language)
                FROM collected
                JOIN collected_content ON collected_content.collected_id = collected.id

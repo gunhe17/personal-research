@@ -19,16 +19,23 @@
       >
         <!-- space header -->
         <div class="shrink-0 h-11 flex items-center gap-1 border-b border-slate-100 bg-white px-3 relative z-20">
-          <div id="space-dd" class="relative min-w-0 flex-1">
-            <button type="button" id="btn-space" aria-haspopup="listbox" aria-expanded="false" class="w-full flex items-center gap-1.5 rounded-lg px-2 py-1 text-left hover:bg-slate-50 transition duration-150">
-              <span class="text-[13px] font-semibold tracking-tight text-slate-900">Space</span>
-              <span id="space-title" class="min-w-0 flex-1 truncate text-[12px] text-slate-500">새 space</span>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-4 w-4 shrink-0 text-slate-400"><path d="M6 9l6 6 6-6" /></svg>
+          <div id="space-dd" class="relative min-w-0 shrink">
+            <button type="button" id="btn-space" aria-haspopup="listbox" aria-expanded="false" class="flex max-w-[16rem] items-center gap-1 rounded-lg px-2 py-1 text-left hover:bg-slate-50 transition duration-150">
+              <span id="space-title" class="truncate text-[13px] font-semibold tracking-tight text-slate-900">Space</span>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-3.5 w-3.5 shrink-0 text-slate-400"><path d="M6 9l6 6 6-6" /></svg>
             </button>
-            <div id="space-menu" role="listbox" class="hidden absolute left-0 right-0 top-full mt-1 z-50 max-h-80 overflow-y-auto rounded-xl bg-white p-1 shadow-lg ring-1 ring-slate-200"></div>
+            <div id="space-menu" role="listbox" class="hidden absolute left-0 top-full mt-1 z-50 w-72 max-h-80 overflow-y-auto rounded-xl bg-white p-1 shadow-lg ring-1 ring-slate-200"></div>
+          </div>
+          <span class="text-slate-300">/</span>
+          <div id="conversation-dd" class="relative min-w-0 flex-1">
+            <button type="button" id="btn-conversation" aria-haspopup="listbox" aria-expanded="false" class="flex w-full items-center gap-1 rounded-lg px-2 py-1 text-left hover:bg-slate-50 transition duration-150">
+              <span id="conversation-title" class="min-w-0 flex-1 truncate text-[12px] text-slate-500">새 대화</span>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-3.5 w-3.5 shrink-0 text-slate-400"><path d="M6 9l6 6 6-6" /></svg>
+            </button>
+            <div id="conversation-menu" role="listbox" class="hidden absolute left-0 top-full mt-1 z-50 w-72 max-h-80 overflow-y-auto rounded-xl bg-white p-1 shadow-lg ring-1 ring-slate-200"></div>
           </div>
           <div id="links-dd" class="relative shrink-0">
-            <button type="button" id="btn-links" title="Linked collected" class="rounded-full px-2.5 py-1 text-[12px] text-apple-link hover:bg-slate-50">자료 <span id="links-count">0</span></button>
+            <button type="button" id="btn-links" title="이 대화의 자료" class="rounded-full px-2.5 py-1 text-[12px] text-apple-link hover:bg-slate-50">자료 <span id="links-count">0</span></button>
             <div id="links-menu" class="hidden absolute right-0 top-full mt-1 z-50 w-80 max-h-96 overflow-y-auto rounded-xl bg-white p-1 shadow-lg ring-1 ring-slate-200"></div>
           </div>
           <div id="layout-seg" class="inline-flex shrink-0 items-center rounded-full bg-slate-100 p-0.5 max-md:!hidden" role="group" aria-label="Layout">

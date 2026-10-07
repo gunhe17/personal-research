@@ -5,7 +5,7 @@ import re
 from usecase.common import store
 
 LATEST = """
-SELECT collected.id, collected.path, collected.url, c.language, c.body
+SELECT collected.id, collected.path, collected.url, c.language, c.content
 FROM collected_content AS c
 JOIN collected ON collected.id = c.collected_id
 JOIN (SELECT collected_id, language, MAX(version) AS version
@@ -24,7 +24,7 @@ def run(*, terms: list[str], limit: int = 8) -> list[dict]:
     wanted = [t.strip().lower() for t in terms if t.strip()]
     if not wanted:
         return []
-    clause = " AND ".join(["LOWER(c.body) LIKE ?"] * len(wanted))
+    clause = " AND ".join(["LOWER(c.content) LIKE ?"] * len(wanted))
     with store.session() as connection:
         rows = connection.execute(
             f"{LATEST} WHERE {clause}",
@@ -145,13 +145,14 @@ def recent(*, limit: int = 5, skip: str | None = None) -> list[dict]:
             """SELECT collected.id, collected.path, collected.url
                FROM collected_content AS c
                JOIN collected ON collected.id = c.collected_id
-               LEFT JOIN opened ON opened.collected_id = collected.id
+               LEFT JOIN user_meta AS opened
+                 ON opened.collected_id = collected.id AND opened.kind = 'opened' AND opened.user_id = ?
                WHERE c.language = 'eng' AND collected.id IS NOT ?
                GROUP BY collected.id
-               ORDER BY opened.opened_at IS NULL, opened.opened_at DESC,
+               ORDER BY opened.updated_at IS NULL, opened.updated_at DESC,
                         MAX(c.created_at) DESC, collected.path
                LIMIT ?""",
-            (skip, limit),
+            (store.USER, skip, limit),
         ).fetchall()
 
     return stamp(items=[

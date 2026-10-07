@@ -8,6 +8,7 @@ from pathlib import Path
 
 from usecase.collected.collect.type import paper
 from usecase.collected.collect.type import x
+from usecase.common import llm
 from usecase.common import store
 
 
@@ -73,12 +74,26 @@ def korean(*, id: str) -> str:
     with tempfile.TemporaryDirectory() as folder:
         work = Path(folder)
         (work / "doc.md").write_text(body, encoding="utf-8")
-        done = subprocess.run(
-            [CLAUDE if Path(CLAUDE).exists() else "claude",
-             "-p", f"{rules()}\n\n번역: {work / 'doc.md'} → {work / 'doc.ko.md'}",
-             "--allowed-tools", "Read,Write",
-             "--permission-mode", "acceptEdits"],
-            cwd=folder, capture_output=True, text=True, timeout=1800,
+        request = f"{rules()}\n\n번역: {work / 'doc.md'} → {work / 'doc.ko.md'}"
+        command = [
+            CLAUDE if Path(CLAUDE).exists() else "claude",
+            "-p", request,
+            "--allowed-tools", "Read,Write",
+            "--permission-mode", "acceptEdits",
+        ]
+        started_at = store.now()
+        done = subprocess.run(command, cwd=folder, capture_output=True, text=True, timeout=1800)
+        llm.record(
+            provider="claude",
+            model="",
+            purpose="translate",
+            owner_id=id,
+            command=command,
+            request=request,
+            response=done.stdout,
+            stderr=done.stderr,
+            exit_code=done.returncode,
+            started_at=started_at,
         )
         target = work / "doc.ko.md"
         if not target.is_file():

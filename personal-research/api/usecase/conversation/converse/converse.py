@@ -10,20 +10,22 @@ import tempfile
 import threading
 from pathlib import Path
 
+from usecase.common import llm
 from usecase.common import log
 from usecase.common import store
-from usecase.space.record import record
+from usecase.conversation.record import record
+from usecase.space.record import record as spaces
 
 BIN = os.environ.get("CODEX_BIN") or shutil.which("codex") or "codex"
-MODEL = os.environ.get("SPACE_CODEX_MODEL") or ""
+MODEL = os.environ.get("CODEX_MODEL") or ""
 CORPUS = store.API / "data" / "corpus"
 TIMEOUT = 600
 TURN = threading.Lock()
 RUNNING: dict[str, subprocess.Popen] = {}
-INSTRUCTIONS = """당신은 research space 에서 사용자의 학습을 이어가는 한국어 튜터입니다.
-space 의 목적(purpose)이 학습 목적, 진행 원칙, 현재 위치를 정합니다. 그 원칙을 따르세요.
+INSTRUCTIONS = """당신은 사용자의 학습과 조사를 돕는 한국어 튜터입니다.
+purpose 가 있으면 학습 목적, 진행 원칙, 현재 위치를 정합니다. 그 원칙을 따르세요.
 작업 폴더는 수집물의 읽기 전용 사본입니다. eng/ 는 원문, kor/ 는 한국어판, meta/ 는 원본 주소입니다.
-답하기 전에 반드시 수집물을 조사하세요. linked 에 있는 자료를 먼저 읽고, rg 나 grep 으로 관련 문서를 더 찾으세요.
+답하기 전에 반드시 수집물을 조사하세요. collected 에 있는 자료를 먼저 읽고, rg 나 grep 으로 관련 문서를 더 찾으세요.
 근거로 쓴 문서의 path(eng/ kor/ 접두 없이)를 sources 에 적으세요. 근거를 찾지 못했으면 sources 를 비우고 첫 블록에서 수집물에 근거가 없다고 밝히세요.
 수학이나 전문 지식을 안다고 가정하지 말고, 전문 용어는 처음 나올 때 쉬운 뜻을 함께 씁니다.
 context.annotations는 선택한 문장(text)과 코멘트(comment)입니다. 모두 반영하고 여러 개이면 번호로 구별하세요.
@@ -86,48 +88,51 @@ def available() -> bool:
 # #
 # command
 
-def submit(*, id: str, message_id: str) -> None:
-    record.change(id=id, message_id=message_id, status="queued", error=None)
-    threading.Thread(target=run, kwargs={"id": id, "message_id": message_id}, daemon=True).start()
+def submit(*, domain: str, id: str, message_id: str) -> None:
+    record.change(domain=domain, message_id=message_id, status="queued", error=None)
+    threading.Thread(target=run, kwargs={"domain": domain, "id": id, "message_id": message_id}, daemon=True).start()
 
 
-def cancel(*, id: str, message_id: str) -> None:
-    record.change(id=id, message_id=message_id, status="cancelled", error=None)
+def cancel(*, domain: str, message_id: str) -> None:
+    record.change(domain=domain, message_id=message_id, status="cancelled", error=None)
     process = RUNNING.get(message_id)
     if process:
         halt(process=process)
 
 
+def status(*, domain: str, message_id: str) -> str:
+    return record.message(domain=domain, id=message_id)["status"]
+
+
 # #
 # run
 
-def run(*, id: str, message_id: str) -> None:
+def run(*, domain: str, id: str, message_id: str) -> None:
     with TURN:
-        space = record.get(id=id)
-        question = next(m for m in space["messages"] if m["id"] == message_id)
-        if question["status"] != "queued":
+        if status(domain=domain, message_id=message_id) != "queued":
             return
-        record.change(id=id, message_id=message_id, status="running")
+        record.change(domain=domain, message_id=message_id, status="running", error=None)
+        conversation = record.get(domain=domain, id=id)
+        question = next(m for m in conversation["messages"] if m["id"] == message_id)
         try:
-            answer = generate(space=space, question=question)
+            answer = generate(conversation=conversation, question=question)
         except Exception as error:
-            log.write(level="error", message=f"space {message_id} {error}")
-            if status(id=id, message_id=message_id) != "cancelled":
-                record.change(id=id, message_id=message_id, status="failed", error=str(error)[:600])
+            log.write(level="error", message=f"{domain} {message_id} {error}")
+            if status(domain=domain, message_id=message_id) != "cancelled":
+                record.change(domain=domain, message_id=message_id, status="failed", error=str(error)[:600])
             return
-        if status(id=id, message_id=message_id) == "cancelled":
+        if status(domain=domain, message_id=message_id) == "cancelled":
             return
         sources = cited(paths=answer.pop("sources"))
-        record.answer(id=id, question_id=message_id, rich=answer, sources=sources)
+        record.answer(domain=domain, id=id, question_id=message_id, rich=answer, sources=sources)
 
 
-def status(*, id: str, message_id: str) -> str:
-    return next(m for m in record.get(id=id)["messages"] if m["id"] == message_id)["status"]
-
-
-def generate(*, space: dict, question: dict) -> dict:
+def generate(*, conversation: dict, question: dict) -> dict:
     refresh()
-    with tempfile.TemporaryDirectory(prefix="space-") as folder:
+    thread_id = conversation["meta"].get("codex", {}).get("thread_id")
+    request = prompt(conversation=conversation, question=question)
+    started_at = store.now()
+    with tempfile.TemporaryDirectory(prefix="conversation-") as folder:
         output = Path(folder) / "answer.json"
         schema = Path(folder) / "schema.json"
         schema.write_text(json.dumps(SCHEMA), encoding="utf-8")
@@ -139,7 +144,7 @@ def generate(*, space: dict, question: dict) -> dict:
             "-C", str(CORPUS),
         ]
         command += ["-m", MODEL] if MODEL else []
-        command += ["resume", space["thread_id"]] if space["thread_id"] else []
+        command += ["resume", thread_id] if thread_id else []
         command += ["-"]
         process = subprocess.Popen(
             command,
@@ -150,18 +155,31 @@ def generate(*, space: dict, question: dict) -> dict:
             start_new_session=True,
         )
         RUNNING[question["id"]] = process
+        stdout = stderr = ""
         try:
-            stdout, stderr = process.communicate(input=prompt(space=space, question=question), timeout=TIMEOUT)
+            stdout, stderr = process.communicate(input=request, timeout=TIMEOUT)
         except subprocess.TimeoutExpired:
             halt(process=process)
-            process.wait()
+            stdout, stderr = process.communicate()
             raise RuntimeError("응답 시간이 길어 중단했습니다. 다시 시도해 주세요.")
         finally:
             RUNNING.pop(question["id"], None)
+            llm.record(
+                provider="codex",
+                model=MODEL,
+                purpose=f"{conversation['domain']}_answer",
+                owner_id=question["id"],
+                command=command,
+                request=request,
+                response=stdout or "",
+                stderr=stderr or "",
+                exit_code=process.returncode,
+                started_at=started_at,
+            )
         parsed = events(stdout=stdout)
         started = next((e for e in parsed if e.get("type") == "thread.started"), None)
-        if started and not space["thread_id"]:
-            record.thread(id=space["id"], thread_id=started["thread_id"])
+        if started and not thread_id:
+            record.remember(domain=conversation["domain"], id=conversation["id"], provider="codex", values={"thread_id": started["thread_id"], "model": MODEL})
         if process.returncode != 0 or not output.is_file():
             failed = next((e["message"] for e in reversed(parsed) if e.get("type") == "error"), stderr)
             raise RuntimeError(f"Codex 가 답하지 못했습니다 (exit {process.returncode}). {failed.strip()[-300:]}")
@@ -170,18 +188,24 @@ def generate(*, space: dict, question: dict) -> dict:
     return generated
 
 
-def prompt(*, space: dict, question: dict) -> str:
-    before = space["messages"][:space["messages"].index(question)]
+def prompt(*, conversation: dict, question: dict) -> str:
+    messages = conversation["messages"]
+    before = messages[:messages.index(question)]
     context = {
-        "purpose": space["purpose"],
-        "log": space["log"][-12_000:],
-        "linked": [d["path"] for d in record.linked(id=space["id"])][:200],
-        "notes": [m["rich"]["learning_note"] for m in before if m["role"] == "assistant" and m.get("rich")][-12:],
+        "collected": [d["path"] for d in conversation["documents"]][:200],
         "conversation": [
-            {"role": m["role"], "body": m["body"][:4_000]} for m in before[-16:]
+            {"role": m["role"], "content": m["content"][:4_000]} for m in before[-16:]
         ],
-        "message": {k: question[k] for k in ("kind", "body", "context")},
+        "message": {k: question[k] for k in ("kind", "content", "context")},
     }
+    if conversation["domain"] == "space":
+        space = spaces.get(id=conversation["space_id"])
+        context = {
+            "purpose": space["purpose"],
+            "log": space["log"][-12_000:],
+            "notes": record.notes(space_id=space["id"]),
+            **context,
+        }
 
     return INSTRUCTIONS + "\n학습 맥락과 현재 사용자 메시지:\n" + json.dumps(context, ensure_ascii=False)
 

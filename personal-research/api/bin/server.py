@@ -6,6 +6,7 @@ import mimetypes
 import os
 import re
 import sys
+import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -15,8 +16,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from usecase.common import log
 from usecase.common import store
 
-from usecase.space.converse import converse
-from usecase.space.record import record
+from usecase.conversation.converse import converse
+from usecase.conversation.record import record
+from usecase.space.record import record as spaces
 from usecase.collected.collect import pipeline
 from usecase.collected.read import read
 from usecase.collected.search import search
@@ -24,7 +26,9 @@ from usecase.collected.search import search
 VIEWER = store.API.parent / "wui" / "bin"
 HOST = os.environ.get("HOST") or "127.0.0.1"
 PORT = int(os.environ.get("PORT") or 8765)
-SPACE = re.compile(r"/api/spaces/([a-zA-Z0-9_-]+)(?:/(messages|retry|cancel|links))?")
+SPACE = re.compile(r"/api/spaces/([a-zA-Z0-9_-]+)")
+CONVERSATIONS = re.compile(r"/api/(space|agent)/conversations")
+CONVERSATION = re.compile(r"/api/(space|agent)/conversations/([a-zA-Z0-9_-]+)(?:/(messages|retry|cancel))?")
 INCLUDE = re.compile(r"\{\{include ([\w./-]+)\}\}")
 
 
@@ -106,13 +110,21 @@ class Handler(BaseHTTPRequestHandler):
             terms = [t for t in (query.get("q") or [""])[0].split() if t]
             return self.reply(code=200, payload={"items": search.run(terms=terms)})
         if path == "/api/spaces":
-            return self.reply(code=200, payload={"items": record.listed(collected_id=(query.get("collected_id") or [""])[0])})
+            return self.reply(code=200, payload={"items": spaces.listed()})
+        if path == "/api/conversations":
+            return self.reply(code=200, payload={"items": record.find(collected_id=(query.get("collected_id") or [""])[0])})
+        if CONVERSATIONS.fullmatch(path):
+            domain = CONVERSATIONS.fullmatch(path).group(1)
+            return self.reply(code=200, payload={"items": record.listed(domain=domain, space_id=(query.get("space_id") or [""])[0])})
 
         matched = SPACE.fullmatch(path)
-        if matched and not matched.group(2):
-            found = record.get(id=matched.group(1))
+        if matched:
+            found = spaces.get(id=matched.group(1))
+            return self.reply(code=200 if found else 404, payload=found or {"error": "not found"})
+        matched = CONVERSATION.fullmatch(path)
+        if matched and not matched.group(3):
+            found = record.get(domain=matched.group(1), id=matched.group(2))
             if found:
-                found["linked"] = record.linked(id=found["id"])
                 found["codex_available"] = converse.available()
             return self.reply(code=200 if found else 404, payload=found or {"error": "not found"})
 
@@ -132,74 +144,81 @@ class Handler(BaseHTTPRequestHandler):
                 "id": wanted,
                 "related": search.related(id=wanted),
             })
-        if parsed.path == "/api/spaces":
-            return self.create(body=body)
-        matched = SPACE.fullmatch(parsed.path)
-        if matched and matched.group(2):
-            return self.space(id=matched.group(1), action=matched.group(2), body=body)
+        try:
+            if parsed.path == "/api/spaces":
+                return self.reply(code=200, payload=spaces.create(data=body))
+            if CONVERSATIONS.fullmatch(parsed.path):
+                return self.reply(code=200, payload=self.start(domain=CONVERSATIONS.fullmatch(parsed.path).group(1), body=body))
+            matched = CONVERSATION.fullmatch(parsed.path)
+            if matched and matched.group(3):
+                return self.act(domain=matched.group(1), id=matched.group(2), action=matched.group(3), body=body)
+        except (ValueError, KeyError, StopIteration) as error:
+            return self.reply(code=400, payload={"error": str(error) or "요청을 처리하지 못했습니다."})
         if parsed.path == "/api/collect":
             given = (body.get("input") or "").strip()
             if not given:
                 return self.reply(code=400, payload={"error": "input 이 비어 있다"})
-            return self.stream(work=lambda send: pipeline.run(input=given, send=linking(space_id=body.get("space_id"), send=send)))
+            return self.stream(work=lambda send: collecting(given=given, send=send))
 
         self.reply(code=404, payload={"error": "not found"})
 
     def do_PUT(self) -> None:
-        matched = SPACE.fullmatch(urlparse(self.path).path)
+        path = urlparse(self.path).path
         body = self.payload()
-        if not matched or matched.group(2) or body is None:
-            return self.reply(code=400, payload={"error": "bad request"})
+        if body is None:
+            return self.reply(code=400, payload={"error": "invalid json"})
         try:
-            self.reply(code=200, payload=record.edit(id=matched.group(1), data=body))
+            if SPACE.fullmatch(path):
+                return self.reply(code=200, payload=spaces.edit(id=SPACE.fullmatch(path).group(1), data=body))
+            matched = CONVERSATION.fullmatch(path)
+            if matched and not matched.group(3):
+                return self.reply(code=200, payload=record.edit(domain=matched.group(1), id=matched.group(2), data=body))
         except ValueError as error:
-            self.reply(code=404, payload={"error": str(error)})
+            return self.reply(code=404, payload={"error": str(error)})
+
+        self.reply(code=404, payload={"error": "not found"})
 
     def do_DELETE(self) -> None:
-        matched = SPACE.fullmatch(urlparse(self.path).path)
-        if not matched or matched.group(2):
+        path = urlparse(self.path).path
+        matched = CONVERSATION.fullmatch(path)
+        if SPACE.fullmatch(path):
+            removed = spaces.remove(id=SPACE.fullmatch(path).group(1))
+        elif matched and not matched.group(3):
+            removed = record.remove(domain=matched.group(1), id=matched.group(2))
+        else:
             return self.reply(code=404, payload={"error": "not found"})
-        removed = record.remove(id=matched.group(1))
 
         self.reply(code=200 if removed else 404, payload={"ok": removed})
 
     # #
-    # space
+    # conversation
 
-    def create(self, *, body: dict) -> None:
-        try:
-            created = record.create(data=body)
-            if (body.get("question") or "").strip():
-                self.ask(id=created["id"], body={"body": body["question"], "client_id": body.get("client_id")})
-        except ValueError as error:
-            return self.reply(code=400, payload={"error": str(error)})
+    def start(self, *, domain: str, body: dict) -> dict:
+        if domain == "space" and not spaces.get(id=body.get("space_id") or ""):
+            raise ValueError("space 를 찾을 수 없습니다.")
+        started = record.create(domain=domain, data=body)
+        if (body.get("question") or "").strip():
+            started["question"] = self.ask(domain=domain, id=started["id"], body={"content": body["question"], "client_id": body.get("client_id")})
 
-        self.reply(code=200, payload=created)
+        return started
 
-    def space(self, *, id: str, action: str, body: dict) -> None:
-        try:
-            if action == "links":
-                change = record.link if body.get("linked", True) else record.unlink
-                change(id=id, collected_id=body.get("collected_id") or "")
-                return self.reply(code=200, payload={"linked": record.linked(id=id)})
-            if not converse.available():
-                return self.reply(code=500, payload={"error": "codex CLI 가 없다"})
-            if action == "messages":
-                return self.reply(code=200, payload=self.ask(id=id, body=body))
-            message_id = body.get("message_id") or ""
-            if action == "cancel":
-                converse.cancel(id=id, message_id=message_id)
-            elif converse.status(id=id, message_id=message_id) in ("failed", "cancelled", "interrupted"):
-                converse.submit(id=id, message_id=message_id)
-        except (ValueError, StopIteration) as error:
-            return self.reply(code=400, payload={"error": str(error) or "질문을 찾을 수 없습니다."})
+    def act(self, *, domain: str, id: str, action: str, body: dict) -> None:
+        if not converse.available():
+            return self.reply(code=500, payload={"error": "codex CLI 가 없다"})
+        if action == "messages":
+            return self.reply(code=200, payload=self.ask(domain=domain, id=id, body=body))
+        message_id = body.get("message_id") or ""
+        if action == "cancel":
+            converse.cancel(domain=domain, message_id=message_id)
+        elif converse.status(domain=domain, message_id=message_id) in ("failed", "cancelled", "interrupted"):
+            converse.submit(domain=domain, id=id, message_id=message_id)
 
         self.reply(code=200, payload={"ok": True})
 
-    def ask(self, *, id: str, body: dict) -> dict:
-        question = record.ask(id=id, data=body)
+    def ask(self, *, domain: str, id: str, body: dict) -> dict:
+        question = record.ask(domain=domain, id=id, data=body)
         if question["status"] == "queued":
-            converse.submit(id=id, message_id=question["id"])
+            converse.submit(domain=domain, id=id, message_id=question["id"])
 
         return question
 
@@ -291,13 +310,32 @@ class Handler(BaseHTTPRequestHandler):
         self.send(code=200, data=path.read_bytes(), content_type=content_type, no_store=True)
 
 
-def linking(*, space_id, send):
+def collecting(*, given: str, send) -> None:
+    started = record.create(domain="agent", data={})
+    record.ask(domain="agent", id=started["id"], data={"content": given, "kind": "collect", "status": "completed"})
+    send({"type": "conversation", "domain": "agent", "id": started["id"]})
+    outcome = {}
+
     def forward(event: dict) -> None:
-        if space_id and event.get("type") == "done" and event.get("id"):
-            record.link(id=space_id, collected_id=event["id"])
+        if event.get("type") in ("done", "error"):
+            outcome.update(event)
         send(event)
 
-    return forward
+    try:
+        pipeline.run(input=given, send=forward)
+    except Exception as error:
+        outcome["error"] = str(error)
+        raise
+    finally:
+        if outcome.get("id"):
+            record.edit(domain="agent", id=started["id"], data={"collected_id": outcome["id"]})
+        record.add(domain="agent", id=started["id"], message={
+            "id": str(uuid.uuid4()),
+            "role": "assistant",
+            "content": outcome.get("text") or outcome.get("error") or "수집을 마치지 못했습니다.",
+            "sources": [{"id": outcome["id"], "path": store.path_of(id=outcome["id"])}] if outcome.get("id") else None,
+            "created_at": store.now(),
+        })
 
 
 # #
@@ -307,7 +345,6 @@ def main() -> None:
     load_dotenv(path=store.API / ".env")
     if not store.DATABASE.is_file():
         raise SystemExit(f"DB 없음: {store.DATABASE} (collect.py migrate 로 만든다)")
-    record.adopt()
     record.recover()
     log.write(level="info", message=f"start {HOST}:{PORT} database={store.DATABASE} codex={converse.BIN}")
     print(f"Open http://{HOST}:{PORT}/viewer/")

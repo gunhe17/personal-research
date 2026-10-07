@@ -11,7 +11,7 @@ from usecase.common import store
 def lines() -> list[str]:
     with store.session() as connection:
         rows = connection.execute(
-            """SELECT collected.path, c.language, c.body, c.version FROM collected_content AS c
+            """SELECT collected.path, c.language, c.content, c.version FROM collected_content AS c
                JOIN collected ON collected.id = c.collected_id
                JOIN (SELECT collected_id, language, MAX(version) AS version
                      FROM collected_content GROUP BY collected_id, language) AS top
