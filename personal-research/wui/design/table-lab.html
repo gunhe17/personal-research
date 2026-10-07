@@ -78,10 +78,10 @@
   <!-- A3 -->
   <section class="mb-16">
     <div class="mb-1 flex items-baseline justify-between">
-      <h2 class="text-[21px] font-semibold tracking-tight">A3. 두 버튼</h2>
-      <span class="text-[12px] text-slate-400">이어 가기 + 보기 · 행은 링크 아님</span>
+      <h2 class="text-[21px] font-semibold tracking-tight">A3. 이름 · 바뀐 때 · research</h2>
+      <span class="text-[12px] text-slate-400">머리 줄 없음 · 버튼 하나</span>
     </div>
-    <p class="mb-4 text-[14px] text-slate-500">두 동작을 버튼으로 드러냅니다. 무엇을 누르면 어디로 가는지가 가장 분명합니다. 대신 행이 무거워집니다.</p>
+    <p class="mb-4 text-[14px] text-slate-500">이름과 바뀐 때만 남기고, 파란 research 버튼 하나로 그 space 의 학습에 들어갑니다. 가장 가볍습니다.</p>
     <div class="overflow-hidden rounded-2xl bg-white" data-variant="pair"></div>
   </section>
 
@@ -174,7 +174,7 @@
     { label: "자료", width: "w-12", value: (s) => s.materials, hide: "hidden sm:block" },
     { label: "바뀐 때", width: "w-20", value: (s) => since(s.updated), hide: "hidden sm:block" },
   ];
-  const ACTION_WIDTH = { plain: "w-4", line: "w-[5.5rem]", hover: "w-[5.5rem]", pair: "w-[9rem]", icon: "w-8", expand: "w-4", first: "w-[5.5rem]" };
+  const ACTION_WIDTH = { plain: "w-4", line: "w-[5.5rem]", hover: "w-[5.5rem]", pair: "w-[5.5rem]", icon: "w-8", expand: "w-4", first: "w-[5.5rem]" };
   const meta = (s, columns) => columns.map((c) => `
     <div class="${c.hide} ${c.width} shrink-0 text-right num text-[14px] text-slate-600">${c.value(s)}</div>`).join("");
   const header = (variant, columns) => `
@@ -183,17 +183,17 @@
       ${columns.map((c) => `<div class="${c.hide} ${c.width} shrink-0 text-right">${c.label}</div>`).join("")}
       <div class="${ACTION_WIDTH[variant]} shrink-0"></div>
     </div>`;
-  const head = (s) => `
+  const head = (s, brief) => `
     <div class="min-w-0 flex-1">
       <div class="truncate text-[17px] font-semibold text-slate-900">${s.title}</div>
-      <div class="mt-0.5 truncate text-[14px] text-slate-500">${s.purpose}</div>
+      ${brief ? "" : `<div class="mt-0.5 truncate text-[14px] text-slate-500">${s.purpose}</div>`}
     </div>`;
   const arrow = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M5 12h14M13 6l6 6-6 6" /></svg>`;
   const actions = {
     plain: () => `<span class="text-[17px] text-slate-300">›</span>`,
     line: () => `<button class="pill-line" data-stop>이어 가기</button>`,
     hover: () => `<button class="pill-fill reveal" data-stop>이어 가기</button>`,
-    pair: () => `<button class="pill-quiet" data-stop>보기</button><button class="pill-fill" data-stop>이어 가기</button>`,
+    pair: () => `<button class="pill-fill" data-stop>research</button>`,
     icon: () => `<button title="이어 가기" aria-label="이어 가기" class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ice text-apple-link hover:bg-apple hover:text-white transition" data-stop>${arrow}</button>`,
     expand: () => `<span data-chevron class="text-[17px] text-slate-300 transition-transform">›</span>`,
     first: (s, i) => `<button class="${i ? "pill-line" : "pill-fill"}" data-stop>이어 가기</button>`,
@@ -201,7 +201,7 @@
   const row = (variant, s, i, columns) => `
     <div class="group ${variant === "pair" ? "" : "cursor-pointer"} pl-5 hover:bg-slate-50 transition" data-row="${i}">
       <div class="flex items-center gap-4 py-4 pr-5 ${i ? "border-t border-slate-100" : ""}">
-        ${head(s)}
+        ${head(s, variant === "pair")}
         ${meta(s, columns)}
         <div class="${ACTION_WIDTH[variant]} flex shrink-0 items-center justify-end gap-2">${actions[variant](s, i)}</div>
       </div>
@@ -221,8 +221,9 @@
   document.querySelectorAll("[data-variant]").forEach((box) => {
     const variant = box.dataset.variant;
     const items = box.dataset.short ? spaces.slice(0, 2) : spaces;
-    const columns = box.dataset.short ? COLUMNS.slice(2) : COLUMNS;
-    box.innerHTML = header(variant, columns) + items.map((s, i) => row(variant, s, i, columns)).join("");
+    const brief = variant === "pair";
+    const columns = brief ? [{ ...COLUMNS[2], hide: "" }] : box.dataset.short ? COLUMNS.slice(2) : COLUMNS;
+    box.innerHTML = (brief ? "" : header(variant, columns)) + items.map((s, i) => row(variant, s, i, columns)).join("");
     if (variant === "expand") box.querySelector("[data-chevron]").style.transform = "rotate(90deg)";
   });
   document.querySelectorAll("[data-variant=expand] [data-row]").forEach((item) => item.addEventListener("click", (e) => {
