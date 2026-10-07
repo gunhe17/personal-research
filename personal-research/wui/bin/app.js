@@ -360,23 +360,29 @@
     function renderSpaceList(box, items) {
       box.innerHTML = `
         <div class="mb-10 flex items-end justify-between gap-4">
-          <div>
+          <div class="min-w-0">
             <h1 class="text-[40px] font-semibold tracking-tight text-slate-900" style="letter-spacing: 0.44px">Space</h1>
             <p class="mt-1 text-[17px] font-light text-slate-500">무엇을 배울지 목적 하나가 space 하나입니다.</p>
           </div>
-          <button type="button" id="space-new" class="shrink-0 rounded-full bg-apple px-4 py-2 text-[15px] text-white hover:bg-apple-hover transition">새 space</button>
+          <button type="button" id="space-new" class="shrink-0 rounded-full border border-apple-link px-4 py-1.5 text-[15px] text-apple-link hover:bg-white transition">새 space</button>
         </div>
-        <div class="divide-y divide-slate-200 border-y border-slate-200">
-          ${items.length ? items.map((item) => `
-            <a href="${SPACE_URL}?id=${encodeURIComponent(item.id)}" class="group block py-5 hover:bg-white transition">
-              <div class="flex items-baseline justify-between gap-4 px-2">
-                <span class="truncate text-[21px] font-semibold tracking-tight text-slate-900 group-hover:text-apple-link">${escapeHtml(item.title)}</span>
-                <span class="shrink-0 text-[12px] text-slate-400">${escapeHtml(sinceLabel(item.updated_at))}</span>
+        <div class="overflow-hidden rounded-2xl bg-white">
+          ${items.length ? items.map((item, i) => `
+            <div data-space="${escapeHtml(item.id)}" class="group cursor-pointer pl-5 hover:bg-slate-50 transition">
+              <div class="flex items-center gap-4 py-4 pr-5 ${i ? "border-t border-slate-100" : ""}">
+                <div class="min-w-0 flex-1">
+                  <div class="truncate text-[17px] font-semibold text-slate-900">${escapeHtml(item.title)}</div>
+                  <div class="mt-0.5 truncate text-[14px] text-slate-500">${escapeHtml(item.purpose || "목적이 아직 없습니다")}</div>
+                </div>
+                <div class="w-20 shrink-0 text-right text-[14px] tabular-nums text-slate-600">${escapeHtml(sinceLabel(item.updated_at))}</div>
+                <a href="${COLLECTED_URL}?space=${encodeURIComponent(item.id)}" data-research class="shrink-0 rounded-full bg-apple px-3.5 py-1.5 text-[13px] text-white hover:bg-apple-hover transition">research</a>
               </div>
-              <p class="mt-1 px-2 truncate text-[14px] text-slate-500">${escapeHtml(item.purpose || "목적이 아직 없습니다")}</p>
-              <p class="mt-2 px-2 text-[12px] text-slate-400">대화 ${item.conversation_count} · 자료 ${item.collected_count}</p>
-            </a>`).join("") : `<p class="py-10 text-center text-[15px] text-slate-500">아직 space 가 없습니다.</p>`}
+            </div>`).join("") : `<p class="px-5 py-10 text-center text-[15px] text-slate-500">아직 space 가 없습니다.</p>`}
         </div>`;
+      box.querySelectorAll("[data-space]").forEach((row) => row.addEventListener("click", (e) => {
+        if (e.target.closest("[data-research]")) return;
+        location.href = `${SPACE_URL}?id=${encodeURIComponent(row.dataset.space)}`;
+      }));
       $("#space-new").addEventListener("click", async () => {
         const created = await (await fetch("/api/spaces", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: "새 space" }) })).json();
         location.href = `${SPACE_URL}?id=${encodeURIComponent(created.id)}`;
