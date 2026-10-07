@@ -78,10 +78,10 @@
   <!-- A3 -->
   <section class="mb-16">
     <div class="mb-1 flex items-baseline justify-between">
-      <h2 class="text-[21px] font-semibold tracking-tight">A3. 이름 · 바뀐 때 · research</h2>
+      <h2 class="text-[21px] font-semibold tracking-tight">A3. 이름 · 목적 · 바뀐 때 · research</h2>
       <span class="text-[12px] text-slate-400">머리 줄 없음 · 버튼 하나</span>
     </div>
-    <p class="mb-4 text-[14px] text-slate-500">이름과 바뀐 때만 남기고, 파란 research 버튼 하나로 그 space 의 학습에 들어갑니다. 가장 가볍습니다.</p>
+    <p class="mb-4 text-[14px] text-slate-500">이름 밑에 목적을 두고, 오른쪽에는 바뀐 때와 파란 research 버튼 하나만 둡니다.</p>
     <div class="overflow-hidden rounded-2xl bg-white" data-variant="pair"></div>
   </section>
 
@@ -201,7 +201,7 @@
   const row = (variant, s, i, columns) => `
     <div class="group ${variant === "pair" ? "" : "cursor-pointer"} pl-5 hover:bg-slate-50 transition" data-row="${i}">
       <div class="flex items-center gap-4 py-4 pr-5 ${i ? "border-t border-slate-100" : ""}">
-        ${head(s, variant === "pair")}
+        ${head(s)}
         ${meta(s, columns)}
         <div class="${ACTION_WIDTH[variant]} flex shrink-0 items-center justify-end gap-2">${actions[variant](s, i)}</div>
       </div>
