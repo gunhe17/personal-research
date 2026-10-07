@@ -31,15 +31,19 @@
 
       <!-- space header -->
       <div id="space-header" class="flex min-w-0 items-center gap-1">
-        <a id="space-link" href="/viewer/space" class="min-w-0 shrink truncate rounded-lg px-2 py-1 hover:bg-slate-50 transition duration-150">
-          <span id="space-title" class="text-[13px] font-semibold tracking-tight text-slate-900">Space</span>
-        </a>
+        <div id="space-dd" class="relative min-w-[4.5rem] max-w-[16rem] shrink">
+          <button type="button" id="btn-space" aria-haspopup="listbox" aria-expanded="false" class="flex min-w-0 max-w-full items-center gap-1 rounded-lg px-2 py-1 text-left hover:bg-slate-50 transition duration-150">
+            <span id="space-title" class="truncate text-[13px] font-semibold tracking-tight text-slate-900">Space</span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-3.5 w-3.5 shrink-0 text-slate-400"><path d="M6 9l6 6 6-6" /></svg>
+          </button>
+          <div id="space-menu" role="listbox" class="hidden absolute left-0 top-full mt-1 z-50 w-72 max-md:fixed max-md:left-4 max-md:right-4 max-md:top-12 max-md:w-auto max-h-80 overflow-y-auto rounded-xl bg-white p-1 shadow-lg ring-1 ring-slate-200"></div>
+        </div>
         <span class="shrink-0 text-slate-300">/</span>
-        <div id="conversation-dd" class="relative min-w-0 shrink">
-          <button type="button" id="btn-conversation" aria-haspopup="listbox" aria-expanded="false" class="flex min-w-0 max-w-[20rem] items-center gap-1 rounded-lg px-2 py-1 text-left hover:bg-slate-50 transition duration-150">
+        <div id="conversation-dd" class="relative min-w-0 max-w-[20rem] shrink">
+          <button type="button" id="btn-conversation" aria-haspopup="listbox" aria-expanded="false" class="flex min-w-0 max-w-full items-center gap-1 rounded-lg px-2 py-1 text-left hover:bg-slate-50 transition duration-150">
             <span id="conversation-title" class="min-w-0 truncate text-[13px] text-slate-500">새 대화</span>
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-3.5 w-3.5 shrink-0 text-slate-400"><path d="M6 9l6 6 6-6" /></svg>
           </button>
-          <div id="conversation-menu" role="listbox" class="hidden absolute left-0 top-full mt-1 z-50 w-72 max-h-80 overflow-y-auto rounded-xl bg-white p-1 shadow-lg ring-1 ring-slate-200"></div>
+          <div id="conversation-menu" role="listbox" class="hidden absolute left-0 top-full mt-1 z-50 w-72 max-md:fixed max-md:left-4 max-md:right-4 max-md:top-12 max-md:w-auto max-h-80 overflow-y-auto rounded-xl bg-white p-1 shadow-lg ring-1 ring-slate-200"></div>
         </div>
       </div>

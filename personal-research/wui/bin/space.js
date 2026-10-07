@@ -101,7 +101,6 @@ function renderMessages() {
 
 function renderHeader() {
   $('space-title').textContent = scope.domain === 'agent' ? 'Agent' : scope.space?.title || '새 space';
-  $('space-link').href = scope.domain === 'agent' ? '/viewer/' : scope.space ? `/viewer/space?id=${encodeURIComponent(scope.space.id)}` : '/viewer/space';
   $('conversation-title').textContent = chat?.title || '새 대화';
   $('space-empty').hidden = Boolean(chat?.messages.length);
   $('space-banner').hidden = !chat || chat.codex_available;
@@ -126,6 +125,17 @@ function row(title, meta, selected, fn) {
   const item = button('', 'menu-row', fn); item.setAttribute('aria-selected', String(selected));
   item.append(el('strong', '', title), el('span', '', meta));
   return item;
+}
+
+async function renderSpaces() {
+  const menu = $('space-menu'), spaces = (await json('/api/spaces')).items || [];
+  const rows = spaces.map(item => row(item.title, `${(item.updated_at || '').slice(0, 10)} · 대화 ${item.conversation_count}`, scope.domain === 'space' && item.id === scope.space?.id, () => choose({ domain: 'space', space: item })));
+  if (!rows.length) rows.push(el('div', 'link-head', '아직 space 가 없습니다'));
+  const footer = el('div', 'menu-foot');
+  const detail = el('a', 'menu-link', scope.space ? '이 space 상세 보기' : 'space 목록');
+  detail.href = scope.space ? `/viewer/space?id=${encodeURIComponent(scope.space.id)}` : '/viewer/space';
+  footer.append(detail);
+  menu.replaceChildren(...rows, footer);
 }
 
 async function renderConversations() {
@@ -171,6 +181,7 @@ async function choose(next) {
   scope = next;
   const latest = scope.domain === 'space' && scope.space ? (await json(`/api/spaces/${scope.space.id}`)).conversations[0] : null;
   await open(scope.domain, latest?.id || null);
+  $('space-menu').classList.add('hidden');
 }
 
 async function open(domain, id) {
@@ -260,14 +271,19 @@ $('message-input').addEventListener('keydown', event => { if (event.key === 'Ent
 $('composer').addEventListener('submit', send);
 $('jump-bottom').addEventListener('click', scrollBottom);
 $('clear-quote').addEventListener('click', () => { quote = null; renderQuote(); persist(); });
+$('btn-space').addEventListener('click', async event => {
+  event.stopPropagation(); $('conversation-menu').classList.add('hidden');
+  if (!$('space-menu').classList.toggle('hidden')) await renderSpaces();
+});
 $('btn-conversation').addEventListener('click', async event => {
-  event.stopPropagation();
+  event.stopPropagation(); $('space-menu').classList.add('hidden');
   if (!$('conversation-menu').classList.toggle('hidden')) await renderConversations();
 });
-document.addEventListener('keydown', event => { if (event.key === 'Escape') $('conversation-menu').classList.add('hidden'); });
+document.addEventListener('keydown', event => { if (event.key === 'Escape') ['space-menu', 'conversation-menu'].forEach(id => $(id).classList.add('hidden')); });
 $('btn-conversation').addEventListener('dblclick', () => rename());
 document.addEventListener('click', event => {
   if (!$('conversation-dd').contains(event.target)) $('conversation-menu').classList.add('hidden');
+  if (!$('space-dd').contains(event.target)) $('space-menu').classList.add('hidden');
 });
 scroller().addEventListener('scroll', () => {
   annotations.paint();
