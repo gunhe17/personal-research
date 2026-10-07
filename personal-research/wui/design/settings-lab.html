@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ko" class="h-full">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Settings Lab</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: { extend: {
+      fontFamily: {
+        sans: ['"SF Pro Text"', "-apple-system", "BlinkMacSystemFont", "Inter", "Pretendard", "system-ui", "sans-serif"],
+        mono: ['"SF Mono"', "ui-monospace", "monospace"],
+      },
+      colors: {
+        slate: { 50: "#f5f5f7", 100: "#e8e8ed", 200: "#d2d2d7", 300: "#b4b4b9", 400: "#858585",
+                 500: "#707070", 600: "#474747", 700: "#333333", 800: "#1d1d1f", 900: "#1d1d1f" },
+        apple: { DEFAULT: "#0071e3", hover: "#0077ed", link: "#0066cc" },
+        ice: "#f4f8fb",
+        ok: "#34c759",
+      },
+    } },
+  };
+</script>
+<style type="text/tailwindcss">
+  body { letter-spacing: -0.016em; }
+  .pill { @apply inline-flex shrink-0 items-center justify-center rounded-full px-3 py-1 text-[12px] transition; }
+  .pill-fill { @apply pill bg-apple text-white hover:bg-apple-hover; }
+  .pill-line { @apply pill border border-apple-link text-apple-link hover:bg-ice; }
+  .pill-quiet { @apply pill bg-slate-100 text-slate-700 hover:bg-slate-200; }
+  .seg { @apply inline-flex items-center rounded-full bg-slate-100 p-0.5; }
+  .seg button { @apply rounded-full px-3 py-1 text-[12px] text-slate-500 transition; }
+  .seg button[aria-selected=true] { @apply bg-white text-slate-800 shadow-sm; }
+  .step { @apply flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-[13px] font-semibold text-slate-700 hover:bg-slate-50; }
+  .field { @apply w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-[13px] text-slate-800 placeholder:text-slate-400 focus:border-apple focus:bg-white focus:outline-none; }
+  .modal { @apply mx-auto w-full overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200; }
+  .label { @apply text-[11px] font-semibold uppercase tracking-wide text-slate-500; }
+  .dot { @apply inline-block h-1.5 w-1.5 rounded-full; }
+</style>
+</head>
+<body class="h-full bg-slate-50 text-slate-800 font-sans antialiased">
+
+<div class="mx-auto max-w-5xl px-6 py-12">
+
+  <header class="mb-12">
+    <h1 class="text-[40px] font-semibold tracking-tight" style="letter-spacing: 0.44px">Settings Lab</h1>
+    <p class="mt-2 text-[17px] font-light text-slate-500">설정 모달의 구성을 비교합니다. 내용은 같습니다: 문서와 대화 글씨 크기, 그리고 제공사 셋(OpenAI, Anthropic, xAI)의 로그인 상태와 인증 방식. 각 시안은 로그인됨, 기기 코드 대기, 코드 붙여 넣기, API 키 상태를 함께 보여 줍니다.</p>
+  </header>
+
+  <!-- S0 -->
+  <section class="mb-16">
+    <div class="mb-1 flex items-baseline justify-between">
+      <h2 class="text-[21px] font-semibold tracking-tight">S0. 기준</h2>
+      <span class="text-[12px] text-slate-400">한 줄 스크롤 · 카드 셋</span>
+    </div>
+    <p class="mb-4 text-[14px] text-slate-500">지금의 모달. 글씨 크기 두 섹션 아래에 제공사 카드가 쌓입니다. 카드마다 같은 무게라 상태를 훑기 어렵고, 진행 중인 로그인이 카드를 길게 늘입니다.</p>
+    <div class="modal max-w-md">
+      <div class="flex items-center px-5 pt-5 pb-3"><h3 class="flex-1 text-sm font-semibold">Settings</h3><span class="text-slate-400">×</span></div>
+      <div class="max-h-[520px] space-y-5 overflow-y-auto px-5 py-3">
+        <div data-size="Document text size"></div>
+        <div data-size="Chat text size"></div>
+        <div>
+          <div class="label mb-2">Model access</div>
+          <div class="space-y-3" data-render="cards"></div>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 bg-slate-50 px-5 py-3"><button class="pill-line">Cancel</button><button class="pill-fill">Save</button></div>
+    </div>
+  </section>
+
+  <!-- S1 -->
+  <section class="mb-16">
+    <div class="mb-1 flex items-baseline justify-between">
+      <h2 class="text-[21px] font-semibold tracking-tight">S1. 사이드 목록</h2>
+      <span class="text-[12px] text-slate-400">macOS 시스템 설정 · 넓은 모달</span>
+    </div>
+    <p class="mb-4 text-[14px] text-slate-500">왼쪽에 범주(일반, OpenAI, Anthropic, xAI), 오른쪽에 그 범주 하나만. 제공사가 범주가 되므로 왼쪽 목록에서 상태 점만 보고도 어디가 비었는지 압니다. 저장 버튼 없이 바꾸는 즉시 반영합니다.</p>
+    <div class="modal flex h-[440px] max-w-2xl" data-tabs>
+      <nav class="w-48 shrink-0 space-y-0.5 border-r border-slate-100 bg-slate-50 p-2.5 text-[13px]">
+        <div class="px-2 pb-2 pt-1 text-sm font-semibold">Settings</div>
+        <button data-tab="general" class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left aria-selected:bg-white aria-selected:shadow-sm" aria-selected="true">General</button>
+        <div class="label px-2 pb-1 pt-3">Models</div>
+        <div data-render="nav"></div>
+      </nav>
+      <div class="min-w-0 flex-1 overflow-y-auto p-6">
+        <div data-pane="general" class="space-y-6">
+          <h3 class="text-[21px] font-semibold tracking-tight">General</h3>
+          <div data-size="Document text size"></div>
+          <div data-size="Chat text size"></div>
+        </div>
+        <div data-render="panes"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- S2 -->
+  <section class="mb-16">
+    <div class="mb-1 flex items-baseline justify-between">
+      <h2 class="text-[21px] font-semibold tracking-tight">S2. 묶은 목록</h2>
+      <span class="text-[12px] text-slate-400">iOS 설정 · 행을 누르면 펼침</span>
+    </div>
+    <p class="mb-4 text-[14px] text-slate-500">회색 바탕 위에 흰 묶음. 글씨 크기는 한 행에 하나, 제공사도 한 행에 하나. 행 오른쪽에 상태 한 단어, 누르면 그 아래에 인증 방식과 로그인 동작이 펼쳐집니다. 접힌 상태에서 모달이 가장 짧습니다.</p>
+    <div class="modal max-w-md bg-slate-50">
+      <div class="flex items-center bg-white px-5 py-4"><h3 class="flex-1 text-sm font-semibold">Settings</h3><span class="text-slate-400">×</span></div>
+      <div class="space-y-5 p-4">
+        <div>
+          <div class="label mb-1.5 px-3">Text size</div>
+          <div class="divide-y divide-slate-100 overflow-hidden rounded-xl bg-white">
+            <div class="flex items-center px-3.5 py-2.5 text-[14px]"><span class="flex-1">Documents</span><span data-stepper></span></div>
+            <div class="flex items-center px-3.5 py-2.5 text-[14px]"><span class="flex-1">Chat</span><span data-stepper></span></div>
+          </div>
+        </div>
+        <div>
+          <div class="label mb-1.5 px-3">Model access</div>
+          <div class="divide-y divide-slate-100 overflow-hidden rounded-xl bg-white" data-render="rows"></div>
+          <p class="mt-1.5 px-3 text-[11px] text-slate-400">Plan login uses your subscription. API key bills the provider account.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- S3 -->
+  <section class="mb-16">
+    <div class="mb-1 flex items-baseline justify-between">
+      <h2 class="text-[21px] font-semibold tracking-tight">S3. 위 세그먼트</h2>
+      <span class="text-[12px] text-slate-400">General | Models · 상태 표</span>
+    </div>
+    <p class="mb-4 text-[14px] text-slate-500">모달 위에 두 갈래만. Models 갈래는 제공사를 표 한 장으로 보여 줍니다: 이름, 계정, 방식, 동작. 진행 중인 로그인은 표 아래 한 칸에만 뜨므로 표가 흔들리지 않습니다.</p>
+    <div class="modal max-w-xl" data-tabs>
+      <div class="flex items-center px-5 pt-5"><h3 class="flex-1 text-sm font-semibold">Settings</h3><span class="text-slate-400">×</span></div>
+      <div class="flex justify-center px-5 pb-1 pt-3">
+        <div class="seg"><button data-tab="g3">General</button><button data-tab="m3" aria-selected="true">Models</button></div>
+      </div>
+      <div class="p-5">
+        <div data-pane="g3" hidden class="space-y-6"><div data-size="Document text size"></div><div data-size="Chat text size"></div></div>
+        <div data-pane="m3" class="space-y-4">
+          <div class="overflow-hidden rounded-xl ring-1 ring-slate-200" data-render="table"></div>
+          <div class="rounded-xl bg-ice p-4" data-render="pending"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- S4 -->
+  <section class="mb-16">
+    <div class="mb-1 flex items-baseline justify-between">
+      <h2 class="text-[21px] font-semibold tracking-tight">S4. 한 줄 제공사 · 단계 시트</h2>
+      <span class="text-[12px] text-slate-400">로그인은 모달 위 시트로</span>
+    </div>
+    <p class="mb-4 text-[14px] text-slate-500">제공사는 한 줄: 머리글자 원, 이름과 계정, 오른쪽 버튼 하나. 로그인을 누르면 모달 위에 작은 시트가 내려와 1. 페이지 열기 2. 코드 입력 3. 완료를 순서로 보여 줍니다. 목록은 언제나 세 줄 그대로입니다.</p>
+    <div class="grid gap-6 md:grid-cols-2">
+      <div class="modal max-w-md">
+        <div class="flex items-center px-5 pt-5 pb-3"><h3 class="flex-1 text-sm font-semibold">Settings</h3><span class="text-slate-400">×</span></div>
+        <div class="space-y-6 px-5 pb-6 pt-2">
+          <div class="grid grid-cols-2 gap-3">
+            <div class="rounded-xl bg-slate-50 p-3"><div class="mb-2 text-[12px] text-slate-500">Documents</div><span data-stepper></span></div>
+            <div class="rounded-xl bg-slate-50 p-3"><div class="mb-2 text-[12px] text-slate-500">Chat</div><span data-stepper></span></div>
+          </div>
+          <div>
+            <div class="label mb-2">Models</div>
+            <div class="divide-y divide-slate-100" data-render="lines"></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal max-w-md self-start ring-0 shadow-[rgba(0,0,0,0.22)_3px_5px_30px_0px]">
+        <div class="flex items-center border-b border-slate-100 px-5 py-4"><h3 class="flex-1 text-sm font-semibold">Sign in to OpenAI</h3><button class="text-[12px] text-slate-500">Cancel</button></div>
+        <ol class="space-y-5 p-5 text-[13px]">
+          <li class="flex gap-3"><span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-apple text-[12px] text-white">1</span><div><div class="font-medium">Open the sign-in page</div><a class="mt-1 inline-block text-apple-link hover:underline">auth.openai.com/codex/device ↗</a></div></li>
+          <li class="flex gap-3"><span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-apple text-[12px] text-white">2</span><div class="min-w-0 flex-1"><div class="font-medium">Enter this code</div><div class="mt-2 flex items-center gap-2"><span class="rounded-lg bg-slate-50 px-3 py-2 font-mono text-[20px] font-semibold tracking-[0.12em]">IX75-HTBEL</span><button class="pill-quiet">Copy</button></div></div></li>
+          <li class="flex gap-3"><span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-slate-200 text-[12px] text-slate-400">3</span><div><div class="font-medium text-slate-400">Waiting for approval…</div><div class="mt-1 text-[12px] text-slate-400">This closes by itself when you approve.</div></div></li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- S5 -->
+  <section class="mb-16">
+    <div class="mb-1 flex items-baseline justify-between">
+      <h2 class="text-[21px] font-semibold tracking-tight">S5. 상태 요약 머리</h2>
+      <span class="text-[12px] text-slate-400">맨 위 한 줄 요약 · 아래는 필요한 것만</span>
+    </div>
+    <p class="mb-4 text-[14px] text-slate-500">모달 맨 위에 "3개 중 2개 사용 가능" 같은 요약과 제공사 알약 셋. 손볼 것이 있는 제공사만 아래에 펼쳐 둡니다. 글씨 크기는 맨 아래 한 줄로 내립니다.</p>
+    <div class="modal max-w-md">
+      <div class="flex items-center px-5 pt-5"><h3 class="flex-1 text-sm font-semibold">Settings</h3><span class="text-slate-400">×</span></div>
+      <div class="space-y-5 p-5">
+        <div class="rounded-xl bg-slate-50 p-4">
+          <div class="text-[21px] font-semibold tracking-tight">2 of 3 ready</div>
+          <div class="mt-0.5 text-[12px] text-slate-500">Answers can come from OpenAI and xAI.</div>
+          <div class="mt-3 flex flex-wrap gap-1.5" data-render="chips"></div>
+        </div>
+        <div data-render="attention"></div>
+        <div class="flex items-center gap-4 border-t border-slate-100 pt-4 text-[13px]">
+          <span class="text-slate-500">Text</span>
+          <span class="flex items-center gap-2"><span class="text-slate-400">Docs</span><span data-stepper></span></span>
+          <span class="flex items-center gap-2"><span class="text-slate-400">Chat</span><span data-stepper></span></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="rounded-2xl bg-white p-6">
+    <h2 class="mb-3 text-[13px] font-semibold uppercase tracking-wide text-slate-500">공통 규칙</h2>
+    <ul class="space-y-1.5 text-[14px] text-slate-600">
+      <li>채운 파란 버튼은 한 화면에 하나: 지금 해야 할 일(Save, Submit, Log in 중 하나)</li>
+      <li>로그인 상태는 초록 점과 한 단어(Ready / Sign in needed)</li>
+      <li>기기 코드는 고정폭 큰 글씨와 Copy 버튼, 로그인 페이지는 새 탭 링크</li>
+      <li>API 키 칸은 API key 를 고른 제공사에만, 저장된 키는 끝 네 자리만</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+  const providers = [
+    { id: "openai", label: "OpenAI", cli: "Codex CLI", initial: "O", auth: "subscription", state: "ready", account: "Logged in using ChatGPT" },
+    { id: "anthropic", label: "Anthropic", cli: "Claude Code CLI", initial: "A", auth: "subscription", state: "paste", account: "", url: "claude.com/cai/oauth/authorize…" },
+    { id: "xai", label: "xAI", cli: "Grok CLI", initial: "x", auth: "api_key", state: "ready", account: "API key …9f2c" },
+  ];
+  const device = { url: "auth.openai.com/codex/device", code: "IX75-HTBEL" };
+  const ready = (p) => p.state === "ready";
+  const status = (p) => `<span class="inline-flex items-center gap-1.5 text-[11px] ${ready(p) ? "text-slate-600" : "text-slate-400"}"><span class="dot ${ready(p) ? "bg-ok" : "bg-slate-300"}"></span>${ready(p) ? "Ready" : "Sign in needed"}</span>`;
+  const seg = (p) => `<div class="seg"><button aria-selected="${p.auth === "subscription"}">Plan login</button><button aria-selected="${p.auth === "api_key"}">API key</button></div>`;
+  const stepper = `<span class="inline-flex items-center gap-2"><button class="step">A−</button><span class="w-10 text-center font-mono text-[13px] font-semibold">100%</span><button class="step">A+</button></span>`;
+  const paste = (p) => `
+    <div class="space-y-2 rounded-lg bg-slate-50 p-3 text-[12px] text-slate-600">
+      <a class="text-apple-link hover:underline">Open the sign-in page ↗</a>
+      <div class="flex gap-2"><input class="field bg-white" placeholder="Paste the code shown after sign-in" /><button class="pill-fill">Submit</button></div>
+    </div>`;
+  const deviceBox = `
+    <div class="space-y-2 rounded-lg bg-slate-50 p-3 text-[12px] text-slate-600">
+      <a class="text-apple-link hover:underline">${device.url} ↗</a>
+      <div class="flex items-center gap-2"><span class="font-mono text-[17px] font-semibold tracking-[0.1em] text-slate-800">${device.code}</span><button class="pill-quiet">Copy</button><span class="ml-auto text-slate-400">Waiting…</span></div>
+    </div>`;
+  const body = (p) => {
+    if (p.auth === "api_key") return `<input class="field" type="password" placeholder="Saved …9f2c · enter to replace" />`;
+    if (p.state === "paste") return paste(p);
+    return `<div class="flex items-center gap-2"><button class="pill-line">Log in again</button><span class="truncate text-[11px] text-slate-400">${p.account}</span></div>`;
+  };
+
+  document.querySelectorAll("[data-size]").forEach((el) => {
+    el.innerHTML = `<div class="label mb-2">${el.dataset.size}</div>${stepper}<button class="pill-quiet ml-2">Default</button>`;
+  });
+  document.querySelectorAll("[data-stepper]").forEach((el) => (el.outerHTML = stepper));
+
+  const renders = {
+    cards: () => providers.map((p) => `
+      <div class="space-y-2.5 rounded-xl border border-slate-200 p-3">
+        <div class="flex items-center gap-1.5"><span class="text-sm font-medium">${p.label}</span><span class="flex-1 text-[11px] text-slate-400">${p.cli}</span>${status(p)}</div>
+        ${seg(p)}${body(p)}
+      </div>`).join(""),
+    nav: () => providers.map((p) => `
+      <button data-tab="${p.id}" class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left aria-selected:bg-white aria-selected:shadow-sm">
+        <span class="flex-1">${p.label}</span><span class="dot ${ready(p) ? "bg-ok" : "bg-slate-300"}"></span>
+      </button>`).join(""),
+    panes: () => providers.map((p) => `
+      <div data-pane="${p.id}" hidden class="space-y-5">
+        <div><h3 class="text-[21px] font-semibold tracking-tight">${p.label}</h3><div class="mt-1 flex items-center gap-2 text-[12px] text-slate-500">${p.cli} · ${status(p)}</div></div>
+        <div class="space-y-2"><div class="label">Access</div>${seg(p)}</div>
+        <div class="space-y-2"><div class="label">${p.auth === "api_key" ? "API key" : "Sign-in"}</div>${body(p)}</div>
+      </div>`).join(""),
+    rows: () => providers.map((p, i) => `
+      <details ${i === 1 ? "open" : ""} class="group">
+        <summary class="flex cursor-pointer list-none items-center gap-2 px-3.5 py-2.5 text-[14px]">
+          <span class="flex-1">${p.label}</span>
+          <span class="text-[12px] ${ready(p) ? "text-slate-500" : "text-apple-link"}">${ready(p) ? (p.auth === "api_key" ? "API key" : "Plan") : "Sign in"}</span>
+          <span class="text-slate-300 transition group-open:rotate-90">›</span>
+        </summary>
+        <div class="space-y-2.5 px-3.5 pb-3.5">${seg(p)}${body(p)}</div>
+      </details>`).join(""),
+    table: () => `
+      <div class="grid grid-cols-[1fr_auto_auto] items-center gap-x-4 bg-slate-50 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500"><span>Provider</span><span>Access</span><span class="w-24 text-right">Action</span></div>
+      ${providers.map((p) => `
+      <div class="grid grid-cols-[1fr_auto_auto] items-center gap-x-4 border-t border-slate-100 px-4 py-3">
+        <div class="min-w-0"><div class="flex items-center gap-2 text-[14px]"><span class="dot ${ready(p) ? "bg-ok" : "bg-slate-300"}"></span>${p.label}</div><div class="truncate pl-3.5 text-[11px] text-slate-400">${p.account || "Not signed in"}</div></div>
+        ${seg(p)}
+        <div class="w-24 text-right">${ready(p) ? `<button class="text-[12px] text-apple-link">${p.auth === "api_key" ? "Change key" : "Log in again"}</button>` : `<button class="pill-line">Log in</button>`}</div>
+      </div>`).join("")}`,
+    pending: () => `
+      <div class="mb-2 flex items-center gap-2 text-[13px]"><span class="font-medium">Signing in to Anthropic</span><button class="ml-auto text-[12px] text-slate-500">Cancel</button></div>
+      <div class="flex gap-2"><a class="pill-line">Open sign-in page ↗</a><input class="field bg-white" placeholder="Paste the code" /><button class="pill-fill">Submit</button></div>`,
+    lines: () => providers.map((p) => `
+      <div class="flex items-center gap-3 py-3">
+        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[13px] font-semibold text-slate-600">${p.initial}</span>
+        <div class="min-w-0 flex-1"><div class="flex items-center gap-1.5 text-[14px]">${p.label}<span class="dot ${ready(p) ? "bg-ok" : "bg-slate-300"}"></span></div><div class="truncate text-[11px] text-slate-400">${p.account || `${p.cli} · not signed in`}</div></div>
+        ${ready(p) ? `<button class="pill-quiet">Manage</button>` : `<button class="pill-fill">Log in</button>`}
+      </div>`).join(""),
+    chips: () => providers.map((p) => `<span class="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[12px] ring-1 ring-slate-200"><span class="dot ${ready(p) ? "bg-ok" : "bg-slate-300"}"></span>${p.label}</span>`).join(""),
+    attention: () => providers.filter((p) => !ready(p)).map((p) => `
+      <div class="space-y-2.5">
+        <div class="flex items-center gap-2"><span class="text-sm font-medium">${p.label}</span><span class="text-[11px] text-slate-400">${p.cli}</span><span class="ml-auto">${seg(p)}</span></div>
+        ${body(p)}
+      </div>`).join("") + `
+      <div class="mt-4 space-y-2.5 border-t border-slate-100 pt-4">
+        <div class="flex items-center gap-2"><span class="text-sm font-medium">OpenAI</span><span class="text-[11px] text-slate-400">signing in again</span><button class="ml-auto text-[12px] text-slate-500">Cancel</button></div>
+        ${deviceBox}
+      </div>`,
+  };
+  document.querySelectorAll("[data-render]").forEach((el) => (el.innerHTML = renders[el.dataset.render]()));
+
+  document.querySelectorAll("[data-tabs]").forEach((root) => {
+    const tabs = root.querySelectorAll("[data-tab]");
+    const show = (name) => {
+      tabs.forEach((t) => t.setAttribute("aria-selected", String(t.dataset.tab === name)));
+      root.querySelectorAll("[data-pane]").forEach((p) => (p.hidden = p.dataset.pane !== name));
+    };
+    tabs.forEach((t) => t.addEventListener("click", () => show(t.dataset.tab)));
+    show([...tabs].find((t) => t.getAttribute("aria-selected") === "true")?.dataset.tab || tabs[0].dataset.tab);
+  });
+</script>
+</body>
+</html>
