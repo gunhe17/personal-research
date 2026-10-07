@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ko" class="h-full">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Action Lab</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: { extend: {
+      fontFamily: {
+        sans: ['"SF Pro Text"', "-apple-system", "BlinkMacSystemFont", "Inter", "Pretendard", "system-ui", "sans-serif"],
+        mono: ['"SF Mono"', "ui-monospace", "monospace"],
+      },
+      colors: {
+        slate: { 50: "#f5f5f7", 100: "#e8e8ed", 200: "#d2d2d7", 300: "#b4b4b9", 400: "#858585",
+                 500: "#707070", 600: "#474747", 700: "#333333", 800: "#1d1d1f", 900: "#1d1d1f" },
+        apple: { DEFAULT: "#0071e3", hover: "#0077ed", link: "#0066cc" },
+        ice: "#f4f8fb",
+        ok: "#34c759",
+      },
+    } },
+  };
+</script>
+<style type="text/tailwindcss">
+  body { letter-spacing: -0.016em; }
+  .dot { @apply inline-block h-1.5 w-1.5 shrink-0 rounded-full; }
+  .switch { @apply relative inline-block h-5 w-9 shrink-0 rounded-full bg-slate-200; }
+  .switch::after { content: ""; @apply absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white; }
+  .switch[aria-checked=true] { @apply bg-ok; }
+  .switch[aria-checked=true]::after { @apply translate-x-4; }
+  .row { @apply flex items-center gap-1.5 rounded-lg py-1.5 pl-1 pr-1.5 text-sm; }
+  .pane { @apply w-full max-w-md rounded-2xl bg-white p-6 ring-1 ring-slate-200; }
+  .kv { @apply flex items-center gap-3 py-1.5 text-[13px]; }
+  .kv > span:first-child { @apply w-24 shrink-0 text-[12px] text-slate-500; }
+  .quiet { @apply inline-flex shrink-0 items-center rounded-full bg-slate-100 px-3 py-1 text-[12px] text-slate-700 hover:bg-slate-200; }
+  .pill { @apply inline-flex shrink-0 items-center gap-1 rounded-full border border-apple-link px-3 py-1 text-[13px] text-apple-link; }
+  .h1 { @apply transition hover:bg-ice; }
+  .h2 { @apply transition duration-150 hover:bg-apple-link hover:text-white active:scale-[0.96]; }
+  .h3 { @apply transition duration-150 hover:bg-ice active:scale-[0.96] active:bg-[#e6eef8]; }
+  .h4 { @apply transition hover:bg-ice disabled:cursor-default disabled:opacity-60; }
+  @keyframes arrive { from { opacity: 0; transform: translateY(-4px); background: #f4f8fb; } 60% { background: #f4f8fb; } to { opacity: 1; transform: none; background: transparent; } }
+  .arrive { animation: arrive 900ms cubic-bezier(0.22, 1, 0.36, 1); }
+  @keyframes leave { to { opacity: 0; height: 0; padding-top: 0; padding-bottom: 0; } }
+  .leave { animation: leave 220ms cubic-bezier(0.4, 0, 1, 1) forwards; overflow: hidden; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spin { animation: spin 700ms linear infinite; }
+</style>
+</head>
+<body class="h-full bg-slate-50 text-slate-800 font-sans antialiased">
+
+<div class="mx-auto max-w-5xl px-6 py-12">
+  <header class="mb-12">
+    <h1 class="text-[40px] font-semibold tracking-tight" style="letter-spacing: 0.44px">Action Lab</h1>
+    <p class="mt-2 text-[17px] font-light text-slate-500">두 가지를 정합니다. 1) 추가한 인증 수단을 지우는 방법, 2) "+ Plan login" "+ API key" 알약의 올림과 누름 반응. 모든 시안은 실제로 눌러 볼 수 있습니다.</p>
+  </header>
+
+  <h2 class="mb-6 text-[28px] font-semibold tracking-tight">1. Remove</h2>
+  <div class="space-y-14" id="removes"></div>
+
+  <h2 class="mb-6 mt-20 text-[28px] font-semibold tracking-tight">2. + 알약 반응</h2>
+  <div class="space-y-14" id="adds"></div>
+
+  <section class="mt-16 rounded-2xl bg-white p-6">
+    <h2 class="mb-3 text-[13px] font-semibold uppercase tracking-wide text-slate-500">공통</h2>
+    <ul class="space-y-1.5 text-[14px] text-slate-600">
+      <li>기본 수단(Plan login, API key)은 지우지 않고 끄기만. 지우기는 추가한 수단(… 2, 3)만</li>
+      <li>지우면 그 수단의 로그인 정보·키·CLI 홈도 함께 지워짐 → 되돌리기 또는 확인이 필요</li>
+      <li>브라우저 기본 confirm 창은 우리 화면과 어울리지 않으므로 화면 안에서 확인</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+  const svg = (d, cls = "h-3 w-3") => `<svg viewBox="0 0 16 16" class="${cls}"><path d="${d}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const plus = svg("M8 3.5v9M3.5 8h9");
+  const trash = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>`;
+  const chevron = (open) => `<span class="inline-flex h-4 w-4 items-center justify-center text-slate-400">${svg("M6 4l4 4-4 4", `h-3 w-3 ${open ? "rotate-90" : ""}`)}</span>`;
+  const person = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5 shrink-0 text-slate-500"><circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-3.5 4.5-5 8-5s6.5 1.5 8 5"/></svg>`;
+  const head = (n, label, on, extra = "", open = false) => `
+    <div class="row group hover:bg-slate-50">${chevron(open)}${person}<span class="w-4 text-center text-[11px] font-semibold ${n === 1 ? "text-apple" : "text-slate-400"}">${n}</span>
+      <span class="flex w-[6.5rem] items-center gap-2 text-slate-800"><span class="dot ${on ? "bg-ok" : "bg-slate-300"}"></span>${label}</span>
+      <span class="flex-1 text-[12px] text-slate-400">${on ? "On" : "Off"}</span>${extra}<span class="switch" aria-checked="true"></span></div>`;
+  const detail = (rows) => `<div class="ml-3 border-l border-slate-100 pb-2 pl-5">${rows}</div>`;
+  const toast = (box, text) => {
+    const t = document.createElement("div");
+    t.className = "mt-3 flex items-center gap-3 rounded-full bg-slate-800 px-4 py-2 text-[13px] text-white";
+    t.innerHTML = `<span class="flex-1">${text}</span><button class="text-[#2997ff]">Undo</button>`;
+    box.append(t);
+    t.querySelector("button").onclick = () => { t.remove(); box.dispatchEvent(new Event("restore")); };
+    setTimeout(() => t.remove(), 5000);
+  };
+
+  const removes = [
+    { id: "R1", title: "세부 맨 아래 글자 링크 (지금)", note: "펼친 세부 맨 아래 회색 \"Remove Plan login 2\", 올리면 빨강. 누르면 브라우저 confirm. 눈에 덜 띄지만 확인 창이 우리 스타일과 어긋납니다.",
+      html: () => head(1, "Plan login", true) + head(2, "Plan login 2", false, "", true) + detail(`<div class="kv"><span>Account</span><span class="text-slate-400">Logged out</span></div><div class="kv"><span></span><button data-remove class="text-[12px] text-slate-500 hover:text-red-600">Remove Plan login 2</button></div>`),
+      act: (box) => box.querySelector("[data-remove]").onclick = () => confirm("Remove Plan login 2?") },
+    { id: "R2", title: "Account 줄 버튼 묶음에", note: "Log in · Log out 옆에 같은 회색 알약 \"Remove\". 누르면 그 줄이 \"Remove Plan login 2? [Cancel] [Remove]\" 로 바뀌어 화면 안에서 확인. 버튼 자리가 하나로 모입니다.",
+      html: () => head(1, "Plan login", true) + head(2, "Plan login 2", false, "", true) + detail(`<div class="kv" data-line><span>Account</span><span class="flex-1 text-slate-400">Logged out</span><button class="rounded-full bg-apple px-3 py-1 text-[12px] text-white">Log in</button><button data-remove class="quiet">Remove</button></div><div class="kv"><span>Usage</span><span>Not used yet</span></div>`),
+      act: (box) => {
+        const line = box.querySelector("[data-line]"), keep = line.innerHTML;
+        const ask = () => { line.innerHTML = `<span class="w-24 shrink-0 text-[12px] text-red-600">Remove?</span><span class="flex-1 text-slate-600">Plan login 2 and its login</span><button data-cancel class="quiet">Cancel</button><button data-yes class="inline-flex rounded-full bg-red-600 px-3 py-1 text-[12px] text-white">Remove</button>`; line.querySelector("[data-cancel]").onclick = back; line.querySelector("[data-yes]").onclick = back; };
+        const back = () => { line.innerHTML = keep; line.querySelector("[data-remove]").onclick = ask; };
+        line.querySelector("[data-remove]").onclick = ask;
+      } },
+    { id: "R3", title: "줄에 올리면 휴지통 아이콘", note: "추가한 수단 줄에 마우스를 올리면 순서 버튼 옆에 휴지통이 나타납니다. 누르면 줄이 접히며 사라지고 아래에 \"Removed · Undo\" 알림. 확인 없이 되돌리기로 안전하게.",
+      html: () => head(1, "Plan login", true) + head(2, "Plan login 2", false, `<button data-remove class="mr-1 flex h-6 w-6 items-center justify-center rounded-md text-slate-400 opacity-0 transition hover:bg-slate-100 hover:text-red-600 group-hover:opacity-100" title="Remove">${trash}</button>`),
+      act: (box) => {
+        const btn = box.querySelector("[data-remove]"), row = btn.closest(".row");
+        btn.onclick = () => { row.classList.add("leave"); toast(box.querySelector(".pane"), "Removed Plan login 2"); };
+        box.addEventListener("restore", () => { row.classList.remove("leave"); row.classList.add("arrive"); });
+      } },
+    { id: "R4", title: "꺼진 수단에만 Remove", note: "켜져 있는 동안은 지울 수 없고, 스위치를 끄면 그 줄 상태 글 자리에 \"Remove\" 링크가 나타납니다. 쓰는 중인 계정을 실수로 지우는 일을 막습니다.",
+      html: () => head(1, "Plan login", true) + `<div class="row group hover:bg-slate-50">${chevron(false)}${person}<span class="w-4 text-center text-[11px] font-semibold text-slate-400">–</span><span class="flex w-[6.5rem] items-center gap-2 text-slate-400"><span class="dot bg-slate-300"></span>Plan login 2</span><span class="flex-1"><button data-remove class="text-[12px] text-apple-link hover:underline">Remove</button></span><span class="switch" aria-checked="false"></span></div>`,
+      act: (box) => {
+        const btn = box.querySelector("[data-remove]"), row = btn.closest(".row");
+        btn.onclick = () => { row.classList.add("leave"); toast(box.querySelector(".pane"), "Removed Plan login 2"); };
+        box.addEventListener("restore", () => { row.classList.remove("leave"); row.classList.add("arrive"); });
+      } },
+    { id: "R5", title: "세부 아래 위험 구역", note: "세부 맨 아래 가는 선 다음 \"Remove this login\" 빨간 글자와 한 줄 설명. 누르면 그 자리에서 두 번째 확인 버튼으로 바뀝니다(두 번 누르기). macOS 설정의 계정 삭제와 비슷합니다.",
+      html: () => head(1, "Plan login", true) + head(2, "Plan login 2", false, "", true) + detail(`<div class="kv"><span>Account</span><span class="text-slate-400">Logged out</span></div><div class="mt-1 flex items-center gap-3 border-t border-slate-100 pt-2.5 text-[13px]"><span class="w-24 shrink-0"></span><button data-remove class="text-red-600 hover:underline">Remove this login</button><span class="text-[12px] text-slate-400">Deletes its saved login</span></div>`),
+      act: (box) => {
+        const btn = box.querySelector("[data-remove]");
+        btn.onclick = () => { if (btn.dataset.armed) { btn.textContent = "Removed"; return; } btn.dataset.armed = "1"; btn.className = "rounded-full bg-red-600 px-3 py-1 text-[12px] text-white"; btn.textContent = "Click again to remove"; setTimeout(() => { delete btn.dataset.armed; btn.className = "text-red-600 hover:underline"; btn.textContent = "Remove this login"; }, 3000); };
+      } },
+  ];
+
+  const adds = [
+    { id: "H1", title: "올리면 ice 바탕 (지금)", note: "올림: 옅은 ice 바탕. 누름: 변화 없음. 새 줄은 바로 생깁니다. 조용하지만 눌렀는지 느낌이 약합니다.", cls: "h1", arrive: false },
+    { id: "H2", title: "올리면 파랗게 채움", note: "올림: 윤곽 → 파란 채움 + 흰 글자. 누름: 살짝 작아짐(0.96). space 목록 \"+ new\" 와 다른 강한 반응이라, 이 화면의 Log in 채움 버튼과 겹쳐 보일 수 있습니다.", cls: "h2", arrive: false },
+    { id: "H3", title: "ice + 눌림 + 새 줄 하이라이트", note: "올림: ice 바탕. 누름: 0.96 으로 눌리고 바탕이 한 단계 진해짐. 결과: 새 줄이 위에서 살짝 내려오며 ice 로 잠깐 빛나고 펼쳐짐. 무엇이 생겼는지 눈이 따라갑니다.", cls: "h3", arrive: true },
+    { id: "H4", title: "누르면 Adding… 후 하이라이트", note: "H3 에 더해, 서버 저장 동안 알약이 \"Adding…\" 회전 표시로 잠기고 끝나면 원래대로. 두 번 눌러 두 개가 생기는 일을 막습니다.", cls: "h4", arrive: true, busy: true },
+  ];
+
+  document.getElementById("removes").innerHTML = removes.map((v) => `
+    <section data-remove-variant="${v.id}">
+      <h3 class="text-[21px] font-semibold tracking-tight">${v.id}. ${v.title}</h3>
+      <p class="mb-4 mt-1 text-[14px] text-slate-500">${v.note}</p>
+      <div class="pane"><div class="mb-2 text-[13px] font-semibold uppercase tracking-wide text-slate-500">Order</div><div class="space-y-0.5">${v.html()}</div></div>
+    </section>`).join("");
+  removes.forEach((v) => v.act(document.querySelector(`[data-remove-variant="${v.id}"]`)));
+
+  document.getElementById("adds").innerHTML = adds.map((v) => `
+    <section data-add-variant="${v.id}">
+      <h3 class="text-[21px] font-semibold tracking-tight">${v.id}. ${v.title}</h3>
+      <p class="mb-4 mt-1 text-[14px] text-slate-500">${v.note}</p>
+      <div class="pane">
+        <div class="mb-2 flex items-center gap-1.5"><span class="flex-1 text-[13px] font-semibold uppercase tracking-wide text-slate-500">Order</span>
+          <button data-add class="pill ${v.cls}">${plus}<span>Plan login</span></button><button class="pill ${v.cls}">${plus}<span>API key</span></button></div>
+        <div class="space-y-0.5" data-list>${head(1, "Plan login", true)}</div>
+      </div>
+    </section>`).join("");
+  adds.forEach((v) => {
+    const box = document.querySelector(`[data-add-variant="${v.id}"]`), list = box.querySelector("[data-list]");
+    let n = 1;
+    box.querySelectorAll("[data-add]").forEach((btn) => btn.onclick = () => {
+      const make = () => {
+        n += 1;
+        list.insertAdjacentHTML("beforeend", head(n, `Plan login ${n}`, false, "", v.arrive) + (v.arrive ? detail(`<div class="kv"><span>Account</span><span class="flex-1 text-slate-400">Logged out</span><button class="rounded-full bg-apple px-3 py-1 text-[12px] text-white">Log in</button></div>`) : ""));
+        if (v.arrive) { const rows = list.querySelectorAll(".row"); rows[rows.length - 1].classList.add("arrive"); list.lastElementChild.classList.add("arrive"); }
+      };
+      if (!v.busy) return make();
+      const label = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = `<svg viewBox="0 0 16 16" class="spin h-3 w-3"><path d="M8 2a6 6 0 1 1-6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span>Adding…</span>`;
+      setTimeout(() => { btn.disabled = false; btn.innerHTML = label; make(); }, 700);
+    });
+  });
+</script>
+</body>
+</html>
