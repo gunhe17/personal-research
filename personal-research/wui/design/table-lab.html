@@ -42,7 +42,7 @@
 
   <header class="mb-12">
     <h1 class="text-[40px] font-semibold tracking-tight" style="letter-spacing: 0.44px">Table Lab</h1>
-    <p class="mt-2 text-[17px] font-light text-slate-500">A. Inset list 에 버튼을 놓는 방식을 비교합니다. 버튼이 하는 일은 셋입니다: 이어 가기(마지막 대화로), 보기(상세 페이지로), 새 space.</p>
+    <p class="mt-2 text-[17px] font-light text-slate-500">A. Inset list 에 버튼을 놓는 방식을 비교합니다. 행의 본문은 이름과 목적뿐이고, 나머지는 한 열에 한 가지 값만 담습니다. 버튼이 하는 일은 셋입니다: 이어 가기(마지막 대화로), 보기(상세 페이지로), 새 space.</p>
   </header>
 
   <!-- A0 -->
@@ -169,10 +169,19 @@
     if (minutes < 1440) return `${Math.round(minutes / 60)}h ago`;
     return `${Math.round(minutes / 1440)}d ago`;
   };
-  const meta = (s) => `
-    <div class="hidden shrink-0 text-right sm:block">
-      <div class="num text-[13px] text-slate-500">대화 ${s.conversations} · 자료 ${s.materials}</div>
-      <div class="text-[12px] text-slate-400">${since(s.updated)}</div>
+  const COLUMNS = [
+    { label: "대화", width: "w-12", value: (s) => s.conversations, hide: "hidden sm:block" },
+    { label: "자료", width: "w-12", value: (s) => s.materials, hide: "hidden sm:block" },
+    { label: "바뀐 때", width: "w-20", value: (s) => since(s.updated), hide: "hidden sm:block" },
+  ];
+  const ACTION_WIDTH = { plain: "w-4", line: "w-[5.5rem]", hover: "w-[5.5rem]", pair: "w-[9rem]", icon: "w-8", expand: "w-4", first: "w-[5.5rem]" };
+  const meta = (s, columns) => columns.map((c) => `
+    <div class="${c.hide} ${c.width} shrink-0 text-right num text-[14px] text-slate-600">${c.value(s)}</div>`).join("");
+  const header = (variant, columns) => `
+    <div class="flex items-center gap-4 border-b border-slate-100 py-2.5 pl-5 pr-5 text-[12px] text-slate-400">
+      <div class="min-w-0 flex-1">Space</div>
+      ${columns.map((c) => `<div class="${c.hide} ${c.width} shrink-0 text-right">${c.label}</div>`).join("")}
+      <div class="${ACTION_WIDTH[variant]} shrink-0"></div>
     </div>`;
   const head = (s) => `
     <div class="min-w-0 flex-1">
@@ -189,12 +198,12 @@
     expand: () => `<span data-chevron class="text-[17px] text-slate-300 transition-transform">›</span>`,
     first: (s, i) => `<button class="${i ? "pill-line" : "pill-fill"}" data-stop>이어 가기</button>`,
   };
-  const row = (variant, s, i) => `
+  const row = (variant, s, i, columns) => `
     <div class="group ${variant === "pair" ? "" : "cursor-pointer"} pl-5 hover:bg-slate-50 transition" data-row="${i}">
       <div class="flex items-center gap-4 py-4 pr-5 ${i ? "border-t border-slate-100" : ""}">
         ${head(s)}
-        ${meta(s)}
-        <div class="flex items-center gap-2">${actions[variant](s, i)}</div>
+        ${meta(s, columns)}
+        <div class="${ACTION_WIDTH[variant]} flex shrink-0 items-center justify-end gap-2">${actions[variant](s, i)}</div>
       </div>
       ${variant === "expand" ? `
         <div data-detail class="${i ? "hidden" : ""} pb-4 pr-5">
@@ -212,7 +221,8 @@
   document.querySelectorAll("[data-variant]").forEach((box) => {
     const variant = box.dataset.variant;
     const items = box.dataset.short ? spaces.slice(0, 2) : spaces;
-    box.innerHTML = items.map((s, i) => row(variant, s, i)).join("");
+    const columns = box.dataset.short ? COLUMNS.slice(2) : COLUMNS;
+    box.innerHTML = header(variant, columns) + items.map((s, i) => row(variant, s, i, columns)).join("");
     if (variant === "expand") box.querySelector("[data-chevron]").style.transform = "rotate(90deg)";
   });
   document.querySelectorAll("[data-variant=expand] [data-row]").forEach((item) => item.addEventListener("click", (e) => {
