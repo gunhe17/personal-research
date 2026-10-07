@@ -16,6 +16,7 @@ paths:
 | `collected` | 문서 하나의 신원과 원문 주소와 보관 경로 | `id` (uuid) |
 | `collected_content` | 원문과 번역본의 본문. 판마다 한 행 | `(collected_id, language, version)` |
 | `space` | 학습 목적 하나 | `id` |
+| `space_material` | space 의 자료(목적, 수업, 노트, 기록) | `id` |
 | `space_conversation` `space_message` | space 의 대화와 그 메시지 | `id` |
 | `agent_conversation` `agent_message` | 홈의 대화와 그 메시지 | `id` |
 | `user` `user_meta` | 사용자와 사용자 부가 정보(문서를 연 기록 등) | `id`, `(user_id, kind, collected_id)` |

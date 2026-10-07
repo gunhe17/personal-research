@@ -36,7 +36,8 @@ personal-research/
 |------|------|
 | `collected` | 문서의 신원, 원본 주소, 보관 경로, 수집 정보(`meta`, JSON) |
 | `collected_content` | 원문과 번역의 본문(`content`). 판마다 한 행. `decoration` 은 상류가 본문 앞에 붙인 장식을 떼어 둔 것이다 |
-| `space` | 무엇을 배울지라는 목적 하나. 제목, 목적(`purpose`), 웹 이전 학습 기록(`log`) |
+| `space` | 무엇을 배울지라는 목적 하나. 이름만 갖는다 |
+| `space_material` | space 의 자료. `plan`(목적, space 당 하나), `lesson`(수업, 답변과 같은 블록 JSON), `note`(노트), `log`(웹 이전 학습 기록) |
 | `space_conversation` | space 안의 대화. space 하나에 여럿. 출발 자료(`collected_id`)와 모델별 정보(`meta`, JSON) |
 | `space_message` | space 대화의 메시지 한 건. 질문과 답변이 각각 한 행 |
 | `agent_conversation` | 홈에서 시작한 대화. ask 와 collect 가 쌓인다 |
@@ -52,9 +53,9 @@ personal-research/
 - 문서를 열면 그 문서를 자료로 가진 space 대화가 열리고, 없으면 첫 질문 때 그 문서를 자료로 새 대화를 만든다.
 - 답할 때마다 Codex 가 `data/corpus/` 의 수집물 사본(`collect.py export` 와 같은 트리)을 읽기 전용으로 조사하고, 근거로 쓴 path 를 `sources` 에 남긴다. 근거가 없으면 그렇다고 밝히고 답한다. 사본은 수집물이 바뀌면 다음 질문 때 다시 만든다.
 - 모델을 부를 때마다(답변은 Codex, 수집할 때의 번역은 claude) `llm` 에 한 행이 남는다. `owner_id` 는 질문 메시지 id 나 번역한 문서 id 다.
-- DB 를 처음 열 때 `common/store.py` 의 `upgrade` 가 예전 구조(`extra` `body` 열, `opened` `conversations` `agent` `asked` 표, 대화를 JSON 으로 담던 `space`)를 지금 구조로 옮긴다.
+- DB 를 처음 열 때 `common/store.py` 의 `upgrade` 가 예전 구조(`extra` `body` 열, `opened` `conversations` `agent` `asked` 표, 대화를 JSON 으로 담던 `space`, `space` 의 `purpose` `log` 열, 대화 첫머리에 끼워 둔 수업)를 지금 구조로 옮긴다.
 
-왼쪽 사이드바는 Home 과 Space(space 목록)다. Space 를 누르면 space 목록 페이지(`/viewer/space`)가, space 이름을 누르면 상세 페이지(`/viewer/space?id=…`)가 열린다. 상세 페이지에서 이름과 목적을 고치고, 그 space 의 대화와 자료(대화들의 출발 수집물)를 본다. 홈에서 시작한 대화는 채팅 머리의 Agent 에서 고른다. 수집물은 대화의 근거, 자료 메뉴, 홈 collect 결과로 연다. 사이드바 오른쪽에는 문서와 채팅을 둔다. 채팅 패널 머리에서 space(또는 Agent)와 대화를 고르고, `문서` `나란히` `채팅` 으로 배치를 고른다.
+왼쪽 사이드바는 Home 과 Space(space 목록)다. Space 를 누르면 space 목록 페이지(`/viewer/space`)가, space 이름을 누르면 상세 페이지(`/viewer/space?id=…`)가 열린다. 상세 페이지에서 이름과 목적을 고치고, 자료(수업, 노트, 기록)를 펼쳐 읽거나 노트를 쓰고, 대화와 수집물(대화들의 출발 문서)을 본다. 튜터는 매 질문마다 목적, 기록의 끝부분, 수업, 노트를 함께 읽는다. 홈에서 시작한 대화는 채팅 머리의 Agent 에서 고른다. 수집물은 대화의 근거, 자료 메뉴, 홈 collect 결과로 연다. 사이드바 오른쪽에는 문서와 채팅을 둔다. 채팅 패널 머리에서 space(또는 Agent)와 대화를 고르고, `문서` `나란히` `채팅` 으로 배치를 고른다.
 
 뷰어 서버는 Docker 로 띄운다. 환경은 둘이고, 포트와 경로는 `.env/.env.{환경}` 에서 정한다.
 
