@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ko" class="h-full">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Section Lab</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: { extend: {
+      fontFamily: {
+        sans: ['"SF Pro Text"', "-apple-system", "BlinkMacSystemFont", "Inter", "Pretendard", "system-ui", "sans-serif"],
+        mono: ['"SF Mono"', "ui-monospace", "monospace"],
+      },
+      colors: {
+        slate: { 50: "#f5f5f7", 100: "#e8e8ed", 200: "#d2d2d7", 300: "#b4b4b9", 400: "#858585",
+                 500: "#707070", 600: "#474747", 700: "#333333", 800: "#1d1d1f", 900: "#1d1d1f" },
+        apple: { DEFAULT: "#0071e3", hover: "#0077ed", link: "#0066cc" },
+        ice: "#f4f8fb",
+        ok: "#34c759",
+      },
+    } },
+  };
+</script>
+<style type="text/tailwindcss">
+  body { letter-spacing: -0.016em; }
+  .dot { @apply inline-block h-1.5 w-1.5 shrink-0 rounded-full; }
+  .switch { @apply relative inline-block h-5 w-9 shrink-0 rounded-full bg-slate-200; }
+  .switch::after { content: ""; @apply absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white; }
+  .switch[aria-checked=true] { @apply bg-ok; }
+  .switch[aria-checked=true]::after { @apply translate-x-4; }
+  .row { @apply flex items-center gap-1.5 rounded-lg py-1.5 pl-1 pr-1.5 text-sm; }
+  .menu { @apply w-44 space-y-1 rounded-xl bg-white p-1.5 ring-1 ring-slate-200; }
+  .item { @apply flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] text-slate-800; }
+  .pane { @apply w-full max-w-md rounded-2xl bg-white p-6 ring-1 ring-slate-200; }
+  .state { @apply flex flex-col items-start gap-2; }
+  .state > span:last-child { @apply text-[11px] text-slate-400; }
+</style>
+</head>
+<body class="h-full bg-slate-50 text-slate-800 font-sans antialiased">
+
+<div class="mx-auto max-w-5xl px-6 py-12">
+  <header class="mb-12">
+    <h1 class="text-[40px] font-semibold tracking-tight" style="letter-spacing: 0.44px">Section Lab</h1>
+    <p class="mt-2 text-[17px] font-light text-slate-500">설정의 "Try in this order" 제목 행과 + 버튼을 다른 페이지의 문법으로 다시 그립니다. 참고한 곳: space 상세의 섹션 머리(13px 대문자 제목 + 개수 + 윤곽 알약 "새 노트"), space 목록의 "+ new", 사이드바의 "+ 새 대화", 홈 입력창의 "ask ⌄". 각 시안 오른쪽에 버튼의 기본 · 올림 · 열림 상태를 함께 둡니다.</p>
+  </header>
+
+  <div class="space-y-16" id="variants"></div>
+
+  <section class="mt-16 rounded-2xl bg-white p-6">
+    <h2 class="mb-3 text-[13px] font-semibold uppercase tracking-wide text-slate-500">우리 스타일에서 가져온 규칙</h2>
+    <ul class="space-y-1.5 text-[14px] text-slate-600">
+      <li>섹션 제목: 대문자 · 반굵게 · 회색, 개수는 같은 줄에 숫자만 (space 상세)</li>
+      <li>섹션 동작 버튼: 둥근 알약, 윤곽선 #0066cc, 글자 13px, 올리면 흰 바탕 → 설정은 흰 바탕이라 ice(#f4f8fb)</li>
+      <li>채운 파란 버튼은 화면에 하나(Log in 등 주 동작)라서 + 는 채우지 않음</li>
+      <li>메뉴는 흰 바탕 · 얇은 테두리 · 그림자 없음, 항목은 아이콘 + 이름</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+  const svg = (d, cls = "h-3 w-3") => `<svg viewBox="0 0 16 16" class="${cls}"><path d="${d}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const plus = (cls) => svg("M8 3.5v9M3.5 8h9", cls);
+  const down = svg("M4 6l4 4 4-4", "h-3 w-3");
+  const icon = (plan) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5 shrink-0 text-slate-500">${plan ? '<circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-3.5 4.5-5 8-5s6.5 1.5 8 5"/>' : '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M14 9l2 2"/>'}</svg>`;
+  const chevron = `<span class="inline-flex h-4 w-4 items-center justify-center text-slate-400">${svg("M6 4l4 4-4 4")}</span>`;
+  const methods = [["Plan login", true, true], ["Plan login 2", true, false], ["API key", false, false]];
+  const list = methods.map(([label, plan, on], i) => `
+    <div class="row">${chevron}${icon(plan)}<span class="w-4 text-center text-[11px] font-semibold ${i === 0 ? "text-apple" : "text-slate-400"}">${on ? i + 1 : "–"}</span>
+      <span class="flex w-[6.5rem] items-center gap-2 ${on ? "text-slate-800" : "text-slate-400"}"><span class="dot ${i === 0 ? "bg-ok" : "bg-slate-300"}"></span>${label}</span>
+      <span class="flex-1 text-[12px] text-slate-400">${i === 0 ? "On" : "Off"}</span><span class="switch" aria-checked="${on}"></span></div>`).join("");
+  const menu = `<div class="menu"><div class="item bg-slate-50">${icon(true)}Plan login</div><div class="item">${icon(false)}API key</div></div>`;
+  const pill = (inner, state = "") => `<span class="inline-flex items-center gap-1 rounded-full border border-apple-link px-3 py-1 text-[13px] text-apple-link ${state === "hover" ? "bg-ice" : ""} ${state === "open" ? "bg-ice ring-2 ring-apple/20" : ""}">${inner}</span>`;
+
+  const variants = [
+    {
+      id: "T0", title: "기준", note: "지금. 11px 대문자 제목, 오른쪽 회색 사각 + . 다른 페이지 어디에도 없는 모양이라 혼자 튑니다.",
+      head: () => `<h4 class="flex-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Try in this order</h4>`,
+      button: (s) => `<span class="flex h-6 w-6 items-center justify-center rounded-md ${s ? "bg-slate-200" : "bg-slate-100"} text-slate-700">${plus("h-3 w-3")}</span>`,
+    },
+    {
+      id: "T1", title: "space 상세 그대로: 제목 + 개수 + 윤곽 알약", note: "\"자료 3 · 새 노트\" 와 같은 문법. 제목 13px 에 켜진 개수, 오른쪽 윤곽 알약 \"+ Add\". 누르면 메뉴. 페이지 사이 일관성이 가장 높습니다.",
+      head: () => `<h4 class="flex-1 text-[13px] font-semibold uppercase tracking-wide text-slate-500">Try in this order <span class="ml-1 font-normal text-slate-400">1</span></h4>`,
+      button: (s) => pill(`${plus("h-3 w-3")}Add`, s),
+    },
+    {
+      id: "T2", title: "알약에 펼침 표시", note: "T1 의 알약에 ⌄ 를 붙여 메뉴가 열린다는 것을 미리 보여 줍니다. 홈 입력창의 \"ask ⌄\" 와 같은 신호.",
+      head: () => `<h4 class="flex-1 text-[13px] font-semibold uppercase tracking-wide text-slate-500">Try in this order</h4>`,
+      button: (s) => pill(`Add method <span class="${s === "open" ? "rotate-180" : ""} inline-flex transition">${down}</span>`, s),
+    },
+    {
+      id: "T3", title: "사이드바식 글자 링크", note: "테두리 없이 파란 글자 \"+ Add\". 사이드바의 \"+ 새 대화\" 와 같은 무게. 제목 줄이 가장 가볍습니다.",
+      head: () => `<h4 class="flex-1 text-[13px] font-semibold uppercase tracking-wide text-slate-500">Try in this order</h4>`,
+      button: (s) => `<span class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[13px] text-apple-link ${s ? "bg-ice" : ""} ${s === "hover" ? "underline underline-offset-2" : ""}">${plus("h-3 w-3")}Add</span>`,
+    },
+    {
+      id: "T4", title: "두 알약을 바로", note: "메뉴 없이 \"+ Plan login\" \"+ API key\" 윤곽 알약 둘. space 상세의 \"새 노트\" 처럼 누르면 바로 생깁니다. 대신 제목 줄이 꽉 찹니다.",
+      head: () => `<h4 class="flex-1 text-[13px] font-semibold uppercase tracking-wide text-slate-500">Order</h4>`,
+      button: (s) => `<span class="flex gap-1.5">${pill(`${plus("h-3 w-3")}Plan login`, s)}${pill(`${plus("h-3 w-3")}API key`)}</span>`,
+      noMenu: true,
+    },
+    {
+      id: "T5", title: "제목 아래 가는 선 + 원형 +", note: "제목과 목록 사이에 space 상세 목록처럼 가는 선. 오른쪽은 윤곽 원형 + (24px). 아이콘만이라 조용하지만 알약 문법(둥긂·윤곽·파랑)은 지킵니다.",
+      head: () => `<h4 class="flex-1 text-[13px] font-semibold uppercase tracking-wide text-slate-500">Try in this order</h4>`,
+      button: (s) => `<span class="flex h-6 w-6 items-center justify-center rounded-full border border-apple-link text-apple-link ${s ? "bg-ice" : ""} ${s === "open" ? "ring-2 ring-apple/20" : ""}">${plus("h-3 w-3")}</span>`,
+      rule: true,
+    },
+    {
+      id: "T6", title: "요약 한 줄 + 알약", note: "제목 대신 \"1 of 3 on · Plan login first\" 처럼 지금 상태를 문장으로, 오른쪽에 T1 알약. 위의 Ready 줄과 겹치면 Ready 줄을 없앱니다.",
+      head: () => `<div class="flex-1"><div class="text-[13px] font-semibold uppercase tracking-wide text-slate-500">Try in this order</div><div class="mt-0.5 text-[12px] text-slate-400">1 of 3 on · Plan login first</div></div>`,
+      button: (s) => pill(`${plus("h-3 w-3")}Add`, s),
+    },
+  ];
+
+  document.getElementById("variants").innerHTML = variants.map((v) => `
+    <section>
+      <h2 class="text-[21px] font-semibold tracking-tight">${v.id}. ${v.title}</h2>
+      <p class="mb-4 mt-1 text-[14px] text-slate-500">${v.note}</p>
+      <div class="flex flex-wrap items-start gap-6">
+        <div class="pane">
+          <div class="relative mb-1.5 flex items-center gap-2 ${v.rule ? "border-b border-slate-100 pb-2" : ""}">
+            ${v.head()}${v.button("open")}
+            ${v.noMenu ? "" : `<div class="absolute right-0 top-8 z-10">${menu}</div>`}
+          </div>
+          <div class="space-y-0.5 ${v.noMenu ? "" : "pt-1"}">${list}</div>
+        </div>
+        <div class="flex gap-6 pt-6">
+          <div class="state">${v.button("")}<span>기본</span></div>
+          <div class="state">${v.button("hover")}<span>올림</span></div>
+          <div class="state">${v.button("open")}<span>열림</span></div>
+        </div>
+      </div>
+    </section>`).join("");
+</script>
+</body>
+</html>
