@@ -45,36 +45,48 @@ PROVIDERS = {
         ],
     },
 }
-AUTHS = ("subscription", "api_key")
+METHODS = ("subscription", "api_key")
+RUNNERS = {"openai": "codex", "anthropic": "claude", "xai": "grok"}
 
 
 # #
 # query
 
 def get() -> dict:
-    auths, secrets = load()
+    options, secrets, _ = load()
+    used = usage()
 
     return {
         "providers": [
             {
                 "id": id,
                 **{k: v for k, v in provider.items() if k != "variable"},
-                "auth": auths[id],
+                **options[id],
                 "key": masked(key=secrets[id]["api_key"]),
                 "token": masked(key=secrets[id]["token"]),
+                "usage": {method: used.get((RUNNERS[id], method), {"month": 0, "last": ""}) for method in METHODS},
             }
             for id, provider in PROVIDERS.items()
         ],
     }
 
 
-def environment(*, provider: str) -> dict:
+def methods(*, provider: str) -> list[str]:
+    options, secrets, broken = load()
+    if broken[provider] and options[provider]["enabled"]["api_key"]:
+        raise RuntimeError(f"{PROVIDERS[provider]['label']} API 키를 풀 수 없습니다. 설정에서 다시 입력해 주세요.")
+
+    return [
+        m for m in options[provider]["order"]
+        if options[provider]["enabled"][m] and (m == "subscription" or secrets[provider]["api_key"])
+    ]
+
+
+def environment(*, provider: str, method: str) -> dict:
     variable = PROVIDERS[provider]["variable"]
-    auths, secrets = load()
+    _, secrets, _ = load()
     found = {k: v for k, v in os.environ.items() if k != variable}
-    if auths[provider] == "api_key":
-        if not secrets[provider]["api_key"]:
-            raise RuntimeError(f"{PROVIDERS[provider]['label']} API 키를 풀 수 없습니다. 설정에서 다시 입력해 주세요.")
+    if method == "api_key":
         found[variable] = secrets[provider]["api_key"]
     elif provider == "anthropic" and secrets[provider]["token"]:
         found["CLAUDE_CODE_OAUTH_TOKEN"] = secrets[provider]["token"]
@@ -82,11 +94,24 @@ def environment(*, provider: str) -> dict:
     return found
 
 
+def usage() -> dict:
+    with store.session() as connection:
+        rows = connection.execute(
+            """SELECT provider, auth, SUM(started_at >= ?), MAX(started_at) FROM llm
+               WHERE auth != '' AND exit_code = 0 GROUP BY provider, auth""",
+            (store.now()[:7],),
+        ).fetchall()
+
+    return {
+        (r[0], r[1]): {"month": r[2] or 0, "last": r[3] or ""} for r in rows
+    }
+
+
 def masked(*, key: str) -> str:
     return f"…{key[-4:]}" if key else ""
 
 
-def load() -> tuple[dict, dict]:
+def load() -> tuple[dict, dict, dict]:
     with store.session() as connection:
         row = connection.execute(
             f"SELECT value, {', '.join(PROVIDERS)} FROM user_meta WHERE user_id = ? AND kind = ? AND collected_id = ''",
@@ -94,15 +119,31 @@ def load() -> tuple[dict, dict]:
         ).fetchone()
     saved = json.loads(row[0]) if row else {}
     tokens = row[1:] if row else [""] * len(PROVIDERS)
-    auths = {id: auth(given=saved.get(id)) for id in PROVIDERS}
+    options = {id: normalized(given=saved.get(id)) for id in PROVIDERS}
+    secrets = {id: unpacked(text=decrypt(token=token)) for id, token in zip(PROVIDERS, tokens)}
+    broken = {id: bool(token) and not any(secrets[id].values()) for id, token in zip(PROVIDERS, tokens)}
 
-    return auths, {id: unpacked(text=decrypt(token=token)) for id, token in zip(PROVIDERS, tokens)}
+    return options, secrets, broken
 
 
-def auth(*, given) -> str:
-    found = given.get("auth") if isinstance(given, dict) else given
+def normalized(*, given) -> dict:
+    given = {"auth": given} if isinstance(given, str) else given or {}
+    order = given.get("order")
+    if sorted(order or []) != sorted(METHODS):
+        first = given.get("auth") if given.get("auth") in METHODS else "subscription"
+        order = [first, *[m for m in METHODS if m != first]]
+    enabled = given.get("enabled") if isinstance(given.get("enabled"), dict) else {}
+    enabled = {m: enabled.get(m, True) is not False for m in METHODS}
 
-    return found if found in AUTHS else "subscription"
+    return {
+        "order": ranked(order=order, enabled=enabled),
+        "enabled": enabled,
+        "saved": {k: v for k, v in (given.get("saved") or {}).items() if k in ("api_key", "token") and isinstance(v, str)},
+    }
+
+
+def ranked(*, order: list, enabled: dict) -> list:
+    return [m for m in order if enabled[m]] + [m for m in order if not enabled[m]]
 
 
 def unpacked(*, text: str) -> dict:
@@ -119,33 +160,42 @@ def unpacked(*, text: str) -> dict:
 # command
 
 def edit(*, data: dict) -> dict:
-    auths, secrets = load()
+    options, secrets, _ = load()
     for id, given in (data.get("providers") or {}).items():
         if id not in PROVIDERS or not isinstance(given, dict):
             raise ValueError("알 수 없는 제공사입니다.")
-        if given.get("auth") is not None:
-            if given["auth"] not in AUTHS:
-                raise ValueError("인증 방식이 올바르지 않습니다.")
-            auths[id] = given["auth"]
+        if given.get("order") is not None:
+            if not isinstance(given["order"], list) or sorted(given["order"]) != sorted(METHODS):
+                raise ValueError("순서가 올바르지 않습니다.")
+            options[id]["order"] = list(given["order"])
+        if given.get("enabled") is not None:
+            if not isinstance(given["enabled"], dict) or not all(k in METHODS and isinstance(v, bool) for k, v in given["enabled"].items()):
+                raise ValueError("사용 설정이 올바르지 않습니다.")
+            options[id]["enabled"].update(given["enabled"])
+            if not any(options[id]["enabled"].values()):
+                raise ValueError("인증 수단을 하나 이상 켜 주세요.")
+        options[id]["order"] = ranked(order=options[id]["order"], enabled=options[id]["enabled"])
         if isinstance(given.get("key"), str) and given["key"].strip():
             secrets[id]["api_key"] = given["key"].strip()
+            options[id]["saved"]["api_key"] = store.now()
         if given.get("key") is None and "key" in given:
             secrets[id]["api_key"] = ""
-        if auths[id] == "api_key" and not secrets[id]["api_key"]:
-            raise ValueError(f"{PROVIDERS[id]['label']} API 키를 입력해 주세요.")
-    save(auths=auths, secrets=secrets)
+            options[id]["saved"].pop("api_key", None)
+    save(options=options, secrets=secrets)
 
     return get()
 
 
 def remember(*, provider: str, token: str) -> None:
-    auths, secrets = load()
+    options, secrets, _ = load()
     secrets[provider]["token"] = token
-    auths[provider] = "subscription"
-    save(auths=auths, secrets=secrets)
+    options[provider]["saved"]["token"] = store.now() if token else ""
+    if not token:
+        options[provider]["saved"].pop("token", None)
+    save(options=options, secrets=secrets)
 
 
-def save(*, auths: dict, secrets: dict) -> None:
+def save(*, options: dict, secrets: dict) -> None:
     with store.session() as connection:
         connection.execute(
             f"""INSERT OR REPLACE INTO user_meta (user_id, kind, collected_id, value, {', '.join(PROVIDERS)}, updated_at)
@@ -153,7 +203,7 @@ def save(*, auths: dict, secrets: dict) -> None:
             (
                 store.USER,
                 KIND,
-                json.dumps({id: {"auth": auths[id]} for id in PROVIDERS}),
+                json.dumps(options),
                 *[encrypt(key=json.dumps(secrets[id]) if any(secrets[id].values()) else "") for id in PROVIDERS],
                 store.now(),
             ),
@@ -201,31 +251,52 @@ if __name__ == "__main__":
     KEY_FILE = folder / "encryption.key"
     first = get()["providers"]
     assert [p["id"] for p in first] == ["openai", "anthropic", "xai"]
-    assert first[0]["auth"] == "subscription" and "variable" not in first[0]
-    edit(data={"providers": {"anthropic": {"auth": "api_key", "key": "sk-test-1234"}}})
-    assert get()["providers"][1]["key"] == "…1234"
-    assert environment(provider="anthropic")["ANTHROPIC_API_KEY"] == "sk-test-1234"
+    assert first[0]["order"] == ["subscription", "api_key"] and all(first[0]["enabled"].values())
+    assert methods(provider="openai") == ["subscription"]
+    edit(data={"providers": {"anthropic": {"key": "sk-test-1234"}}})
+    anthropic = get()["providers"][1]
+    assert anthropic["key"] == "…1234" and anthropic["saved"]["api_key"]
+    assert methods(provider="anthropic") == ["subscription", "api_key"]
+    edit(data={"providers": {"anthropic": {"order": ["api_key", "subscription"], "enabled": {"subscription": False}}}})
+    assert methods(provider="anthropic") == ["api_key"]
+    assert get()["providers"][1]["order"] == ["api_key", "subscription"]
+    edit(data={"providers": {"anthropic": {"order": ["subscription", "api_key"]}}})
+    assert get()["providers"][1]["order"] == ["api_key", "subscription"]
+    edit(data={"providers": {"anthropic": {"enabled": {"subscription": True, "api_key": False}}}})
+    assert get()["providers"][1]["order"] == ["subscription", "api_key"]
+    edit(data={"providers": {"anthropic": {"order": ["api_key", "subscription"], "enabled": {"subscription": False, "api_key": True}}}})
+    assert environment(provider="anthropic", method="api_key")["ANTHROPIC_API_KEY"] == "sk-test-1234"
     with store.session() as connection:
         stored = connection.execute("SELECT anthropic FROM user_meta WHERE kind = ?", (KIND,)).fetchone()[0]
     assert stored and "sk-test" not in stored
     assert oct(KEY_FILE.stat().st_mode & 0o777) == "0o600"
     remember(provider="anthropic", token="sk-ant-oat01-test-5678")
-    found = environment(provider="anthropic")
+    found = environment(provider="anthropic", method="subscription")
     assert found["CLAUDE_CODE_OAUTH_TOKEN"] == "sk-ant-oat01-test-5678" and "ANTHROPIC_API_KEY" not in found
-    assert get()["providers"][1]["token"] == "…5678" and get()["providers"][1]["key"] == "…1234"
+    assert get()["providers"][1]["token"] == "…5678"
+    assert normalized(given="api_key")["order"] == ["api_key", "subscription"]
+    assert normalized(given={"auth": "subscription", "enabled": True, "model": "x"})["order"] == ["subscription", "api_key"]
     assert unpacked(text="sk-legacy") == {"api_key": "sk-legacy", "token": ""}
-    assert auth(given="api_key") == "api_key" and auth(given={"auth": "api_key", "enabled": True}) == "api_key"
-    edit(data={"providers": {"anthropic": {"auth": "api_key"}}})
+    with store.session() as connection:
+        connection.execute(
+            "INSERT INTO llm (id, provider, model, purpose, command, request, response, exit_code, started_at, finished_at, auth) VALUES ('1', 'claude', 'm', 'p', '[]', '', '', 0, ?, ?, 'api_key')",
+            (store.now(), store.now()),
+        )
+    assert get()["providers"][1]["usage"]["api_key"]["month"] == 1
     KEY_FILE.unlink()
     KEY_FILE = folder / "other.key"
     try:
-        environment(provider="anthropic")
+        methods(provider="anthropic")
     except RuntimeError:
         pass
     else:
         raise AssertionError("undecryptable key")
-    edit(data={"providers": {"anthropic": {"auth": "subscription"}}})
-    for broken in ({"openai": {"auth": "api_key"}}, {"x": {}}, {"openai": {"auth": "bad"}}):
+    for broken in (
+        {"x": {}},
+        {"openai": {"order": ["api_key"]}},
+        {"openai": {"enabled": {"subscription": False, "api_key": False}}},
+        {"openai": {"enabled": {"plan": True}}},
+    ):
         try:
             edit(data={"providers": broken})
         except ValueError:

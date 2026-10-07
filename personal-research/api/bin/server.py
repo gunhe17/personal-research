@@ -217,7 +217,14 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/login":
             if not self.trusted():
                 return self.reply(code=403, payload={"error": "forbidden"})
-            login.cancel(provider=(parse_qs(urlparse(self.path).query).get("provider") or [""])[0])
+            asked = parse_qs(urlparse(self.path).query)
+            provider = (asked.get("provider") or [""])[0]
+            try:
+                if asked.get("signout"):
+                    return self.reply(code=200, payload=login.signout(provider=provider))
+                login.cancel(provider=provider)
+            except ValueError as error:
+                return self.reply(code=400, payload={"error": str(error)})
             return self.reply(code=200, payload={"ok": True})
         matched = CONVERSATION.fullmatch(path)
         if SPACE.fullmatch(path):

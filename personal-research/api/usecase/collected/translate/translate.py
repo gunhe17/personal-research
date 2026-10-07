@@ -82,8 +82,9 @@ def korean(*, id: str) -> str:
             "--allowed-tools", "Read,Write",
             "--permission-mode", "acceptEdits",
         ]
+        method = (setting.methods(provider="anthropic") or ["subscription"])[0]
         started_at = store.now()
-        done = subprocess.run(command, cwd=folder, capture_output=True, text=True, timeout=1800, env=setting.environment(provider="anthropic"))
+        done = subprocess.run(command, cwd=folder, capture_output=True, text=True, timeout=1800, env=setting.environment(provider="anthropic", method=method))
         llm.record(
             provider="claude",
             model="",
@@ -95,6 +96,7 @@ def korean(*, id: str) -> str:
             stderr=done.stderr,
             exit_code=done.returncode,
             started_at=started_at,
+            auth=method,
         )
         target = work / "doc.ko.md"
         if not target.is_file():

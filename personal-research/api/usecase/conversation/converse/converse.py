@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import re
 import shutil
 import signal
 import subprocess
@@ -20,7 +21,8 @@ from usecase.space.record import record as spaces
 BIN = os.environ.get("CODEX_BIN") or shutil.which("codex") or "codex"
 CLAUDE = os.environ.get("CLAUDE_BIN") or shutil.which("claude") or str(Path.home() / ".local" / "bin" / "claude")
 GROK = os.environ.get("GROK_BIN") or shutil.which("grok") or str(Path.home() / ".grok" / "bin" / "grok")
-RUNNERS = {"openai": "codex", "anthropic": "claude", "xai": "grok"}
+LABELS = {"subscription": "Plan login", "api_key": "API key"}
+MISSING = re.compile(r"no conversation found|session not found|thread not found|no session|not found.*session|unknown (session|thread)", re.IGNORECASE)
 GROK_RESEARCH = "지금은 답하지 말고 조사만 하세요. 작업 폴더의 수집물을 읽고 grep 으로 관련 문서를 찾아, 답에 쓸 내용과 근거 path 를 짧게 정리해 두세요. 답변 JSON 은 다음 요청에서 만듭니다."
 GROK_ANSWER = "앞에서 조사한 내용으로 처음 요청에 대한 최종 답변을 요청된 JSON 하나로 만드세요. 근거로 쓴 문서의 path 를 sources 에 적으세요."
 CORPUS = store.API / "data" / "corpus"
@@ -86,6 +88,10 @@ SCHEMA = {
     "required": ["title", "blocks", "follow_up", "learning_note", "sources"],
     "additionalProperties": False,
 }
+
+
+class Unavailable(RuntimeError):
+    pass
 
 
 def available() -> bool:
@@ -165,12 +171,33 @@ def generate(*, conversation: dict, question: dict) -> dict:
     picked = chosen(question=question)
     request = prompt(conversation=conversation, question=question)
     runner = {"openai": codex, "anthropic": claude, "xai": grok}[picked["provider"]]
+    failures = []
+    for method in setting.methods(provider=picked["provider"]):
+        try:
+            answer = attempt(runner=runner, conversation=conversation, question=question, request=request, model=picked["model"], method=method)
+        except Unavailable as error:
+            failures.append(f"{LABELS[method]}: {error}")
+            continue
+        answer["via"] = method
+        return answer
+    if failures:
+        raise RuntimeError(" / ".join(failures)[-600:])
 
-    return runner(conversation=conversation, question=question, request=request, model=picked["model"])
+    raise RuntimeError(f"{setting.PROVIDERS[picked['provider']]['label']} 에 쓸 수 있는 인증이 없습니다. 설정에서 로그인하거나 API 키를 넣어 주세요.")
 
 
-def codex(*, conversation: dict, question: dict, request: str, model: str) -> dict:
-    thread_id = conversation["meta"].get("codex", {}).get("thread_id")
+def attempt(*, runner, conversation: dict, question: dict, request: str, model: str, method: str) -> dict:
+    try:
+        return runner(conversation=conversation, question=question, request=request, model=model, method=method, fresh=False)
+    except Unavailable as error:
+        if not MISSING.search(str(error)):
+            raise
+
+    return runner(conversation=conversation, question=question, request=request, model=model, method=method, fresh=True)
+
+
+def codex(*, conversation: dict, question: dict, request: str, model: str, method: str, fresh: bool) -> dict:
+    thread_id = None if fresh else conversation["meta"].get("codex", {}).get("thread_id")
     with tempfile.TemporaryDirectory(prefix="conversation-") as folder:
         output = Path(folder) / "answer.json"
         schema = Path(folder) / "schema.json"
@@ -185,21 +212,21 @@ def codex(*, conversation: dict, question: dict, request: str, model: str) -> di
         ]
         command += ["resume", thread_id] if thread_id else []
         command += ["-"]
-        exit_code, stdout, stderr = call(command=command, request=request, conversation=conversation, question=question, provider="codex", model=model)
+        exit_code, stdout, stderr = call(command=command, request=request, conversation=conversation, question=question, provider="codex", model=model, method=method)
         parsed = events(stdout=stdout)
         started = next((e for e in parsed if e.get("type") == "thread.started"), None)
-        if started and not thread_id:
-            record.remember(domain=conversation["domain"], id=conversation["id"], provider="codex", values={"thread_id": started["thread_id"], "model": model})
         if exit_code != 0 or not output.is_file():
             failed = next((e["message"] for e in reversed(parsed) if e.get("type") == "error"), stderr)
-            raise RuntimeError(f"Codex 가 답하지 못했습니다 (exit {exit_code}). {failed.strip()[-300:]}")
+            raise Unavailable(f"Codex 가 답하지 못했습니다 (exit {exit_code}). {failed.strip()[-300:]}")
+        if started and not thread_id:
+            record.remember(domain=conversation["domain"], id=conversation["id"], provider="codex", values={"thread_id": started["thread_id"], "model": model})
         generated = validate(answer=json.loads(output.read_text(encoding="utf-8")))
 
     return generated
 
 
-def claude(*, conversation: dict, question: dict, request: str, model: str) -> dict:
-    session_id = conversation["meta"].get("claude", {}).get("session_id")
+def claude(*, conversation: dict, question: dict, request: str, model: str, method: str, fresh: bool) -> dict:
+    session_id = None if fresh else conversation["meta"].get("claude", {}).get("session_id")
     command = [
         CLAUDE if Path(CLAUDE).exists() else "claude", "-p",
         "--output-format", "json",
@@ -208,23 +235,23 @@ def claude(*, conversation: dict, question: dict, request: str, model: str) -> d
         "--allowedTools", "Read", "Grep", "Glob",
     ]
     command += ["--resume", session_id] if session_id else []
-    exit_code, stdout, stderr = call(command=command, request=request, conversation=conversation, question=question, provider="claude", model=model)
+    exit_code, stdout, stderr = call(command=command, request=request, conversation=conversation, question=question, provider="claude", model=model, method=method)
     try:
         result = json.loads(stdout)
     except json.JSONDecodeError:
         result = {}
-    if result.get("session_id") and not session_id:
-        record.remember(domain=conversation["domain"], id=conversation["id"], provider="claude", values={"session_id": result["session_id"], "model": model})
     if exit_code != 0 or result.get("is_error") or not isinstance(result.get("structured_output"), dict):
         failed = str(result.get("result") or stderr or stdout)
-        raise RuntimeError(f"Claude 가 답하지 못했습니다 (exit {exit_code}). {failed.strip()[-300:]}")
+        raise Unavailable(f"Claude 가 답하지 못했습니다 (exit {exit_code}). {failed.strip()[-300:]}")
+    if result.get("session_id") and not session_id:
+        record.remember(domain=conversation["domain"], id=conversation["id"], provider="claude", values={"session_id": result["session_id"], "model": model})
     generated = validate(answer=result["structured_output"])
 
     return generated
 
 
-def grok(*, conversation: dict, question: dict, request: str, model: str) -> dict:
-    session_id = conversation["meta"].get("grok", {}).get("session_id")
+def grok(*, conversation: dict, question: dict, request: str, model: str, method: str, fresh: bool) -> dict:
+    session_id = None if fresh else conversation["meta"].get("grok", {}).get("session_id")
     base = [
         GROK if Path(GROK).exists() else "grok",
         "--output-format", "json",
@@ -237,19 +264,19 @@ def grok(*, conversation: dict, question: dict, request: str, model: str) -> dic
         research = Path(folder) / "research.txt"
         research.write_text(request + "\n\n" + GROK_RESEARCH, encoding="utf-8")
         command = [*base, "--prompt-file", str(research), *(["-r", session_id] if session_id else [])]
-        exit_code, stdout, stderr = call(command=command, request=request, conversation=conversation, question=question, provider="grok", model=model)
+        exit_code, stdout, stderr = call(command=command, request=request, conversation=conversation, question=question, provider="grok", model=model, method=method)
         studied = parsed_json(text=stdout)
         session_id = session_id or studied.get("sessionId")
         if exit_code != 0 or not session_id:
-            raise RuntimeError(f"Grok 이 조사하지 못했습니다 (exit {exit_code}). {str(studied.get('text') or stderr or stdout).strip()[-300:]}")
+            raise Unavailable(f"Grok 이 조사하지 못했습니다 (exit {exit_code}). {str(studied.get('text') or stderr or stdout).strip()[-300:]}")
         record.remember(domain=conversation["domain"], id=conversation["id"], provider="grok", values={"session_id": session_id, "model": model})
         answer = Path(folder) / "answer.txt"
         answer.write_text(GROK_ANSWER, encoding="utf-8")
         command = [*base, "--prompt-file", str(answer), "--json-schema", json.dumps(SCHEMA), "-r", session_id]
-        exit_code, stdout, stderr = call(command=command, request=GROK_ANSWER, conversation=conversation, question=question, provider="grok", model=model)
+        exit_code, stdout, stderr = call(command=command, request=GROK_ANSWER, conversation=conversation, question=question, provider="grok", model=model, method=method)
     result = parsed_json(text=stdout)
     if exit_code != 0 or not isinstance(result.get("structuredOutput"), dict):
-        raise RuntimeError(f"Grok 이 답하지 못했습니다 (exit {exit_code}). {str(result.get('text') or stderr or stdout).strip()[-300:]}")
+        raise Unavailable(f"Grok 이 답하지 못했습니다 (exit {exit_code}). {str(result.get('text') or stderr or stdout).strip()[-300:]}")
     generated = validate(answer=result["structuredOutput"])
 
     return generated
@@ -264,12 +291,12 @@ def parsed_json(*, text: str) -> dict:
     return found if isinstance(found, dict) else {}
 
 
-def call(*, command: list, request: str, conversation: dict, question: dict, provider: str, model: str) -> tuple[int, str, str]:
+def call(*, command: list, request: str, conversation: dict, question: dict, provider: str, model: str, method: str) -> tuple[int, str, str]:
     started_at = store.now()
     process = subprocess.Popen(
         command,
         cwd=CORPUS,
-        env=setting.environment(provider=next(k for k, v in RUNNERS.items() if v == provider)),
+        env=setting.environment(provider=next(k for k, v in setting.RUNNERS.items() if v == provider), method=method),
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -297,6 +324,7 @@ def call(*, command: list, request: str, conversation: dict, question: dict, pro
             stderr=stderr or "",
             exit_code=process.returncode,
             started_at=started_at,
+            auth=method,
         )
 
     return process.returncode, stdout or "", stderr or ""
@@ -402,6 +430,8 @@ if __name__ == "__main__":
     assert chosen(question={"context": {"model": {"provider": "xai", "model": "grok-4.5"}}})["provider"] == "xai"
     assert chosen(question={"context": {"model": {"provider": "anthropic", "model": "gpt-6-sol"}}}) == models()["default"]
     assert chosen(question={"context": {}}) == models()["default"]
+    assert MISSING.search("Claude 가 답하지 못했습니다 (exit 1). No conversation found with session ID: x")
+    assert not MISSING.search("Invalid API key")
     assert not supported(config={**good, "h": 0})
     assert not supported(config={**good, "x": True})
     assert validate(answer={"blocks": [{"kind": "paragraph", "text": "a", "playground": None}]})

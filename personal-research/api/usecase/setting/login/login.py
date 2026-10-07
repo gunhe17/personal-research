@@ -56,7 +56,7 @@ def status(*, provider: str) -> dict:
 
 
 def signed(*, provider: str) -> dict:
-    environment = setting.environment(provider=provider) if setting.load()[0][provider] == "subscription" else os.environ.copy()
+    environment = setting.environment(provider=provider, method="subscription")
     command = {
         "openai": [binary(provider=provider), "login", "status"],
         "anthropic": [binary(provider=provider), "auth", "status"],
@@ -72,7 +72,7 @@ def signed(*, provider: str) -> dict:
             parsed = json.loads(done.stdout)
         except json.JSONDecodeError:
             parsed = {}
-        token = setting.get()["providers"][1]["token"]
+        token = setting.masked(key=setting.load()[1][provider]["token"])
         detail = (parsed.get("email") or parsed.get("authMethod") or "") if parsed.get("loggedIn") else ""
         return {"logged_in": bool(parsed.get("loggedIn")), "detail": f"{detail} · 토큰 {token}" if token else detail}
     if provider == "openai":
@@ -90,7 +90,7 @@ def start(*, provider: str) -> dict:
     cancel(provider=provider)
     master, slave = pty.openpty()
     fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 50, 4000, 0, 0))
-    environment = {k: v for k, v in setting.environment(provider=provider).items() if k != setting.PROVIDERS[provider]["variable"]}
+    environment = setting.environment(provider=provider, method="subscription")
     environment.update({"BROWSER": "true", "TERM": "xterm-256color", "COLUMNS": "4000"})
     process = subprocess.Popen(
         [binary(provider=provider), *STARTS[provider]],
@@ -143,6 +143,23 @@ def submit(*, provider: str, code: str) -> dict:
         return status(provider=provider)
     setting.remember(provider=provider, token=found.group(0))
     cancel(provider=provider)
+
+    return status(provider=provider)
+
+
+def signout(*, provider: str) -> dict:
+    check(provider=provider)
+    cancel(provider=provider)
+    if provider == "anthropic":
+        setting.remember(provider=provider, token="")
+    else:
+        subprocess.run(
+            [binary(provider=provider), "logout"],
+            capture_output=True,
+            timeout=20,
+            env=setting.environment(provider=provider, method="subscription"),
+            stdin=subprocess.DEVNULL,
+        )
 
     return status(provider=provider)
 

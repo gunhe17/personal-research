@@ -21,12 +21,13 @@ def record(
     stderr: str,
     exit_code: int | None,
     started_at: str,
+    auth: str = "",
 ) -> str:
     id = str(uuid.uuid4())
     with store.session() as connection:
         connection.execute(
-            """INSERT INTO llm (id, provider, model, purpose, owner_id, command, request, response, stderr, exit_code, started_at, finished_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            """INSERT INTO llm (id, provider, model, purpose, owner_id, command, request, response, stderr, exit_code, started_at, finished_at, auth)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 id,
                 provider,
@@ -40,6 +41,7 @@ def record(
                 exit_code,
                 started_at,
                 store.now(),
+                auth,
             ),
         )
 
