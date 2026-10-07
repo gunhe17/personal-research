@@ -399,6 +399,23 @@
         </section>
         <section class="mt-10">
           <div class="mb-3 flex items-center justify-between">
+            <h2 class="text-[13px] font-semibold uppercase tracking-wide text-slate-500">자료 ${space.materials.length}</h2>
+            <button type="button" id="material-new" class="rounded-full border border-apple-link px-3 py-1 text-[13px] text-apple-link hover:bg-white transition">새 노트</button>
+          </div>
+          <div id="material-form" class="hidden mb-3"></div>
+          <div class="divide-y divide-slate-200 border-y border-slate-200">
+            ${space.materials.length ? space.materials.map((m) => `
+              <div>
+                <button type="button" data-material="${escapeHtml(m.id)}" class="flex w-full items-baseline justify-between gap-4 px-2 py-3.5 text-left hover:bg-white transition">
+                  <span class="min-w-0 truncate text-[15px] text-slate-900"><span class="mr-2 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">${escapeHtml(MATERIAL_KIND[m.kind] || m.kind)}</span>${escapeHtml(m.title)}</span>
+                  <span class="shrink-0 text-[12px] text-slate-400">${escapeHtml(sinceLabel(m.updated_at))}</span>
+                </button>
+                <div data-material-view="${escapeHtml(m.id)}" class="hidden px-2 pb-6"></div>
+              </div>`).join("") : `<p class="px-2 py-6 text-[14px] text-slate-500">수업, 노트, 옛 기록이 여기에 모입니다.</p>`}
+          </div>
+        </section>
+        <section class="mt-10">
+          <div class="mb-3 flex items-center justify-between">
             <h2 class="text-[13px] font-semibold uppercase tracking-wide text-slate-500">대화 ${space.conversations.length}</h2>
             <a href="${chat("&new=1")}" class="rounded-full border border-apple-link px-3 py-1 text-[13px] text-apple-link hover:bg-white transition">새 대화</a>
           </div>
@@ -411,7 +428,7 @@
           </div>
         </section>
         <section class="mt-10">
-          <h2 class="mb-3 text-[13px] font-semibold uppercase tracking-wide text-slate-500">자료 ${space.collected.length}</h2>
+          <h2 class="mb-3 text-[13px] font-semibold uppercase tracking-wide text-slate-500">수집물 ${space.collected.length}</h2>
           <div class="divide-y divide-slate-200 border-y border-slate-200">
             ${space.collected.length ? space.collected.map((d) => `
               <a href="${chat(`&conversation=${encodeURIComponent(space.conversations.find((c) => c.collected_id === d.id)?.id || "")}&doc=${encodeURIComponent(d.id)}`)}" class="block px-2 py-3.5 hover:bg-white transition">
@@ -428,6 +445,64 @@
       $("#space-name").addEventListener("change", (e) => e.target.value.trim() && save({ title: e.target.value.trim() }));
       $("#space-name").addEventListener("keydown", (e) => { if (e.key === "Enter") e.target.blur(); });
       $("#space-purpose").addEventListener("change", (e) => save({ purpose: e.target.value }));
+      box.querySelectorAll("[data-material]").forEach((row) => row.addEventListener("click", () => openMaterial(space, row.dataset.material)));
+      $("#material-new").addEventListener("click", () => editMaterial(space, null));
+    }
+
+    const MATERIAL_KIND = { lesson: "수업", note: "노트", log: "기록" };
+
+    async function openMaterial(space, id) {
+      const view = document.querySelector(`[data-material-view="${CSS.escape(id)}"]`);
+      if (view.classList.toggle("hidden")) return;
+      view.innerHTML = `<p class="text-[13px] text-slate-400">Loading…</p>`;
+      const material = await (await fetch(`/api/materials/${encodeURIComponent(id)}`)).json();
+      view.innerHTML = "";
+      const content = document.createElement("div");
+      content.className = "article-content";
+      if (material.kind === "lesson") {
+        const { blocks } = await import("/viewer/blocks.js");
+        blocks(content, material.content, { key: material.id, onContext: () => {} });
+      } else {
+        content.innerHTML = `<div class="md-chat">${renderChatMarkdown(material.content)}</div>`;
+      }
+      view.appendChild(content);
+      if (material.kind !== "note") return;
+      const actions = document.createElement("div");
+      actions.className = "mt-4 flex gap-4 text-[13px]";
+      actions.innerHTML = `<button type="button" data-edit class="text-apple-link hover:underline">고치기</button><button type="button" data-drop class="text-slate-500 hover:underline">삭제</button>`;
+      actions.querySelector("[data-edit]").addEventListener("click", () => editMaterial(space, material));
+      actions.querySelector("[data-drop]").addEventListener("click", async (e) => {
+        if (e.target.dataset.armed !== "1") { e.target.dataset.armed = "1"; e.target.textContent = "한 번 더 누르면 삭제"; return; }
+        await fetch(`/api/materials/${encodeURIComponent(material.id)}`, { method: "DELETE" });
+        renderSpacePage();
+      });
+      view.appendChild(actions);
+    }
+
+    function editMaterial(space, material) {
+      const form = $("#material-form");
+      form.classList.remove("hidden");
+      form.innerHTML = `
+        <div class="rounded-xl bg-white p-4 ring-1 ring-slate-200">
+          <input data-title placeholder="제목" value="${escapeHtml(material?.title || "")}" class="w-full bg-transparent text-[17px] font-semibold text-slate-900 focus:outline-none" />
+          <textarea data-content rows="8" placeholder="마크다운으로 씁니다" class="mt-2 w-full resize-y bg-transparent text-[15px] leading-relaxed text-slate-800 focus:outline-none">${escapeHtml(material?.content || "")}</textarea>
+          <div class="mt-2 flex justify-end gap-2">
+            <button type="button" data-cancel class="rounded-full border border-slate-300 px-3 py-1 text-[13px] text-slate-600">취소</button>
+            <button type="button" data-save class="rounded-full bg-apple px-3 py-1 text-[13px] text-white">저장</button>
+          </div>
+        </div>`;
+      form.querySelector("[data-title]").focus();
+      form.querySelector("[data-cancel]").addEventListener("click", () => form.classList.add("hidden"));
+      form.querySelector("[data-save]").addEventListener("click", async () => {
+        const payload = { kind: "note", title: form.querySelector("[data-title]").value.trim(), content: form.querySelector("[data-content]").value };
+        const res = await fetch(material ? `/api/materials/${encodeURIComponent(material.id)}` : `/api/spaces/${encodeURIComponent(space.id)}/materials`, {
+          method: material ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) return toast((await res.json()).error || "Could not save");
+        renderSpacePage();
+      });
     }
 
     function openHome() {

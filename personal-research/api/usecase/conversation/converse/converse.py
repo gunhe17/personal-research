@@ -24,6 +24,7 @@ TURN = threading.Lock()
 RUNNING: dict[str, subprocess.Popen] = {}
 INSTRUCTIONS = """당신은 사용자의 학습과 조사를 돕는 한국어 튜터입니다.
 purpose 가 있으면 학습 목적, 진행 원칙, 현재 위치를 정합니다. 그 원칙을 따르세요.
+lessons 는 사람이 쓴 수업 글, notes 는 노트, learning_notes 는 이전 답변들이 남긴 이해 기록입니다.
 작업 폴더는 수집물의 읽기 전용 사본입니다. eng/ 는 원문, kor/ 는 한국어판, meta/ 는 원본 주소입니다.
 답하기 전에 반드시 수집물을 조사하세요. collected 에 있는 자료를 먼저 읽고, rg 나 grep 으로 관련 문서를 더 찾으세요.
 근거로 쓴 문서의 path(eng/ kor/ 접두 없이)를 sources 에 적으세요. 근거를 찾지 못했으면 sources 를 비우고 첫 블록에서 수집물에 근거가 없다고 밝히세요.
@@ -200,11 +201,14 @@ def prompt(*, conversation: dict, question: dict) -> str:
         "message": {k: question[k] for k in ("kind", "content", "context")},
     }
     if conversation["domain"] == "space":
-        space = spaces.get(id=conversation["space_id"])
+        materials = spaces.listed_materials(space_id=conversation["space_id"])
+        text = lambda kind, limit: [{"title": m["title"], "content": m["content"][:limit]} for m in materials if m["kind"] == kind]
         context = {
-            "purpose": space["purpose"],
-            "log": space["log"][-12_000:],
-            "notes": record.notes(space_id=space["id"]),
+            "purpose": text("plan", 20_000),
+            "log": [{"title": m["title"], "content": m["content"][-12_000:]} for m in materials if m["kind"] == "log"],
+            "lessons": text("lesson", 8_000),
+            "notes": text("note", 4_000),
+            "learning_notes": record.notes(space_id=conversation["space_id"]),
             **context,
         }
 

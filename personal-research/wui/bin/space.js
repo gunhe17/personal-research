@@ -1,5 +1,6 @@
 import { annotationUI } from './annotations.js';
-import { el, fmt, playground } from './playground.js';
+import { blocks } from './blocks.js';
+import { el, fmt } from './playground.js';
 
 const $ = id => document.getElementById(id);
 const KEY = 'space-draft';
@@ -14,23 +15,6 @@ const annotations = annotationUI({ initial: cache.annotations || [], changed: ()
 
 function button(text, cls, fn) { const b = el('button', cls, text); b.type = 'button'; b.addEventListener('click', fn); return b; }
 function persist() { try { localStorage.setItem(KEY, JSON.stringify({ draft: $('message-input').value, quote, annotations: annotations.items, context: activeContext, retryPayload })); } catch (_) {} }
-function inline(node, text) {
-  text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).forEach(piece => {
-    if (piece.startsWith('**') && piece.endsWith('**')) node.append(el('strong', '', piece.slice(2, -2)));
-    else if (piece.startsWith('`') && piece.endsWith('`')) node.append(el('code', '', piece.slice(1, -1)));
-    else node.append(document.createTextNode(piece));
-  });
-}
-function paragraph(parent, text, cls = '') {
-  const pieces = text.split(/`{2,3}[a-z]*\s*([\s\S]*?)`{2,3}/);
-  let last = null;
-  pieces.forEach((piece, index) => {
-    if (index % 2) { parent.append(el('pre', 'code-block', piece.trim())); return; }
-    if (!piece.trim()) return;
-    last = el('p', cls); inline(last, piece.trim()); parent.append(last);
-  });
-  return last || parent;
-}
 function author(label = 'Codex') { const n = el('div', 'author'); n.append(el('span', 'author-mark', label === 'Codex' ? '∂' : '↓'), el('span', '', label)); return n; }
 function scroller() { return $('space-scroll'); }
 
@@ -39,19 +23,7 @@ function renderAnswer(answer, label) {
   const article = el('article', 'assistant-message'); article.dataset.answerId = answer.id; article.append(author(label));
   const content = el('div', 'article-content');
   if (answer.rich) {
-    content.append(el('h2', '', answer.rich.title));
-    answer.rich.blocks.forEach((block, index) => {
-      if (block.kind === 'playground' && block.playground) {
-        const key = `${answer.id}:${index}`;
-        const pg = playground(block.playground, context => { activeContext = { ...context, source_answer_id: answer.id }; persist(); }, key);
-        playgrounds.set(key, pg); content.append(pg); if (block.text) paragraph(pg, block.text, 'pg-task');
-      } else if (block.kind === 'heading') content.append(el('h3', '', block.text));
-      else if (block.kind === 'formula') content.append(el('div', 'formula', block.text));
-      else if (block.kind === 'code') content.append(el('pre', 'code-block', block.text));
-      else if (block.kind === 'bullet') { const list = el('ul'), item = el('li'); inline(item, block.text); list.append(item); content.append(list); }
-      else paragraph(content, block.text);
-    });
-    if (answer.rich.follow_up) paragraph(content, answer.rich.follow_up, 'article-followup');
+    blocks(content, answer.rich, { key: answer.id, playgrounds, onContext: context => { activeContext = { ...context, source_answer_id: answer.id }; persist(); } });
   } else {
     const md = el('div', 'md-chat'); md.innerHTML = window.marked ? marked.parse(answer.content || '') : ''; if (!window.marked) md.textContent = answer.content; content.append(md);
   }

@@ -42,11 +42,20 @@ CREATE TABLE IF NOT EXISTS collected_content (
 CREATE TABLE IF NOT EXISTS space (
     id         TEXT PRIMARY KEY,
     title      TEXT NOT NULL,
-    purpose    TEXT NOT NULL DEFAULT '',
-    log        TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS space_material (
+    id         TEXT PRIMARY KEY,
+    space_id   TEXT NOT NULL,
+    kind       TEXT NOT NULL,
+    title      TEXT NOT NULL,
+    content    TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS space_material_space ON space_material (space_id);
 
 CREATE TABLE IF NOT EXISTS space_conversation (
     id           TEXT PRIMARY KEY,
@@ -433,7 +442,9 @@ def upgrade(*, connection) -> None:
         for id, title, plan, log, thread_id, messages, created_at, updated_at in connection.execute(
             "SELECT id, title, plan, log, thread_id, messages, created_at, updated_at FROM asked"
         ).fetchall():
-            connection.execute("INSERT OR IGNORE INTO space (id, title, purpose, log, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)", (id, title, plan, log, created_at, updated_at))
+            connection.execute("INSERT OR IGNORE INTO space (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)", (id, title, created_at, updated_at))
+            material(connection=connection, space_id=id, kind="plan", title="목적", content=plan, created_at=created_at)
+            material(connection=connection, space_id=id, kind="log", title="웹 이전 학습 기록", content=log, created_at=created_at)
             conversation(connection=connection, domain="space", row={"id": id, "space_id": id, "title": title, "meta": codex(thread_id=thread_id), "created_at": created_at, "updated_at": updated_at}, messages=json.loads(messages))
         connection.execute("DROP TABLE asked")
     if "messages" in columns(connection=connection, table="space"):
@@ -445,7 +456,29 @@ def upgrade(*, connection) -> None:
         connection.execute("ALTER TABLE space DROP COLUMN messages")
         connection.execute("ALTER TABLE space DROP COLUMN thread_id")
         connection.execute("DROP TABLE IF EXISTS space_collected")
+    # material
+    if "purpose" in columns(connection=connection, table="space"):
+        for id, purpose, log, created_at in connection.execute("SELECT id, purpose, log, created_at FROM space").fetchall():
+            material(connection=connection, space_id=id, kind="plan", title="목적", content=purpose, created_at=created_at)
+            material(connection=connection, space_id=id, kind="log", title="웹 이전 학습 기록", content=log, created_at=created_at)
+        connection.execute("ALTER TABLE space DROP COLUMN purpose")
+        connection.execute("ALTER TABLE space DROP COLUMN log")
+    for id, conversation_id, rich, created_at in connection.execute(
+        "SELECT id, conversation_id, rich, created_at FROM space_message WHERE role = 'assistant' AND question_id IS NULL AND rich IS NOT NULL"
+    ).fetchall():
+        space_id = connection.execute("SELECT space_id FROM space_conversation WHERE id = ?", (conversation_id,)).fetchone()[0]
+        material(connection=connection, space_id=space_id, kind="lesson", title=json.loads(rich)["title"], content=rich, created_at=created_at)
+        connection.execute("DELETE FROM space_message WHERE id = ?", (id,))
     UPGRADED = True
+
+
+def material(*, connection, space_id: str, kind: str, title: str, content: str, created_at: str) -> None:
+    if not content:
+        return
+    connection.execute(
+        "INSERT INTO space_material (id, space_id, kind, title, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (str(uuid.uuid4()), space_id, kind, title, content, created_at, created_at),
+    )
 
 
 def columns(*, connection, table: str) -> set[str]:

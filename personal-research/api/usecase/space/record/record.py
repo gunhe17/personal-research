@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import uuid
 
@@ -7,6 +8,7 @@ from usecase.common import store
 from usecase.conversation.record import record as conversation
 
 IDENTIFIER = re.compile(r"[a-zA-Z0-9_-]+")
+KINDS = ("plan", "log", "lesson", "note")
 
 
 # #
@@ -15,10 +17,12 @@ IDENTIFIER = re.compile(r"[a-zA-Z0-9_-]+")
 def listed() -> list[dict]:
     with store.session() as connection:
         rows = connection.execute(
-            """SELECT s.id, s.title, s.purpose, s.created_at, MAX(s.updated_at, COALESCE(MAX(c.updated_at), '')),
-                      COUNT(c.id), COUNT(DISTINCT NULLIF(c.collected_id, ''))
+            """SELECT s.id, s.title, COALESCE(p.content, ''), s.created_at,
+                      MAX(s.updated_at, COALESCE(MAX(c.updated_at), '')),
+                      COUNT(DISTINCT c.id), COUNT(DISTINCT NULLIF(c.collected_id, ''))
                FROM space AS s
                LEFT JOIN space_conversation AS c ON c.space_id = s.id
+               LEFT JOIN space_material AS p ON p.space_id = s.id AND p.kind = 'plan'
                GROUP BY s.id ORDER BY 5 DESC"""
         ).fetchall()
 
@@ -40,20 +44,18 @@ def get(*, id: str) -> dict | None:
     if not IDENTIFIER.fullmatch(id or ""):
         return None
     with store.session() as connection:
-        row = connection.execute(
-            "SELECT id, title, purpose, log, created_at, updated_at FROM space WHERE id = ?",
-            (id,),
-        ).fetchone()
+        row = connection.execute("SELECT id, title, created_at, updated_at FROM space WHERE id = ?", (id,)).fetchone()
     if not row:
         return None
+    materials = listed_materials(space_id=row[0])
 
     return {
         "id": row[0],
         "title": row[1],
-        "purpose": row[2],
-        "log": row[3],
-        "created_at": row[4],
-        "updated_at": row[5],
+        "created_at": row[2],
+        "updated_at": row[3],
+        "purpose": next((m["content"] for m in materials if m["kind"] == "plan"), ""),
+        "materials": [{k: v for k, v in m.items() if k != "content"} for m in materials if m["kind"] != "plan"],
         "conversations": conversation.listed(domain="space", space_id=row[0]),
         "collected": collected(id=row[0]),
     }
@@ -77,6 +79,38 @@ def collected(*, id: str) -> list[dict]:
     ]
 
 
+def listed_materials(*, space_id: str) -> list[dict]:
+    with store.session() as connection:
+        rows = connection.execute(
+            """SELECT id, kind, title, content, created_at, updated_at FROM space_material
+               WHERE space_id = ?
+               ORDER BY CASE kind WHEN 'plan' THEN 0 WHEN 'lesson' THEN 1 WHEN 'note' THEN 2 ELSE 3 END, created_at""",
+            (space_id,),
+        ).fetchall()
+
+    return [
+        {"id": r[0], "kind": r[1], "title": r[2], "content": r[3], "created_at": r[4], "updated_at": r[5]}
+        for r in rows
+    ]
+
+
+def material(*, id: str) -> dict | None:
+    if not IDENTIFIER.fullmatch(id or ""):
+        return None
+    with store.session() as connection:
+        row = connection.execute(
+            "SELECT id, space_id, kind, title, content, created_at, updated_at FROM space_material WHERE id = ?",
+            (id,),
+        ).fetchone()
+    if not row:
+        return None
+    found = {"id": row[0], "space_id": row[1], "kind": row[2], "title": row[3], "content": row[4], "created_at": row[5], "updated_at": row[6]}
+    if found["kind"] == "lesson":
+        found["content"] = json.loads(found["content"])
+
+    return found
+
+
 # #
 # command
 
@@ -84,34 +118,74 @@ def create(*, data: dict) -> dict:
     created = {
         "id": str(uuid.uuid4()),
         "title": (data.get("title") or "").strip() or "새 space",
-        "purpose": data.get("purpose") or "",
         "created_at": store.now(),
     }
     with store.session() as connection:
         connection.execute(
-            "INSERT INTO space (id, title, purpose, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-            (created["id"], created["title"], created["purpose"], created["created_at"], created["created_at"]),
+            "INSERT INTO space (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)",
+            (created["id"], created["title"], created["created_at"], created["created_at"]),
         )
+    if data.get("purpose"):
+        edit(id=created["id"], data={"purpose": data["purpose"]})
 
     return created
 
 
 def edit(*, id: str, data: dict) -> dict:
-    with store.session() as connection:
-        for key in ("title", "purpose"):
-            if isinstance(data.get(key), str):
-                connection.execute(f"UPDATE space SET {key} = ?, updated_at = ? WHERE id = ?", (data[key], store.now(), id))
-    edited = get(id=id)
-    if edited is None:
+    if get(id=id) is None:
         raise ValueError("space 를 찾을 수 없습니다.")
+    with store.session() as connection:
+        if isinstance(data.get("title"), str) and data["title"].strip():
+            connection.execute("UPDATE space SET title = ?, updated_at = ? WHERE id = ?", (data["title"].strip(), store.now(), id))
+        if isinstance(data.get("purpose"), str):
+            plan = connection.execute("SELECT id FROM space_material WHERE space_id = ? AND kind = 'plan'", (id,)).fetchone()
+            if plan:
+                connection.execute("UPDATE space_material SET content = ?, updated_at = ? WHERE id = ?", (data["purpose"], store.now(), plan[0]))
+            else:
+                store.material(connection=connection, space_id=id, kind="plan", title="목적", content=data["purpose"], created_at=store.now())
 
-    return edited
+    return get(id=id)
 
 
 def remove(*, id: str) -> bool:
     for item in conversation.listed(domain="space", space_id=id):
         conversation.remove(domain="space", id=item["id"])
     with store.session() as connection:
+        connection.execute("DELETE FROM space_material WHERE space_id = ?", (id,))
         removed = connection.execute("DELETE FROM space WHERE id = ?", (id,)).rowcount
+
+    return removed > 0
+
+
+def save_material(*, space_id: str, data: dict, id: str = "") -> dict:
+    kind = data.get("kind") or "note"
+    title = (data.get("title") or "").strip()
+    content = data.get("content")
+    if kind not in KINDS or kind == "plan":
+        raise ValueError("고칠 수 없는 자료 종류입니다.")
+    if not title or not isinstance(content, (str, dict)):
+        raise ValueError("제목과 본문이 필요합니다.")
+    encoded = json.dumps(content, ensure_ascii=False) if isinstance(content, dict) else content
+    with store.session() as connection:
+        if id:
+            changed = connection.execute(
+                "UPDATE space_material SET title = ?, content = ?, updated_at = ? WHERE id = ? AND space_id = ?",
+                (title, encoded, store.now(), id, space_id),
+            ).rowcount
+            if not changed:
+                raise ValueError("자료를 찾을 수 없습니다.")
+        else:
+            id = str(uuid.uuid4())
+            connection.execute(
+                "INSERT INTO space_material (id, space_id, kind, title, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (id, space_id, kind, title, encoded, store.now(), store.now()),
+            )
+
+    return material(id=id)
+
+
+def remove_material(*, id: str) -> bool:
+    with store.session() as connection:
+        removed = connection.execute("DELETE FROM space_material WHERE id = ? AND kind != 'plan'", (id,)).rowcount
 
     return removed > 0

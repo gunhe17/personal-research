@@ -85,7 +85,7 @@ export function playground(config, onContext, key) {
     })); root.append(descent);
   }
   const caption = el('p', 'pg-caption'); root.append(caption);
-  const ask = button('이 장면으로 질문하기 ↗', () => { emit(); document.getElementById('message-input').focus(); }); ask.className = 'quiet'; root.append(ask);
+  const ask = button('이 장면으로 질문하기 ↗', () => { emit(); document.getElementById('message-input')?.focus(); }); ask.className = 'quiet'; root.append(ask);
   function emit() {
     onContext({ w, h, x, y, mode, learning_rate: lr, view: zoom ? 'zoom' : 'full', show_secant: hasSecant, show_tangent: hasTangent, key });
   }

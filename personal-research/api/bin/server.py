@@ -27,6 +27,8 @@ VIEWER = store.API.parent / "wui" / "bin"
 HOST = os.environ.get("HOST") or "127.0.0.1"
 PORT = int(os.environ.get("PORT") or 8765)
 SPACE = re.compile(r"/api/spaces/([a-zA-Z0-9_-]+)")
+MATERIALS = re.compile(r"/api/spaces/([a-zA-Z0-9_-]+)/materials")
+MATERIAL = re.compile(r"/api/materials/([a-zA-Z0-9_-]+)")
 CONVERSATIONS = re.compile(r"/api/(space|agent)/conversations")
 CONVERSATION = re.compile(r"/api/(space|agent)/conversations/([a-zA-Z0-9_-]+)(?:/(messages|retry|cancel))?")
 INCLUDE = re.compile(r"\{\{include ([\w./-]+)\}\}")
@@ -113,6 +115,10 @@ class Handler(BaseHTTPRequestHandler):
             domain = CONVERSATIONS.fullmatch(path).group(1)
             return self.reply(code=200, payload={"items": record.listed(domain=domain, space_id=(query.get("space_id") or [""])[0])})
 
+        matched = MATERIAL.fullmatch(path)
+        if matched:
+            found = spaces.material(id=matched.group(1))
+            return self.reply(code=200 if found else 404, payload=found or {"error": "not found"})
         matched = SPACE.fullmatch(path)
         if matched:
             found = spaces.get(id=matched.group(1))
@@ -140,6 +146,8 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if parsed.path == "/api/spaces":
                 return self.reply(code=200, payload=spaces.create(data=body))
+            if MATERIALS.fullmatch(parsed.path):
+                return self.reply(code=200, payload=spaces.save_material(space_id=MATERIALS.fullmatch(parsed.path).group(1), data=body))
             if CONVERSATIONS.fullmatch(parsed.path):
                 return self.reply(code=200, payload=self.start(domain=CONVERSATIONS.fullmatch(parsed.path).group(1), body=body))
             matched = CONVERSATION.fullmatch(parsed.path)
@@ -163,6 +171,11 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if SPACE.fullmatch(path):
                 return self.reply(code=200, payload=spaces.edit(id=SPACE.fullmatch(path).group(1), data=body))
+            if MATERIAL.fullmatch(path):
+                found = spaces.material(id=MATERIAL.fullmatch(path).group(1))
+                if not found:
+                    raise ValueError("자료를 찾을 수 없습니다.")
+                return self.reply(code=200, payload=spaces.save_material(space_id=found["space_id"], data={**found, **body}, id=found["id"]))
             matched = CONVERSATION.fullmatch(path)
             if matched and not matched.group(3):
                 return self.reply(code=200, payload=record.edit(domain=matched.group(1), id=matched.group(2), data=body))
@@ -176,6 +189,8 @@ class Handler(BaseHTTPRequestHandler):
         matched = CONVERSATION.fullmatch(path)
         if SPACE.fullmatch(path):
             removed = spaces.remove(id=SPACE.fullmatch(path).group(1))
+        elif MATERIAL.fullmatch(path):
+            removed = spaces.remove_material(id=MATERIAL.fullmatch(path).group(1))
         elif matched and not matched.group(3):
             removed = record.remove(domain=matched.group(1), id=matched.group(2))
         else:
