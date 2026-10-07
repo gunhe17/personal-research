@@ -1,0 +1,59 @@
+import { Marked, type Token } from "marked";
+
+const chat = new Marked({ gfm: true, breaks: true });
+const doc = new Marked({ gfm: true, breaks: false });
+
+export function chatHtml(source: string): string {
+  return (chat.parse(source || "") as string).replace(/<p>\s*<\/p>/g, "");
+}
+
+export function docHtml(source: string): string {
+  return doc.parse(source || "") as string;
+}
+
+function blocks(source: string): Token[] {
+  return doc.lexer(source || "").filter((token) => token.type !== "space");
+}
+
+function sentences(text: string): string[] {
+  return text.match(/[^.!?]+[.!?]+["')\]]*\s*|[^.!?]+$/g) || [text];
+}
+
+function paired(a: Token | undefined, b: Token | undefined): [string[], string[]] | null {
+  if (!a || !b || a.type !== "paragraph" || b.type !== "paragraph" || a.raw.trim() === b.raw.trim()) return null;
+  const left = sentences(a.raw.trim());
+  const right = sentences(b.raw.trim());
+  return left.length === right.length ? [left, right] : null;
+}
+
+export function interleavedHtml(original: string, translation: string): string {
+  const a = blocks(original);
+  const b = blocks(translation);
+  let html = "";
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const pair = paired(a[i], b[i]);
+    if (pair) {
+      html += `<div class="pair">${pair[0].map((s, k) => `<p class="original">${doc.parseInline(s.trim())}</p><p class="translation">${doc.parseInline(pair[1][k].trim())}</p>`).join("")}</div>`;
+      continue;
+    }
+    if (a[i]) html += `<div class="original-block">${doc.parser([a[i]])}</div>`;
+    if (b[i] && (!a[i] || b[i].raw.trim() !== a[i].raw.trim())) html += `<div class="translation-block">${doc.parser([b[i]])}</div>`;
+  }
+  return html;
+}
+
+export function bilingualMarkdown(original: string, translation: string): string {
+  const a = blocks(original);
+  const b = blocks(translation);
+  const out: string[] = [];
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const pair = paired(a[i], b[i]);
+    if (pair) {
+      out.push(pair[0].map((s, k) => `${s.trim()}\n${pair[1][k].trim()}`).join("\n\n"));
+      continue;
+    }
+    if (a[i]) out.push(a[i].raw.trim());
+    if (b[i] && (!a[i] || b[i].raw.trim() !== a[i].raw.trim())) out.push(b[i].raw.trim());
+  }
+  return `${out.join("\n\n")}\n`;
+}
