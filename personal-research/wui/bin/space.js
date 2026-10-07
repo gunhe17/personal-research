@@ -231,7 +231,7 @@ function renderModels() {
   const provider = catalog.providers.find(p => p.id === model.provider);
   $('provider-label').textContent = provider.label;
   $('model-label').textContent = provider.models.find(m => m.id === model.model)?.label || model.model;
-  $('provider-menu').replaceChildren(...catalog.providers.map(p => row(p.label, `${p.models.length}개 모델`, p.id === model.provider, () => setModel({ provider: p.id, model: p.id === model.provider ? model.model : p.models[0].id }))));
+  $('provider-menu').replaceChildren(...catalog.providers.map(p => row(p.label, `${p.models.length}개 모델`, p.id === model.provider, () => setModel({ provider: p.id, model: p.id === model.provider ? model.model : p.model }))));
   $('model-menu').replaceChildren(...provider.models.map(m => row(m.label, m.id, m.id === model.model, () => setModel({ ...model, model: m.id }))));
 }
 function setModel(next) { model = next; try { localStorage.setItem('model', JSON.stringify(model)); } catch (_) {} closeMenus(); renderModels(); }
@@ -281,6 +281,7 @@ function follow(current) {
   doc = current;
 }
 window.addEventListener('research:doc', event => follow(event.detail));
+window.addEventListener('research:settings', loadModels);
 document.addEventListener('visibilitychange', () => { if (!document.hidden && chat) refresh(); });
 
 renderQuote(); resizeInput(); await loadModels();
