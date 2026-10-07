@@ -5,7 +5,8 @@
 <link rel="stylesheet" href="/viewer/space.css" />
 </head>
 <body class="h-full bg-slate-50 text-slate-900 font-sans antialiased select-text">
-  <main id="doc-pane" class="h-full overflow-y-auto">
+  <div class="pane-bar"><span class="pane-kind">materials</span><span class="pane-sep">/</span><span id="pane-name" class="pane-name"></span></div>
+  <main id="doc-pane" class="h-[calc(100%-34px)] overflow-y-auto">
     <article id="material" class="mx-auto max-w-3xl px-6 sm:px-10 py-8 pb-16"></article>
   </main>
   <script type="module">
@@ -19,6 +20,7 @@
       box.textContent = material.error || "자료를 찾을 수 없습니다.";
     } else {
       window.parent.workbench?.titled(window.frameElement, { title: material.title });
+      document.getElementById("pane-name").textContent = material.title;
       const kind = document.createElement("p");
       kind.className = "mb-2 text-[12px] text-slate-400";
       kind.textContent = KIND[material.kind] || material.kind;

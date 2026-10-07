@@ -5,7 +5,6 @@ import { el, fmt } from './playground.js';
 const $ = id => document.getElementById(id);
 const KEY = 'space-draft';
 const research = window.research;
-document.getElementById('header-center')?.append(document.getElementById('space-header'));
 let cache = {};
 try { cache = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (_) {}
 let scope = { domain: 'space', space: null }, chat = null, sending = false, timer = null, doc = null;
@@ -100,62 +99,11 @@ function renderMessages() {
 }
 
 function renderHeader() {
-  $('space-title').textContent = scope.domain === 'agent' ? 'Agent' : scope.space?.title || '새 space';
-  $('conversation-title').textContent = chat?.title || '새 대화';
+  $('pane-name').textContent = chat?.title || '새 대화';
   $('space-empty').hidden = Boolean(chat?.messages.length);
   research.titled?.({ kind: scope.domain === 'agent' ? 'agent' : 'chat', title: chat?.title || '새 대화', space: scope.space?.id || '', conversation: chat?.id || '', agent: scope.domain === 'agent' ? chat?.id || '' : '' });
   $('space-banner').hidden = !chat || chat.codex_available;
   if (chat && !chat.codex_available) $('space-banner').textContent = '서버에서 codex CLI 를 찾지 못했습니다. 컨테이너에서 codex login --device-auth 를 확인해 주세요.';
-}
-
-const ICON = window.parent.RESEARCH_ICON || {};
-
-function chip(kind, label, title, onOpen, onDrop) {
-  const box = el('span', 'source-chip');
-  const link = button('', 'source-open', onOpen);
-  link.title = title;
-  link.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${ICON[kind] || ICON.docs || ''}</svg>`;
-  link.append(el('span', '', label));
-  box.append(link);
-  if (onDrop) box.append(button('×', 'source-drop', onDrop));
-  return box;
-}
-
-function renderLinks() {
-  const box = $('links-menu'); if (!box) return; box.replaceChildren();
-  const documents = chat?.documents || [];
-  if (documents.length) {
-    const first = documents[0];
-    box.append(chip(first.path.split('/')[0], first.path.split('/').pop(), first.path, () => research.openFile(first.id), () => relink('')));
-  }
-  if (chat && doc && !documents.some(d => d.id === doc.id)) box.append(chip('plus', doc.path.split('/').pop(), `${doc.path} 를 이 대화의 자료로`, () => relink(doc.id)));
-  if (!chat && doc) box.append(el('span', 'source-hint', `첫 질문 때 ${doc.path.split('/').pop()} 를 자료로 둡니다`));
-}
-
-function row(title, meta, selected, fn) {
-  const item = button('', 'menu-row', fn); item.setAttribute('aria-selected', String(selected));
-  item.append(el('strong', '', title), el('span', '', meta));
-  return item;
-}
-
-async function renderSpaces() {
-  const menu = $('space-menu'), spaces = (await json('/api/spaces')).items || [];
-  const rows = spaces.map(item => row(item.title, `${(item.updated_at || '').slice(0, 10)} · 대화 ${item.conversation_count}`, scope.domain === 'space' && item.id === scope.space?.id, () => choose({ domain: 'space', space: item })));
-  if (!rows.length) rows.push(el('div', 'link-head', '아직 space 가 없습니다'));
-  const footer = el('div', 'menu-foot');
-  const detail = el('a', 'menu-link', scope.space ? '이 space 상세 보기' : 'space 목록');
-  detail.href = scope.space ? `/viewer/space?id=${encodeURIComponent(scope.space.id)}` : '/viewer/space';
-  footer.append(detail);
-  menu.replaceChildren(...rows, footer);
-}
-
-async function renderConversations() {
-  const menu = $('conversation-menu');
-  const items = scope.domain === 'agent' ? (await json('/api/agent/conversations')).items : scope.space ? (await json(`/api/spaces/${scope.space.id}`)).conversations : [];
-  menu.replaceChildren(
-    ...(items || []).map(item => row(item.title, `${(item.updated_at || '').slice(0, 16).replace('T', ' ')} · 메시지 ${item.message_count}`, item.id === chat?.id, () => open(scope.domain, item.id))),
-    row('+ 새 대화', '다음 질문으로 새 대화를 시작합니다', !chat, () => open(scope.domain, null)),
-  );
 }
 
 function restoreScene(c) {
@@ -192,32 +140,25 @@ async function choose(next) {
   scope = next;
   const latest = scope.domain === 'space' && scope.space ? (await json(`/api/spaces/${scope.space.id}`)).conversations[0] : null;
   await open(scope.domain, latest?.id || null);
-  $('space-menu').classList.add('hidden');
 }
 
 async function open(domain, id) {
   clearTimeout(timer); threads.clear(); rendered.clear(); playgrounds.clear(); $('messages').replaceChildren();
   scope.domain = domain; chat = null;
-  $('conversation-menu').classList.add('hidden');
   if (id) await refresh(id);
   if (chat?.space_id && chat.space_id !== scope.space?.id) scope.space = await json(`/api/spaces/${chat.space_id}`);
-  locate(); renderHeader(); renderLinks();
+  locate(); renderHeader();
 }
 
 async function refresh(id = chat?.id) {
   try {
     chat = await json(`/api/${scope.domain}/conversations/${encodeURIComponent(id)}`, { cache: 'no-store' });
-    renderHeader(); renderLinks(); renderMessages(); annotations.paint();
+    renderHeader(); renderMessages(); annotations.paint();
   } catch (error) {
     $('space-banner').hidden = false; $('space-banner').textContent = `대화를 불러오지 못했습니다. ${error.message}`;
   }
   clearTimeout(timer);
   if (chat?.messages.some(m => ['queued', 'running'].includes(m.status))) timer = setTimeout(() => refresh(), 1500);
-}
-
-async function relink(collectedId) {
-  try { chat = { ...chat, ...(await post(base(), { collected_id: collectedId }, 'PUT')), codex_available: chat.codex_available }; renderHeader(); renderLinks(); }
-  catch (error) { $('form-status').textContent = error.message; }
 }
 
 async function action(type, id) { try { await post(`${base()}/${type}`, { message_id: id }); await refresh(); } catch (error) { $('form-status').textContent = error.message; } }
@@ -253,26 +194,6 @@ function named(text) {
   return text.length > 24 ? `${text.slice(0, 24)}…` : text;
 }
 
-function rename() {
-  const trigger = $('btn-conversation');
-  const owner = chat;
-  if (!owner || trigger.hidden) return;
-  $('conversation-menu').classList.add('hidden');
-  const input = el('input', 'rename-input'); input.value = owner.title; input.setAttribute('aria-label', '이름');
-  trigger.hidden = true; trigger.after(input); input.focus(); input.select();
-  let finished = false;
-  const done = async save => {
-    if (finished) return; finished = true;
-    const title = input.value.trim();
-    input.remove(); trigger.hidden = false;
-    if (!save || !title || title === owner.title) return;
-    try { await post(base(), { title }, 'PUT'); owner.title = title; research.spacesChanged(); } catch (error) { $('form-status').textContent = error.message; }
-    renderHeader();
-  };
-  input.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); done(true); } if (event.key === 'Escape') done(false); });
-  input.addEventListener('blur', () => done(true));
-}
-
 function resizeInput() { const input = $('message-input'); input.style.height = 'auto'; input.style.height = `${Math.min(input.scrollHeight, 180)}px`; }
 
 // events
@@ -282,20 +203,6 @@ $('message-input').addEventListener('keydown', event => { if (event.key === 'Ent
 $('composer').addEventListener('submit', send);
 $('jump-bottom').addEventListener('click', scrollBottom);
 $('clear-quote').addEventListener('click', () => { quote = null; renderQuote(); persist(); });
-$('btn-space').addEventListener('click', async event => {
-  event.stopPropagation(); $('conversation-menu').classList.add('hidden');
-  if (!$('space-menu').classList.toggle('hidden')) await renderSpaces();
-});
-$('btn-conversation').addEventListener('click', async event => {
-  event.stopPropagation(); $('space-menu').classList.add('hidden');
-  if (!$('conversation-menu').classList.toggle('hidden')) await renderConversations();
-});
-document.addEventListener('keydown', event => { if (event.key === 'Escape') ['space-menu', 'conversation-menu'].forEach(id => $(id).classList.add('hidden')); });
-$('btn-conversation').addEventListener('dblclick', () => rename());
-document.addEventListener('click', event => {
-  if (!$('conversation-dd').contains(event.target)) $('conversation-menu').classList.add('hidden');
-  if (!$('space-dd').contains(event.target)) $('space-menu').classList.add('hidden');
-});
 scroller().addEventListener('scroll', () => {
   annotations.paint();
   if (scroller().scrollTop + scroller().clientHeight >= scroller().scrollHeight - 300) $('jump-bottom').hidden = true;
@@ -317,7 +224,7 @@ window.addEventListener('research:quote', event => {
   renderQuote(); persist(); $('message-input').focus();
 });
 function follow(current) {
-  doc = current; renderLinks();
+  doc = current;
 }
 window.addEventListener('research:doc', event => follow(event.detail));
 document.addEventListener('visibilitychange', () => { if (!document.hidden && chat) refresh(); });

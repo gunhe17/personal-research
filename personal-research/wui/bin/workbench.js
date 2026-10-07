@@ -14,7 +14,7 @@ function load() {
     const saved = JSON.parse(localStorage.getItem(KEY) || "null");
     if (saved?.groups?.length) return saved;
   } catch (_) {}
-  return { groups: [], focus: 0, direction: "row" };
+  return { groups: [], focus: 0 };
 }
 
 function save() {
@@ -91,10 +91,9 @@ function split(item, index, side) {
     state.focus = index;
     return commit();
   }
-  if (state.groups.length < 2) state.direction = side === "top" || side === "bottom" ? "column" : "row";
   const created = group();
   add(created, item);
-  const at = side === "left" || side === "top" ? index : index + 1;
+  const at = side === "left" ? index : index + 1;
   state.groups.splice(at, 0, created);
   state.focus = at;
   commit();
@@ -138,7 +137,6 @@ function commit() {
 // render
 function render() {
   root.dataset.count = String(state.groups.length);
-  root.dataset.direction = state.direction;
   if (!state.groups.length || state.groups.every((g) => !g.tabs.length)) {
     root.innerHTML = `<div class="welcome"></div>`;
     attachDrop(root.querySelector(".welcome"), null);
@@ -221,12 +219,9 @@ function endDrag() {
 function zone(element, event) {
   const rect = element.getBoundingClientRect();
   const x = (event.clientX - rect.left) / rect.width;
-  const y = (event.clientY - rect.top) / rect.height;
   const full = state.groups.length >= LIMIT;
   if (!full && x < 0.25) return "left";
   if (!full && x > 0.75) return "right";
-  if (!full && y < 0.25) return "top";
-  if (!full && y > 0.75) return "bottom";
   return "center";
 }
 
