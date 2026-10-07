@@ -142,8 +142,7 @@ function render() {
   if (!state.groups.length || state.groups.every((g) => !g.tabs.length)) {
     root.innerHTML = `
       <div class="welcome">
-        <p class="welcome-title">무엇을 열까요?</p>
-        <p>왼쪽 Space 에서 대화, Collected, 자료를 누르거나 이곳으로 끌어 오세요. 가장자리에 놓으면 화면이 나뉘고, 최대 4개까지 나란히 볼 수 있습니다.</p>
+        <p class="welcome-title">personal-research</p>
       </div>`;
     attachDrop(root.querySelector(".welcome"), null);
     return;
