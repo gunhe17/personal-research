@@ -40,7 +40,9 @@ def environment(*, provider: str) -> dict:
     variable = PROVIDERS[provider]["variable"]
     auths, keys = load()
     found = {k: v for k, v in os.environ.items() if k != variable}
-    if auths.get(provider) == "api_key" and keys[provider]:
+    if auths.get(provider) == "api_key":
+        if not keys[provider]:
+            raise RuntimeError(f"{PROVIDERS[provider]['label']} API 키를 풀 수 없습니다. 설정에서 다시 입력해 주세요.")
         found[variable] = keys[provider]
 
     return found
@@ -140,6 +142,16 @@ if __name__ == "__main__":
     edit(data={"providers": {"anthropic": {"auth": "subscription"}}})
     assert "ANTHROPIC_API_KEY" not in environment(provider="anthropic")
     assert get()["providers"][1]["key"] == "…1234"
+    edit(data={"providers": {"anthropic": {"auth": "api_key"}}})
+    KEY_FILE.unlink()
+    KEY_FILE = folder / "other.key"
+    try:
+        environment(provider="anthropic")
+    except RuntimeError:
+        pass
+    else:
+        raise AssertionError("undecryptable key")
+    edit(data={"providers": {"anthropic": {"auth": "subscription"}}})
     for broken in ({"openai": {"auth": "api_key"}}, {"x": {}}, {"openai": {"auth": "bad"}}):
         try:
             edit(data={"providers": broken})
