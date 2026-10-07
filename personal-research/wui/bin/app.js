@@ -1642,7 +1642,6 @@
           setDownloadOpen(false);
           return;
         }
-        if (state.layout === "split") openChat(false);
       }
     });
     on("#btn-doc-font-down", "click", () => setDocZoom(state.docZoom - 0.1));
@@ -1683,6 +1682,7 @@
     // init
     const opened = new URLSearchParams(location.search);
     if ((opened.get("space") || opened.get("conversation") || opened.get("agent")) && !opened.get("doc")) state.layout = "chat";
+    if (opened.get("doc") && state.layout === "chat") state.layout = "split";
     if (window.matchMedia("(max-width: 767px)").matches) {
       state.sidebarOpen = false;
       if (state.layout === "split") state.layout = "doc";
