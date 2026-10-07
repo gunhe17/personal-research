@@ -22,6 +22,7 @@ services:
     volumes:
       - ..:/app
       - wui-modules:/app/personal-research/wui/node_modules
+      - wui-next:/app/personal-research/wui/.next
     environment:
       API_URL: http://api:${PORT}
     ports:
@@ -32,3 +33,4 @@ services:
 volumes:
   claude-config:
   wui-modules:
+  wui-next:
