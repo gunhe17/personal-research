@@ -155,13 +155,7 @@
       const control = (label, value) => `<div class="flex items-center gap-3 py-1"><span class="w-24 shrink-0 text-[12px] text-slate-500">${label}</span><div class="flex min-w-0 flex-1 items-center gap-2 text-[13px] text-slate-800">${value}</div></div>`;
       const value = (text, buttons) => `<span class="min-w-0 flex-1 truncate">${text}</span>${buttons}`;
       const used = (m) => (m.usage.last ? `${m.usage.month} this month · last ${sinceLabel(m.usage.last)}` : "Not used yet");
-      const subtitle = (m) => {
-        if (!m.enabled) return "Off";
-        if (!plan(m.id)) return m.secret ? `Key saved · ${m.secret}` : "No key";
-        const s = status(m);
-        if (!s) return "Checking…";
-        return s.logged_in ? `Logged in · ${s.detail || p.cli}` : s.pending ? "Logging in…" : "Logged out";
-      };
+      const subtitle = (m) => (m.enabled && plan(m.id) && !status(m) ? "…" : usable(id, m) ? "On" : "Off");
       const extra = (m) => p.methods.filter((x) => plan(x.id) === plan(m.id)).length > 1 || !["plan_key", "api_key"].includes(m.id);
       const remove = (m) => (p.methods.length > 1 && extra(m) ? row("", `<button type="button" data-action="remove" class="text-[12px] text-slate-500 hover:text-red-600">Remove ${m.label}</button>`) : "");
       const detail = (m) => {
@@ -191,8 +185,7 @@
       };
       const plus = (type, label) => `
             <button type="button" data-add="${type}" class="flex w-full items-center gap-1.5 rounded-lg py-1.5 pl-1 pr-1.5 text-left text-[13px] text-apple-link transition duration-150 hover:bg-slate-50">
-              <span class="inline-flex h-4 w-4 shrink-0 items-center justify-center"></span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" class="h-3.5 w-3.5 shrink-0"><path d="M12 5v14M5 12h14" /></svg>
+              <span class="inline-flex h-4 w-4 shrink-0 items-center justify-center"><svg viewBox="0 0 16 16" class="h-3 w-3"><path d="M8 3.5v9M3.5 8h9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg></span>
               <span>${label}</span>
             </button>`;
       pane.innerHTML = `
