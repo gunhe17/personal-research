@@ -28,7 +28,11 @@ function lookup(id: string): Promise<File | undefined> {
     files = null;
     return new Map();
   });
-  return files.then((map) => map.get(id));
+  return files.then((map) => {
+    if (map.has(id)) return map.get(id);
+    files = null;
+    return undefined;
+  });
 }
 
 const LANGS: { value: Lang; label: string }[] = [

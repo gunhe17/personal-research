@@ -44,6 +44,8 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
     try {
       const data = await api.editProvider(provider.id, values);
       setProviders(data.providers);
+      if (values.remove) setStatuses((all) => ({ ...all, [`${provider.id}:${values.remove}`]: undefined }));
+      check(data.providers.filter((p) => p.id === provider.id));
       setErrors((all) => ({ ...all, [provider.id]: "" }));
       emit("settings");
       return data.providers.find((p) => p.id === provider.id) || null;

@@ -95,7 +95,8 @@ function apply(reply: Reply, event: CollectEvent): Reply {
   if (event.type === "collected") return { ...reply, sources: [{ id: event.id, path: event.path }] };
   if (event.type === "delta") return { ...reply, answered: true, content: (reply.answered ? reply.content : "") + event.text };
   if (event.type === "done") return { ...reply, content: event.text || reply.content, sources: reply.sources.length || !event.id ? reply.sources : [{ id: event.id, path: event.id }] };
-  return { ...reply, content: `${reply.content ? `${reply.content}\n\n` : ""}Error: ${event.error}` };
+  if (event.type === "error") return { ...reply, content: `${reply.content ? `${reply.content}\n\n` : ""}Error: ${event.error}` };
+  return reply;
 }
 
 const MARKS: Record<string, string> = {

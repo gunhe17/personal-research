@@ -23,6 +23,7 @@ type Value = {
   viewDoc: (doc: Doc) => void;
   quote: Quote | null;
   sendQuote: (quote: Omit<Quote, "target" | "nonce">) => void;
+  clearQuote: () => void;
   activeKey: string;
   activeSpace: string | null;
 };
@@ -75,7 +76,7 @@ export default function WorkbenchProvider({ children }: { children: ReactNode })
         setFocus(Math.max(at, 0));
         return current.length ? current.map((g, i) => (i === at ? { ...g, item } : g)) : [{ id: fresh(), item }];
       }
-      const at = side === "left" ? index : index + 1;
+      const at = Math.min(side === "left" ? index : index + 1, current.length);
       setFocus(at);
       return [...current.slice(0, at), { id: fresh(), item }, ...current.slice(at)];
     });
@@ -108,8 +109,9 @@ export default function WorkbenchProvider({ children }: { children: ReactNode })
 
   const close = useCallback((group: string) => {
     setGroups((current) => {
+      const removed = current.findIndex((g) => g.id === group);
       const next = current.filter((g) => g.id !== group);
-      setFocus((f) => Math.min(f, Math.max(next.length - 1, 0)));
+      setFocus((f) => Math.max(0, Math.min(removed >= 0 && removed < f ? f - 1 : f, next.length - 1)));
       return next;
     });
   }, []);
@@ -117,7 +119,7 @@ export default function WorkbenchProvider({ children }: { children: ReactNode })
   const move = useCallback((from: string, to: string, side: Side) => {
     setGroups((current) => {
       const source = current.find((g) => g.id === from);
-      if (!source || (from === to && (side === "center" || current.length === 1))) return current;
+      if (!source || from === to) return current;
       const rest = current.filter((g) => g.id !== from);
       const target = rest.findIndex((g) => g.id === to);
       if (side === "center") {
@@ -160,10 +162,11 @@ export default function WorkbenchProvider({ children }: { children: ReactNode })
     move,
     focusGroup,
     replace,
-    doc,
+    doc: doc && groups.some((g) => g.item.kind === "doc" && g.item.id === doc.id) ? doc : null,
     viewDoc: setDoc,
     quote,
     sendQuote,
+    clearQuote: () => setQuote(null),
     activeKey: focused ? itemKey(focused.item) : "",
     activeSpace: focused?.item.kind === "chat" ? focused.item.space : null,
   }), [groups, focus, ready, open, split, close, move, focusGroup, replace, doc, quote, sendQuote, focused]);

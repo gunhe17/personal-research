@@ -19,11 +19,10 @@ type Quote = { text: string; path?: string; id?: string };
 type Payload = { client_id: string; content: string; kind: string; context: MessageContext };
 type Draft = { draft?: string; quote?: Quote | null; annotations?: Annotation[]; context?: MessageContext | null; retryPayload?: Payload | null };
 
-const DRAFT = "space-draft";
-
 export default function ChatPane({ group }: { group: Group }) {
   const workbench = useWorkbench();
-  const [stored] = useState(() => load<Draft>(DRAFT, {}));
+  const draftKey = `space-draft:${group.id}`;
+  const [stored] = useState(() => load<Draft>(draftKey, {}));
   const [domain, setDomain] = useState<Domain>("space");
   const [space, setSpace] = useState<Space | null>(null);
   const [chat, setChat] = useState<Conversation | null>(null);
@@ -38,22 +37,28 @@ export default function ChatPane({ group }: { group: Group }) {
   const [selection, setSelection] = useState<{ text: string; answer: string | null } | null>(null);
   const [below, setBelow] = useState(false);
   const [listOpen, setListOpen] = useState(false);
-  const [catalog, choice, pick] = useModel();
+  const [catalog, choice, choose] = useModel();
   const scroller = useRef<HTMLDivElement>(null);
   const thread = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const loaded = useRef("");
+  const generation = useRef(0);
   const draftRef = useRef<Draft>(stored);
-  const notes = useAnnotations(stored.annotations || [], (annotations) => persist({ annotations }));
+  const notes = useAnnotations(stored.annotations || [], (annotations) => {
+    setRetry(null);
+    persist({ annotations, retryPayload: null });
+  });
 
   const persist = useCallback((patch: Draft) => {
     draftRef.current = { ...draftRef.current, ...patch };
-    save(DRAFT, draftRef.current);
-  }, []);
+    save(draftKey, draftRef.current);
+  }, [draftKey]);
 
   const refresh = useCallback(async (kind: Domain, id: string) => {
+    const at = generation.current;
     try {
       const data = await api.conversation(kind, id);
+      if (at !== generation.current) return;
       setChat(data);
       setBanner(data.codex_available ? "" : "서버에서 codex CLI 를 찾지 못했습니다. 컨테이너에서 codex login --device-auth 를 확인해 주세요.");
     } catch (error) {
@@ -70,6 +75,7 @@ export default function ChatPane({ group }: { group: Group }) {
     const item = group.item;
     if (loaded.current === itemKey(item)) return;
     loaded.current = itemKey(item);
+    generation.current += 1;
     setChat(null);
     setBanner("");
     (async () => {
@@ -109,9 +115,11 @@ export default function ChatPane({ group }: { group: Group }) {
     if (!q || q.target !== group.id) return;
     const next = { text: q.text.slice(0, 2000), path: q.path, id: q.id };
     setQuote(next);
-    persist({ quote: next });
+    setRetry(null);
+    persist({ quote: next, retryPayload: null });
+    workbench.clearQuote();
     input.current?.focus();
-  }, [workbench.quote, group.id, persist]);
+  }, [workbench, group.id, persist]);
 
   const count = chat?.messages.length || 0;
   const seen = useRef(0);
@@ -145,8 +153,15 @@ export default function ChatPane({ group }: { group: Group }) {
     setQuote(next);
     const merged = extra ? { ...(context || {}), ...extra } : context;
     setContext(merged);
-    persist({ quote: next, context: merged });
+    setRetry(null);
+    persist({ quote: next, context: merged, retryPayload: null });
     input.current?.focus();
+  };
+
+  const pick = (next: Parameters<typeof choose>[0]) => {
+    choose(next);
+    setRetry(null);
+    persist({ retryPayload: null });
   };
 
   const send = async () => {
@@ -173,6 +188,7 @@ export default function ChatPane({ group }: { group: Group }) {
         }
         const started = await api.startSpace(target?.id || "", workbench.doc?.id || "");
         current = await api.conversation(domain, started.id);
+        setChat(current);
       }
       await api.ask(current.domain, current.id, payload);
       write("");

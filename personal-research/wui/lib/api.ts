@@ -182,7 +182,8 @@ export type CollectEvent =
   | { type: "collected"; id: string; path: string }
   | { type: "delta"; text: string }
   | { type: "done"; text?: string; id?: string }
-  | { type: "error"; error: string };
+  | { type: "error"; error: string }
+  | { type: "conversation"; domain: string; id: string };
 
 export async function collect(input: string, onEvent: (event: CollectEvent) => void): Promise<void> {
   const response = await fetch("/api/collect", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ input }) });

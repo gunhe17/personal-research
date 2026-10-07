@@ -92,6 +92,14 @@ function locate(item: Annotation, scope: HTMLElement): Range | null {
 
 type Mark = { id: string; number: number; left: number; top: number };
 
+const painted = new Map<unknown, Range[]>();
+
+function highlight(owner: unknown, ranges: Range[]) {
+  if (ranges.length) painted.set(owner, ranges);
+  else painted.delete(owner);
+  if (globalThis.Highlight && CSS.highlights) CSS.highlights.set("annotations", new Highlight(...[...painted.values()].flat()));
+}
+
 export default function AnnotationLayer({ scope, notes, version }: { scope: RefObject<HTMLElement | null>; notes: Notes; version: unknown }) {
   const [marks, setMarks] = useState<Mark[]>([]);
   const [editor, setEditor] = useState<{ left: number; top: number } | null>(null);
@@ -117,11 +125,14 @@ export default function AnnotationLayer({ scope, notes, version }: { scope: RefO
       });
       setMarks(next);
       if (!notes.editing) setEditor(null);
-      if (globalThis.Highlight && CSS.highlights) CSS.highlights.set("annotations", new Highlight(...ranges));
+      highlight(root, ranges);
     };
     paint();
     window.addEventListener("resize", paint);
-    return () => window.removeEventListener("resize", paint);
+    return () => {
+      window.removeEventListener("resize", paint);
+      highlight(root, []);
+    };
   }, [scope, notes.items, notes.editing, version]);
 
   useEffect(() => {

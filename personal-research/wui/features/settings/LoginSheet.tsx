@@ -40,6 +40,7 @@ export default function LoginSheet({ provider, method, title, initial, onClose }
       api.login(provider, method).then((data) => {
         if (!live.current) return;
         setLogin(data);
+        if (!data.pending && !data.logged_in) setMessage("Login ended without approval. Try again.");
         finish(data);
       }, () => {});
     }, 2000);

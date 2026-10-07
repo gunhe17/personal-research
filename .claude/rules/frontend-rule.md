@@ -42,7 +42,7 @@ wui/
   features/<이름>/         한 화면 영역의 컴포넌트 묶음
   ui/                     어디서나 쓰는 모양 부품
   lib/                    React 가 없는 함수(api, cx, storage, time, markdown, events)
-  check/                  화면 점검 스크립트(smoke, workbench, chat)
+  check/                  화면 점검 스크립트(smoke, workbench, chat, flows)
   design/                 디자인 랩. 앱이 가져오지 않는다
 ```
 
@@ -116,7 +116,7 @@ wui/
 - 화면 상태는 그 컴포넌트의 `useState` 에 둔다. 전역 Context 는 작업대(`WorkbenchProvider`) 하나뿐이다. 패널 사이의 일(근거 문서 열기 `open`, 인용 보내기 `sendQuote`, 지금 문서 `doc`, 포커스)은 모두 이 Context 를 거친다.
 - 기능 사이의 짧은 신호는 `lib/events.ts` 의 이름 있는 이벤트로 보낸다: `spaces`(space 목록이 바뀜), `settings`(제공사 설정이 바뀜). 새 신호도 여기에 이름을 더한다.
 - `fetch` 는 `lib/api.ts` 에서만 부른다. 엔드포인트마다 함수 하나, 응답 타입을 함께 둔다. 실패하면 서버의 `error` 문장으로 `ApiError` 를 던지고, 화면이 그 문장을 보여 준다.
-- 브라우저 저장은 `lib/storage.ts` 의 `load` `save` 만 쓴다. 키는 옛 화면과 같게 둔다: `workbench` `sidebarWidth` `spaceExpanded` `docZoom` `chatZoom` `docLang` `dlFmt` `homeMode` `lastDoc` `model` `space-draft` `pg:<key>`.
+- 브라우저 저장은 `lib/storage.ts` 의 `load` `save` 만 쓴다. 키는 옛 화면과 같게 둔다: `workbench` `sidebarWidth` `spaceExpanded` `docZoom` `chatZoom` `docLang` `dlFmt` `homeMode` `lastDoc` `model` `space-draft:<그룹>` `pg:<key>`.
 - 문서와 대화 글자 크기는 `<html>` 의 CSS 변수 `--doc-zoom` `--chat-zoom` 으로 퍼뜨린다.
 
 ## 이름
