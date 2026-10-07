@@ -208,16 +208,18 @@
         onClick: () => openHome(),
       }));
       const spacesOpen = state.expanded.spaces !== false;
-      tree.appendChild(folderRow({ label: "Space", icon: SPACE_ICON, open: spacesOpen, depth: 0, bare: true, onToggle: () => expandSpace("spaces", !spacesOpen) }));
+      tree.appendChild(folderRow({ key: "spaces", label: "Space", icon: SPACE_ICON, open: spacesOpen, depth: 0, bare: true, onToggle: () => expandSpace("spaces", !spacesOpen) }));
       if (!spacesOpen) return;
       const box = document.createElement("div");
       box.className = "ml-3 border-l border-slate-100 pl-1";
+      box.dataset.children = "spaces";
       tree.appendChild(box);
       if (!state.spaces.length) box.insertAdjacentHTML("beforeend", `<div class="px-2 py-1.5 text-xs text-slate-400">Nothing yet</div>`);
       const current = window.workbench?.activeSpace?.() || params.get("space") || params.get("id");
       for (const item of state.spaces.slice(0, 12)) {
         const open = state.expanded[item.id] ?? item.id === current;
         box.appendChild(folderRow({
+          key: item.id,
           label: item.title,
           icon: `<span class="${current === item.id ? "text-apple-link" : "text-slate-500"}">${iconHtml("space", "h-4 w-4")}</span>`,
           open,
@@ -231,15 +233,17 @@
         if (!detail) { loadSpaceDetail(item.id); continue; }
         box.appendChild(spaceFolders(item.id, detail));
       }
+      unfold();
     }
 
     function chevronHtml(open) {
       return `<span class="inline-flex h-4 w-4 shrink-0 items-center justify-center text-slate-400"><svg viewBox="0 0 16 16" class="h-3 w-3 transition-transform duration-150 ${open ? "rotate-90" : ""}" style="transform-origin: 50% 50%"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg></span>`;
     }
 
-    function folderRow({ label, icon, open, depth, strong, meta, count, bare, onToggle }) {
+    function folderRow({ key, label, icon, open, depth, strong, meta, count, bare, onToggle }) {
       const row = document.createElement("button");
       row.type = "button";
+      row.dataset.toggle = key;
       row.setAttribute("aria-expanded", String(open));
       row.style.paddingLeft = `${(bare ? 8 : 4) + depth * 12}px`;
       row.className = `flex w-full items-center ${bare ? "gap-2" : "gap-1.5"} rounded-lg py-1.5 pr-2 text-left text-sm transition duration-150 hover:bg-slate-50 ${strong ? "font-semibold text-slate-900" : bare ? "text-slate-600" : "text-slate-700"}`;
@@ -273,9 +277,45 @@
     }
 
     function expandSpace(id, open) {
-      state.expanded[id] = open;
-      localStorage.setItem("spaceExpanded", JSON.stringify(state.expanded));
-      renderTree();
+      const commit = () => {
+        state.expanded[id] = open;
+        localStorage.setItem("spaceExpanded", JSON.stringify(state.expanded));
+        if (open) state.unfolding = id;
+        renderTree();
+      };
+      const children = document.querySelector(`[data-children="${CSS.escape(id)}"]`);
+      if (open || !children || STILL.matches) return commit();
+      turn(id, 90, 0);
+      children.style.overflow = "hidden";
+      children.animate(
+        [{ height: `${children.offsetHeight}px`, opacity: 1 }, { height: "0px", opacity: 0 }],
+        { duration: 180, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "forwards" },
+      ).onfinish = commit;
+    }
+
+    function turn(id, from, to) {
+      document.querySelector(`[data-toggle="${CSS.escape(id)}"] svg`)?.animate(
+        [{ transform: `rotate(${from}deg)` }, { transform: `rotate(${to}deg)` }],
+        { duration: 180, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "forwards" },
+      );
+    }
+
+    function unfold() {
+      const id = state.unfolding;
+      const children = id && document.querySelector(`[data-children="${CSS.escape(id)}"]`);
+      if (!children) return;
+      state.unfolding = null;
+      if (STILL.matches) return;
+      turn(id, 0, 90);
+      Object.assign(children.style, { height: "0px", opacity: "0", overflow: "hidden" });
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        const height = children.scrollHeight;
+        Object.assign(children.style, { height: "", opacity: "" });
+        children.animate(
+          [{ height: "0px", opacity: 0 }, { height: `${height}px`, opacity: 1 }],
+          { duration: 240, easing: "cubic-bezier(0.22, 1, 0.36, 1)" },
+        ).onfinish = () => { children.style.overflow = ""; };
+      }));
     }
 
     async function loadSpaceDetail(id) {
@@ -298,17 +338,21 @@
     function spaceFolders(spaceId, detail) {
       const box = document.createElement("div");
       box.className = "ml-3 border-l border-slate-100 pl-1 mb-1";
+      box.dataset.children = spaceId;
       const active = window.workbench?.activeKey?.() || "";
       const folder = (key, name, rows, symbol) => {
         const id = `${spaceId}:${key}`;
         const open = state.expanded[id] !== false;
-        const head = folderRow({ label: name, icon: `<span class="text-apple-link">${iconHtml(symbol)}</span>`, open, depth: 0, count: rows.length, onToggle: () => expandSpace(id, !open) });
+        const head = folderRow({ key: id, label: name, icon: `<span class="text-apple-link">${iconHtml(symbol)}</span>`, open, depth: 0, count: rows.length, onToggle: () => expandSpace(id, !open) });
         head.classList.replace("text-sm", "text-[12px]");
         head.classList.replace("py-1.5", "py-1");
         box.appendChild(head);
         if (!open) return;
-        if (!rows.length) box.insertAdjacentHTML("beforeend", `<div class="pl-9 pr-2 pb-1 text-[11px] text-slate-400">비어 있음</div>`);
-        rows.forEach((row) => box.appendChild(row));
+        const children = document.createElement("div");
+        children.dataset.children = id;
+        if (!rows.length) children.insertAdjacentHTML("beforeend", `<div class="pl-9 pr-2 pb-1 text-[11px] text-slate-400">비어 있음</div>`);
+        rows.forEach((row) => children.appendChild(row));
+        box.appendChild(children);
       };
       const leaf = (item, kind, label, title) => {
         const btn = document.createElement("button");
