@@ -10,8 +10,6 @@ services:
     volumes:
       - ../personal-research/api/database:/app/personal-research/api/database
       - claude-config:/root/.claude
-      - codex-auth:/root/.codex
-      - grok-auth:/root/.grok-home
     ports:
       - "127.0.0.1:${PRODUCTION_API_PORT}:${PORT}"
     env_file:
@@ -19,5 +17,3 @@ services:
 
 volumes:
   claude-config:
-  codex-auth:
-  grok-auth:

@@ -71,11 +71,11 @@ docker compose --env-file .env/.env.develop -f .docker/docker-compose.develop.ym
 docker compose --env-file .env/.env.production -f .docker/docker-compose.production.yml up -d --build
 ```
 
-컨테이너 안의 codex, claude, grok 은 개인 요금제로 로그인해 쓴다. 로그인은 설정의 Model access 에서 `Log in` 을 눌러 한다. codex 와 grok 은 기기 코드를 보여 주고, 승인하면 CLI 가 스스로 인증 정보를 볼륨(`codex-auth` `grok-auth`)에 남긴다. claude 는 로그인 주소를 열어 승인한 뒤 화면에 나온 코드를 붙여 넣으면, `claude setup-token` 이 준 1년짜리 토큰을 `user_meta` 에 암호화해 두고 실행할 때 `CLAUDE_CODE_OAUTH_TOKEN` 으로 넘긴다. 환경마다 처음 한 번만 하면 된다. 터미널로 할 수도 있다.
+컨테이너 안의 codex, claude, grok 은 개인 요금제로 로그인해 쓴다. 로그인은 설정의 제공사 화면에서 `Log in` 을 눌러 한다. codex 와 grok 은 기기 코드를 보여 주고, 승인하면 CLI 가 서버 전용 홈(`api/data/cli/codex`, `api/data/cli/grok`)의 `auth.json` 에 인증 정보를 쓴다. 서버는 그 내용을 `user_meta` 의 `{제공사}_plan_key` 행에 암호화해 옮기고, 실행할 때마다 홈의 파일과 DB 를 맞춘다. 파일이 더 새것이면(토큰 갱신) DB 로, 파일이 없으면 DB 에서 다시 쓴다. 그래서 컨테이너를 새로 만들어도 DB 만 있으면 로그인이 남는다. claude 는 로그인 주소를 열어 승인한 뒤 화면에 나온 코드를 붙여 넣으면 `claude setup-token` 이 준 1년짜리 토큰을 `anthropic_plan_key` 에 두고 실행할 때 `CLAUDE_CODE_OAUTH_TOKEN` 으로 넘긴다. Log out 은 CLI 로그아웃과 함께 DB 의 값도 지운다. 터미널로 할 수도 있다.
 
-1. codex 는 `docker exec -it personal-research-{환경}-api codex login --device-auth` 를 실행하고, 화면의 코드를 브라우저에서 승인한다. ChatGPT 계정은 Codex 기본 모델을 쓰지 못할 수 있으므로 `CODEX_MODEL` 을 비우지 않는다.
+1. codex 는 `docker exec -it -e CODEX_HOME=/app/personal-research/api/data/cli/codex personal-research-{환경}-api codex login --device-auth` 를 실행하고, 화면의 코드를 브라우저에서 승인한다. ChatGPT 계정은 Codex 기본 모델을 쓰지 못할 수 있으므로 `CODEX_MODEL` 을 비우지 않는다.
 2. claude 는 자기 컴퓨터에서 `claude setup-token` 으로 받은 토큰을 `.env/.env.{환경}` 의 `CLAUDE_CODE_OAUTH_TOKEN` 에 넣고 컨테이너를 다시 띄운다. 수집할 때 번역도 맡는다.
-3. grok 은 `docker exec -it personal-research-{환경}-api grok login --device-auth` 를 실행하고, 화면의 코드를 브라우저에서 승인한다.
+3. grok 은 `docker exec -it -e GROK_HOME=/app/personal-research/api/data/cli/grok personal-research-{환경}-api grok login --device-auth` 를 실행하고, 화면의 코드를 브라우저에서 승인한다.
 
 답변은 세 제공사 모두 만든다. OpenAI 는 codex, Anthropic 은 claude, xAI 는 grok 이 수집물 사본을 읽기 전용으로 조사해 맡고, 입력창의 제공사와 모델 드롭다운으로 메시지마다 고른다. 기본값은 OpenAI 의 `CODEX_MODEL` 이다. 입력창에 `/` 를 치면 `/next` `/retrieval` 명령 목록이 뜬다.
 

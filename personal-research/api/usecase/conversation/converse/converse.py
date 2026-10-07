@@ -313,6 +313,7 @@ def call(*, command: list, request: str, conversation: dict, question: dict, pro
         raise RuntimeError("응답 시간이 길어 중단했습니다. 다시 시도해 주세요.")
     finally:
         RUNNING.pop(question["id"], None)
+        setting.sync(provider=next(k for k, v in setting.RUNNERS.items() if v == provider))
         llm.record(
             provider=provider,
             model=model,

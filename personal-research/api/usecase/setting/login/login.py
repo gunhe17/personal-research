@@ -152,9 +152,7 @@ def submit(*, provider: str, code: str) -> dict:
 def signout(*, provider: str) -> dict:
     check(provider=provider)
     cancel(provider=provider)
-    if provider == "anthropic":
-        setting.remember(provider=provider, token="")
-    else:
+    if provider != "anthropic":
         subprocess.run(
             [binary(provider=provider), "logout"],
             capture_output=True,
@@ -162,6 +160,9 @@ def signout(*, provider: str) -> dict:
             env=setting.environment(provider=provider, method="subscription"),
             stdin=subprocess.DEVNULL,
         )
+    setting.remember(provider=provider, token="")
+    if provider in setting.HOMES:
+        (setting.HOMES[provider][1] / "auth.json").unlink(missing_ok=True)
 
     return status(provider=provider)
 

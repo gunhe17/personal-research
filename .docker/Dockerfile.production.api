@@ -18,7 +18,6 @@ RUN curl -fsSL https://x.ai/cli/install.sh | bash
 ENV PATH="/root/.local/bin:/root/.grok/bin:${PATH}" \
     CLAUDE_CONFIG_DIR=/root/.claude \
     DISABLE_AUTOUPDATER=1 \
-    GROK_HOME=/root/.grok-home \
     GROK_MEMORY=0
 
 WORKDIR /app

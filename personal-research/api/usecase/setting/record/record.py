@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import datetime
+from datetime import timezone
+from pathlib import Path
 
 from cryptography.fernet import Fernet
 from cryptography.fernet import InvalidToken
@@ -10,6 +13,10 @@ from usecase.common import store
 
 KEY_FILE = store.API / "database" / "encryption.key"
 SECRETS = {"api_key": "api_key", "token": "plan_key"}
+HOMES = {
+    "openai": ("CODEX_HOME", store.API / "data" / "cli" / "codex"),
+    "xai": ("GROK_HOME", store.API / "data" / "cli" / "grok"),
+}
 MIGRATED = False
 PROVIDERS = {
     "openai": {
@@ -86,8 +93,12 @@ def methods(*, provider: str) -> list[str]:
 
 def environment(*, provider: str, method: str) -> dict:
     variable = PROVIDERS[provider]["variable"]
-    _, secrets, _, _ = load()
     found = {k: v for k, v in os.environ.items() if k != variable}
+    if provider in HOMES:
+        name, home = HOMES[provider]
+        found[name] = str(home)
+        sync(provider=provider)
+    _, secrets, _, _ = load()
     if method == "api_key":
         found[variable] = secrets[provider]["api_key"]
     elif provider == "anthropic" and secrets[provider]["token"]:
@@ -200,6 +211,27 @@ def remember(*, provider: str, token: str) -> None:
         write(connection=connection, kind=f"{provider}_plan_key", value="{}", secret=encrypt(key=token))
 
 
+def sync(*, provider: str) -> None:
+    if provider not in HOMES:
+        return
+    home = HOMES[provider][1]
+    home.mkdir(parents=True, exist_ok=True)
+    home.chmod(0o700)
+    path = home / "auth.json"
+    _, secrets, _, saved = load()
+    token = secrets[provider]["token"]
+    content = path.read_text(encoding="utf-8") if path.is_file() else ""
+    if content == token:
+        return
+    changed = datetime.fromtimestamp(path.stat().st_mtime, timezone.utc).isoformat(timespec="seconds") if content else ""
+    if content and (not token or changed > saved[provider].get("token", "")):
+        return remember(provider=provider, token=content)
+    if token:
+        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as file:
+            file.write(token)
+
+
 def write(*, connection, kind: str, value: str, secret: str) -> None:
     if kind.endswith(tuple(SECRETS.values())) and not secret:
         connection.execute("DELETE FROM user_meta WHERE user_id = ? AND kind = ? AND collected_id = ''", (store.USER, kind))
@@ -306,6 +338,23 @@ if __name__ == "__main__":
     edit(data={"providers": {"openai": {"key": None}}})
     with store.session() as connection:
         assert not connection.execute("SELECT 1 FROM user_meta WHERE kind = 'openai_api_key'").fetchone()
+    HOMES = {"openai": ("CODEX_HOME", folder / "codex")}
+    environment(provider="openai", method="subscription")
+    assert get()["providers"][0]["token"] == ""
+    (folder / "codex" / "auth.json").write_text('{"tokens": "login-1"}')
+    assert environment(provider="openai", method="subscription")["CODEX_HOME"] == str(folder / "codex")
+    assert get()["providers"][0]["token"] == "…-1\"}"
+    (folder / "codex" / "auth.json").unlink()
+    environment(provider="openai", method="subscription")
+    assert (folder / "codex" / "auth.json").read_text() == '{"tokens": "login-1"}'
+    assert oct((folder / "codex" / "auth.json").stat().st_mode & 0o777) == "0o600"
+    os.utime(folder / "codex" / "auth.json", (2_000_000_000, 2_000_000_000))
+    (folder / "codex" / "auth.json").write_text('{"tokens": "refreshed-2"}')
+    os.utime(folder / "codex" / "auth.json", (2_000_000_000, 2_000_000_000))
+    environment(provider="openai", method="subscription")
+    assert load()[1]["openai"]["token"] == '{"tokens": "refreshed-2"}'
+    remember(provider="openai", token="")
+    (folder / "codex" / "auth.json").unlink()
     assert normalized(given="api_key")["order"] == ["api_key", "subscription"]
     assert unpacked(text="sk-legacy") == {"api_key": "sk-legacy", "token": ""}
     with store.session() as connection:
