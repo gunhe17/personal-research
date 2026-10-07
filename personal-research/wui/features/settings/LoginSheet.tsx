@@ -53,8 +53,8 @@ export default function LoginSheet({ provider, method, title, initial, onClose }
       event.preventDefault();
       onClose(true);
     };
-    window.addEventListener("keydown", escape);
-    return () => window.removeEventListener("keydown", escape);
+    window.addEventListener("keydown", escape, true);
+    return () => window.removeEventListener("keydown", escape, true);
   }, [onClose]);
 
   const submit = async () => {
