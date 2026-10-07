@@ -6,18 +6,9 @@
 </head>
 <body data-page="workbench" class="booting h-full bg-slate-50 text-slate-900 font-sans antialiased overflow-hidden select-text">
 
-  <div class="h-full flex flex-col">
-{{include partial/header.html}}
-    <div class="flex-1 min-h-0 flex relative">
-{{include partial/sidebar.html}}
-    <!-- Workbench -->
-    <div id="workspace" class="relative flex-1 min-w-0 min-h-0 flex">
+{{shell}}
       <div id="workbench" class="workbench"></div>
-    </div>
-    </div>
-  </div>
-
-{{include partial/overlay.html}}
+{{/shell}}
   <script src="/viewer/app.js"></script>
   <script type="module" src="/viewer/workbench.js"></script>
 </body>

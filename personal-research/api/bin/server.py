@@ -32,6 +32,7 @@ MATERIAL = re.compile(r"/api/materials/([a-zA-Z0-9_-]+)")
 CONVERSATIONS = re.compile(r"/api/(space|agent)/conversations")
 CONVERSATION = re.compile(r"/api/(space|agent)/conversations/([a-zA-Z0-9_-]+)(?:/(messages|retry|cancel))?")
 INCLUDE = re.compile(r"\{\{include ([\w./-]+)\}\}")
+SHELL = re.compile(r"\{\{shell\}\}\n(.*?)\{\{/shell\}\}\n", re.DOTALL)
 
 
 def load_dotenv(*, path: Path) -> None:
@@ -302,9 +303,13 @@ class Handler(BaseHTTPRequestHandler):
         if not path.is_file():
             return self.send(code=404, data=b"not found", content_type="text/plain; charset=utf-8")
         if path.suffix == ".html":
+            page = SHELL.sub(
+                lambda found: (VIEWER / "partial/shell.html").read_text(encoding="utf-8").replace("{{slot}}\n", found.group(1)),
+                path.read_text(encoding="utf-8"),
+            )
             page = INCLUDE.sub(
                 lambda found: (VIEWER / found.group(1)).read_text(encoding="utf-8"),
-                path.read_text(encoding="utf-8"),
+                page,
             )
             return self.send(
                 code=200, data=page.encode("utf-8"),
