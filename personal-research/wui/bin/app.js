@@ -214,7 +214,6 @@
             </div>`;
             }).join("")}
           </div>
-          <p class="mt-2 text-[11px] text-slate-400">Methods that are on always come first. If one hits its limit, is logged out, or fails to run, the same request goes to the next one once.</p>
         </section>`;
       pane.querySelectorAll("[data-method]").forEach((li) => {
         const m = li.dataset.method;
