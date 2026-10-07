@@ -54,7 +54,7 @@ personal-research/
 - 모델을 부를 때마다(답변은 Codex, 수집할 때의 번역은 claude) `llm` 에 한 행이 남는다. `owner_id` 는 질문 메시지 id 나 번역한 문서 id 다.
 - DB 를 처음 열 때 `common/store.py` 의 `upgrade` 가 예전 구조(`extra` `body` 열, `opened` `conversations` `agent` `asked` 표, 대화를 JSON 으로 담던 `space`)를 지금 구조로 옮긴다.
 
-화면은 왼쪽 사이드바(space 목록과 수집물 트리) 오른쪽에 문서와 채팅을 둔다. 채팅 패널 머리에서 space(또는 Agent)와 대화를 고르고, `문서` `나란히` `채팅` 으로 배치를 고른다.
+왼쪽 사이드바는 Home(홈에서 시작한 대화)과 Spaces(space 목록) 두 구역이다. 수집물은 대화의 근거, 자료 메뉴, 홈 collect 결과로 연다. 사이드바 오른쪽에는 문서와 채팅을 둔다. 채팅 패널 머리에서 space(또는 Agent)와 대화를 고르고, `문서` `나란히` `채팅` 으로 배치를 고른다.
 
 뷰어 서버는 Docker 로 띄운다. 환경은 둘이고, 포트와 경로는 `.env/.env.{환경}` 에서 정한다.
 
@@ -77,7 +77,7 @@ docker compose --env-file .env/.env.production -f .docker/docker-compose.product
 
 뷰어를 열면 홈이 먼저 나온다. 입력창 왼쪽 배지로 `ask` 와 `collect` 를 고른다. `ask` 는 질문으로 새 agent 대화를 열고, `collect` 는 주소를 받아 원문을 받고 한국어판까지 만든다.
 
-무엇이 수집돼 있는지는 뷰어의 트리가 답한다. 터미널에서는 `python3 personal-research/api/bin/collect.py list` 를 쓴다.
+무엇이 수집돼 있는지는 `python3 personal-research/api/bin/collect.py list` 로 본다.
 
 ## 수집 요청
 

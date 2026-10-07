@@ -102,10 +102,6 @@ class Handler(BaseHTTPRequestHandler):
             if found is None:
                 return self.reply(code=404, payload={"error": "not found"})
             return self.reply(code=200, payload=found)
-        if path == "/api/related":
-            wanted = (query.get("id") or [""])[0]
-            found = search.related(id=wanted) if wanted else search.recent()
-            return self.reply(code=200, payload={"items": found})
         if path == "/api/search":
             terms = [t for t in (query.get("q") or [""])[0].split() if t]
             return self.reply(code=200, payload={"items": search.run(terms=terms)})
@@ -140,10 +136,7 @@ class Handler(BaseHTTPRequestHandler):
             if not wanted:
                 return self.reply(code=400, payload={"error": "id 가 비어 있다"})
             store.touch(id=wanted)
-            return self.reply(code=200, payload={
-                "id": wanted,
-                "related": search.related(id=wanted),
-            })
+            return self.reply(code=200, payload={"id": wanted})
         try:
             if parsed.path == "/api/spaces":
                 return self.reply(code=200, payload=spaces.create(data=body))

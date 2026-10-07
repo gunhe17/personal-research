@@ -355,15 +355,6 @@ def touch(*, id: str) -> str:
     return id
 
 
-def opened() -> dict[str, str]:
-    with session() as connection:
-        rows = connection.execute(
-            "SELECT collected_id, updated_at FROM user_meta WHERE user_id = ? AND kind = 'opened'",
-            (USER,),
-        ).fetchall()
-
-    return dict(rows)
-
 
 # #
 # export

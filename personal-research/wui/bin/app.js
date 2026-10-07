@@ -35,10 +35,8 @@
       currentPath: null,
       currentId: null,
       view: document.body.dataset.page,
-      related: [],
-      relatedLoading: false,
-      relatedOpen: localStorage.getItem("relatedOpen") !== "0",
-      listOpen: localStorage.getItem("listOpen") !== "0",
+      agents: [],
+      agentsOpen: localStorage.getItem("agentsOpen") !== "0",
       homeMode: localStorage.getItem("homeMode") || "ask",
       currentTitle: null,
       currentText: "",
@@ -171,53 +169,6 @@
       localStorage.setItem("sidebarWidth", String(state.sidebarWidth));
     }
 
-    function renderTreeNodes(nodes, depth = 0) {
-      const frag = document.createDocumentFragment();
-      for (const n of nodes) {
-        if (n.type === "dir") {
-          const wrap = document.createElement("div");
-          wrap.className = "mb-0.5";
-          const row = document.createElement("button");
-          row.type = "button";
-          row.className = "w-full flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-slate-700 hover:bg-slate-50 transition duration-150";
-          row.style.paddingLeft = `${8 + depth * 12}px`;
-          const open = n._open !== false;
-          row.innerHTML = `
-            <span class="inline-block w-3 text-slate-500 text-[13px] leading-none transition-transform ${open ? "rotate-90" : ""}">›</span>
-            <span class="truncate font-medium text-slate-800">${escapeHtml(n.name)}</span>`;
-          const kids = document.createElement("div");
-          kids.className = open ? "" : "hidden";
-          kids.appendChild(renderTreeNodes(n.children || [], depth + 1));
-          row.addEventListener("click", () => {
-            n._open = !(n._open !== false);
-            renderTree();
-          });
-          wrap.appendChild(row);
-          wrap.appendChild(kids);
-          frag.appendChild(wrap);
-        } else {
-          const btn = document.createElement("button");
-          btn.type = "button";
-          btn.style.paddingLeft = `${8 + depth * 12 + 14}px`;
-          const active = state.currentId === n.id;
-          btn.className = active
-            ? "w-full rounded-lg px-2 py-1.5 text-left text-sm bg-apple text-white font-medium mb-0.5 transition duration-150"
-            : "w-full rounded-lg px-2 py-1.5 text-left text-sm text-slate-600 hover:bg-slate-50 mb-0.5 transition duration-150";
-          btn.innerHTML = `<span class="truncate block">${escapeHtml(n.name)}</span>`;
-          btn.title = n.path;
-          btn.addEventListener("click", () => {
-            openFile(n.id);
-            if (window.matchMedia("(max-width: 767px)").matches) {
-              state.sidebarOpen = false;
-              applySidebar();
-            }
-          });
-          frag.appendChild(btn);
-        }
-      }
-      return frag;
-    }
-
     function sectionLabel(name, { open, onToggle, count, action } = {}) {
       const el = document.createElement("div");
       el.className = "flex items-center gap-1 px-2 pt-3 pb-1";
@@ -236,25 +187,10 @@
     }
 
     function toggleSection(key) {
-      const flag = { related: "relatedOpen", spaces: "spacesOpen" }[key] || "listOpen";
+      const flag = key === "agents" ? "agentsOpen" : "spacesOpen";
       state[flag] = !state[flag];
       localStorage.setItem(flag, state[flag] ? "1" : "0");
       renderTree();
-    }
-
-    function collapseButton() {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.title = "Collapse all";
-      btn.className = "h-5 w-5 inline-flex items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition duration-150";
-      btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5">
-        <path d="M7 20l5-5 5 5" /><path d="M7 4l5 5 5-5" /></svg>`;
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        collapseAllDirs(state.tree);
-        renderTree();
-      });
-      return btn;
     }
 
     function sinceLabel(iso) {
@@ -286,26 +222,15 @@
       return btn;
     }
 
+    const SPACE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0">
+      <rect x="3.5" y="3.5" width="7" height="7" rx="1.5" /><rect x="13.5" y="3.5" width="7" height="7" rx="1.5" /><rect x="3.5" y="13.5" width="7" height="7" rx="1.5" /><rect x="13.5" y="13.5" width="7" height="7" rx="1.5" /></svg>`;
+
     const HOME_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0">
       <path d="M3 11.5L12 3l9 8.5" /><path d="M5.5 10v10h13V10" /></svg>`;
 
-    const COLLECTED_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0">
-      <path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4l2 2.5h9A1.5 1.5 0 0 1 21 10v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18z" /></svg>`;
-
-    const SKELETON_WIDTHS = ["72%", "58%", "81%", "64%", "49%"];
-
-    function relatedSkeleton() {
-      const box = document.createElement("div");
-      box.className = "animate-pulse";
-      box.innerHTML = SKELETON_WIDTHS.map((width) => `
-        <div class="flex items-center gap-2 px-2 py-[7px]">
-          <span class="h-2 rounded-full bg-slate-100" style="width: ${width}"></span>
-        </div>`).join("");
-      return box;
-    }
-
     function renderTree() {
       const tree = $("#tree");
+      const params = new URLSearchParams(location.search);
       tree.innerHTML = "";
       tree.appendChild(sidebarRow({
         label: "Home",
@@ -313,100 +238,45 @@
         icon: HOME_ICON,
         onClick: () => openHome(),
       }));
+      tree.appendChild(section({
+        name: "",
+        key: "agents",
+        items: state.agents,
+        active: params.get("agent"),
+        href: (item) => `${COLLECTED_URL}?agent=${encodeURIComponent(item.id)}`,
+      }));
       tree.appendChild(sidebarRow({
-        label: "Collected",
-        active: state.view === "collected",
-        icon: COLLECTED_ICON,
-        onClick: () => openCollected(),
+        label: "Spaces",
+        active: false,
+        icon: SPACE_ICON,
+        onClick: () => toggleSection("spaces"),
       }));
-      const spaces = document.createElement("div");
-      spaces.className = "ml-3 border-l border-slate-100 pl-1";
-      tree.appendChild(spaces);
-      spaces.appendChild(sectionLabel("Spaces", {
-        open: state.spacesOpen,
-        count: state.spaces.length,
-        onToggle: () => toggleSection("spaces"),
+      tree.appendChild(section({
+        name: "",
+        key: "spaces",
+        items: state.spaces,
+        active: params.get("space"),
+        href: (item) => `${COLLECTED_URL}?space=${encodeURIComponent(item.id)}`,
       }));
-      if (state.spacesOpen) {
-        for (const item of state.spaces.slice(0, 12)) {
-          spaces.appendChild(sidebarRow({
-            label: item.title,
-            active: new URLSearchParams(location.search).get("space") === item.id,
-            title: item.title,
-            meta: sinceLabel(item.updated_at),
-            onClick: () => { location.href = `${COLLECTED_URL}?space=${encodeURIComponent(item.id)}`; },
-          }));
-        }
-      }
+    }
 
-      const under = document.createElement("div");
-      under.className = "ml-3 border-l border-slate-100 pl-1";
-      tree.appendChild(under);
-
-      if (state.relatedLoading || state.related.length) {
-        under.appendChild(sectionLabel("Related", {
-          open: state.relatedOpen,
-          count: state.relatedLoading ? "" : state.related.length,
-          onToggle: () => toggleSection("related"),
+    function section({ name, key, items, active, href }) {
+      const box = document.createElement("div");
+      box.className = "ml-3 border-l border-slate-100 pl-1";
+      const open = key === "agents" ? state.agentsOpen : state.spacesOpen;
+      if (name) box.appendChild(sectionLabel(name, { open, count: items.length, onToggle: () => toggleSection(key) }));
+      if (!open) return box;
+      if (!items.length) box.insertAdjacentHTML("beforeend", `<div class="px-2 py-1.5 text-xs text-slate-400">Nothing yet</div>`);
+      for (const item of items.slice(0, 12)) {
+        box.appendChild(sidebarRow({
+          label: item.title,
+          active: active === item.id,
+          title: item.title,
+          meta: sinceLabel(item.updated_at),
+          onClick: () => { location.href = href(item); },
         }));
       }
-      if (state.relatedLoading && state.relatedOpen) {
-        under.appendChild(relatedSkeleton());
-      } else if (state.related.length && state.relatedOpen) {
-        for (const item of state.related.slice(0, 5)) {
-          under.appendChild(sidebarRow({
-            label: item.path.split("/").pop(),
-            active: state.currentId === item.id,
-            title: item.path,
-            meta: sinceLabel(item.opened_at),
-            onClick: () => openFile(item.id),
-          }));
-        }
-      }
-
-      under.appendChild(sectionLabel("List", {
-        open: state.listOpen,
-        onToggle: () => toggleSection("list"),
-        action: state.listOpen ? collapseButton() : null,
-      }));
-      if (!state.listOpen) return;
-      if (!state.tree.length) {
-        under.insertAdjacentHTML("beforeend", `<div class="px-2 py-2 text-xs text-slate-500">Nothing collected, or the server is unreachable</div>`);
-        return;
-      }
-      under.appendChild(renderTreeNodes(state.tree));
-    }
-
-    let relatedFor;
-    let relatedSeq = 0;
-
-    async function loadRelated(id) {
-      if (relatedFor === id) return;
-      const seq = ++relatedSeq;
-      state.relatedLoading = true;
-      renderTree();
-      try {
-        const res = await fetch("/api/related" + (id ? "?id=" + encodeURIComponent(id) : ""));
-        if (!res.ok) return;
-        const items = (await res.json()).items || [];
-        if (seq !== relatedSeq) return;
-        state.related = items;
-      } catch {
-        if (seq !== relatedSeq) return;
-        state.related = [];
-      }
-      if (seq !== relatedSeq) return;
-      relatedFor = id;
-      state.relatedLoading = false;
-      renderTree();
-    }
-
-    function collapseAllDirs(nodes) {
-      for (const n of nodes) {
-        if (n.type !== "dir") continue;
-        n._open = false;
-        collapseAllDirs(n.children || []);
-      }
+      return box;
     }
 
     async function loadTree() {
@@ -414,7 +284,6 @@
       if (!res.ok) throw new Error("tree failed");
       const data = await res.json();
       state.tree = data.tree || [];
-      collapseAllDirs(state.tree);
       state.nodeById = new Map();
       (function collect(nodes) {
         for (const n of nodes) {
@@ -515,18 +384,16 @@
 
     async function loadSpaces() {
       try {
-        state.spaces = (await (await fetch("/api/spaces")).json()).items || [];
+        const [spaces, agents] = await Promise.all([fetch("/api/spaces"), fetch("/api/agent/conversations")]);
+        state.spaces = (await spaces.json()).items || [];
+        state.agents = (await agents.json()).items || [];
       } catch (_) {
         state.spaces = [];
+        state.agents = [];
       }
       renderTree();
     }
     const COLLECTED_URL = "/viewer/collected";
-
-    function openCollected() {
-      const last = state.currentId || localStorage.getItem("lastDoc");
-      location.href = last ? `${COLLECTED_URL}?doc=${encodeURIComponent(last)}` : COLLECTED_URL;
-    }
 
     function openHome() {
       location.href = HOME_URL;
@@ -636,13 +503,6 @@
               }
             } else if (ev.type === "terms") {
               assistant.note = `Keywords ${ev.terms.join(", ")}`;
-            } else if (ev.type === "hits") {
-              assistant.sources = ev.hits;
-              state.related = ev.hits;
-              state.relatedLoading = false;
-              relatedFor = "ask";
-              relatedSeq += 1;
-              renderTree();
             } else if (ev.type === "collected") {
               assistant.sources = [{ id: ev.id, path: ev.path }];
             } else if (ev.type === "delta") {
@@ -737,8 +597,6 @@
       url.searchParams.set("doc", id);
       history.replaceState(null, "", url);
 
-      state.relatedLoading = true;
-      renderTree();
       try {
         const [data, meta] = await Promise.all([fetchFile(id, "eng"), fetchMeta(id)]);
         state.pairTexts.orig = data.content;
@@ -749,24 +607,11 @@
       }
       await renderDoc({ preserveScroll });
       updateDownload();
-      const seq = ++relatedSeq;
       fetch("/api/opened", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
-      })
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data) => {
-          if (!data || seq !== relatedSeq) return;
-          state.related = data.related || [];
-          relatedFor = id;
-        })
-        .catch(() => {})
-        .finally(() => {
-          if (seq !== relatedSeq) return;
-          state.relatedLoading = false;
-          renderTree();
-        });
+      }).catch(() => {});
 
       return true;
     }
@@ -806,7 +651,6 @@
       if (state.view === "home") {
         applyHomeMode();
         autoResizeHome();
-        if (!state.related.length) loadRelated(null);
         setTimeout(() => $("#home-input")?.focus(), 60);
         return;
       }
@@ -818,9 +662,8 @@
       $("#doc-content").innerHTML = `
         <div class="enter-fade py-24 text-center">
           <p class="text-[21px] font-semibold tracking-tight text-slate-800">Collected</p>
-          <p class="mt-2 text-[15px] font-light text-slate-500">Pick a document from Related or List.</p>
+          <p class="mt-2 text-[15px] font-light text-slate-500">Open a source from a chat, or collect a URL from Home.</p>
         </div>`;
-      loadRelated(null);
     }
 
     function findTextRangeInDoc(needle) {
