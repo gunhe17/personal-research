@@ -118,8 +118,8 @@
       if (!data) return;
       settings.providers = data.providers;
       $("#settings-provider-tabs").innerHTML = data.providers.map((p) => `
-        <button type="button" data-settings-tab="${p.id}" class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-slate-800 hover:bg-white/70 aria-selected:bg-white aria-selected:shadow-sm">
-          <span class="flex-1 truncate">${p.label}</span><span data-dot="${p.id}" class="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300"></span>
+        <button type="button" data-settings-tab="${p.id}" class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-slate-600 transition duration-150 hover:bg-slate-50 aria-selected:bg-apple aria-selected:font-medium aria-selected:text-white aria-selected:hover:bg-apple">
+          <span class="min-w-0 flex-1 truncate">${p.label}</span><span data-dot="${p.id}" class="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300"></span>
         </button>`).join("");
       $("#settings-provider-panes").innerHTML = data.providers.map((p) => `<div data-settings-pane="${p.id}" class="space-y-6" hidden></div>`).join("");
       data.providers.forEach((p) => {
@@ -209,7 +209,7 @@
                   <button type="button" data-action="up" ${blocked(i - 1) ? "disabled" : ""} class="flex h-6 w-5 items-center justify-center hover:text-slate-800 disabled:opacity-25" aria-label="Move up"><svg viewBox="0 0 16 16" class="h-3 w-3"><path d="M4 10l4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg></button>
                   <button type="button" data-action="down" ${blocked(i + 1) ? "disabled" : ""} class="flex h-6 w-5 items-center justify-center hover:text-slate-800 disabled:opacity-25" aria-label="Move down"><svg viewBox="0 0 16 16" class="h-3 w-3"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg></button>
                 </span>
-                <button type="button" data-action="switch" role="switch" aria-checked="${p.enabled[m]}" title="Use this method" class="relative ml-1 h-5 w-9 shrink-0 rounded-full transition ${p.enabled[m] ? "bg-[#34c759]" : "bg-slate-200"}"><span class="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition ${p.enabled[m] ? "translate-x-4" : ""}"></span></button>
+                <button type="button" data-action="switch" role="switch" aria-checked="${p.enabled[m]}" title="Use this method" class="relative ml-1 h-5 w-9 shrink-0 rounded-full transition ${p.enabled[m] ? "bg-[#34c759]" : "bg-slate-200"}"><span class="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition ${p.enabled[m] ? "translate-x-4" : ""}"></span></button>
               </div>
               <div data-detail class="ml-3 border-l border-slate-100 pl-5" ${settings.open[id].has(m) ? "" : "hidden"}><div class="pb-2 pt-0.5">${detail(m)}</div></div>
             </div>`;
