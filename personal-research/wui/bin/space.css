@@ -77,7 +77,7 @@
 
 :is(#chat-panel, #space-page, #doc-pane) .space-dock { padding: 8px 16px 4px; background: transparent; }
 :is(#chat-panel, #space-page, #doc-pane) .space-dock > * { max-width: 760px; margin-left: auto; margin-right: auto; }
-:is(#chat-panel, #space-page, #doc-pane) .composer { display: flex; align-items: center; gap: 10px; padding: 10px; background: #fff; border-radius: 16px; box-shadow: 0 0 0 1px #e2e8f0; transition: box-shadow 150ms; }
+:is(#chat-panel, #space-page, #doc-pane) .composer { position: relative; display: flex; align-items: center; gap: 10px; padding: 10px; background: #fff; border-radius: 16px; box-shadow: 0 0 0 1px #e2e8f0; transition: box-shadow 150ms; }
 :is(#chat-panel, #space-page, #doc-pane) .composer:focus-within { box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.2); }
 :is(#chat-panel, #space-page, #doc-pane) .composer textarea { flex: 1; min-width: 0; border: 0; outline: 0; resize: none; background: none; font-size: 17px; line-height: 1.5; color: #0f172a; max-height: 180px; padding: 4px; }
 :is(#chat-panel, #space-page, #doc-pane) .composer textarea::placeholder { color: #94a3b8; }
@@ -154,3 +154,11 @@
 .pane-bar { cursor: grab; user-select: none; }
 .pane-button { display: inline-flex; width: 22px; height: 22px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 6px; font-size: 15px; line-height: 1; color: #858585; cursor: pointer; }
 .pane-button:hover, .pane-button[aria-expanded="true"] { background: #e2e2e5; color: #1d1d1f; }
+:is(#chat-panel, #space-page, #doc-pane) .composer-menu { position: absolute; bottom: calc(100% + 8px); z-index: 30; padding: 4px; border-radius: 12px; background: #fff; box-shadow: 0 0 0 1px #e2e8f0, 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+:is(#chat-panel, #space-page, #doc-pane) .composer-menu[hidden] { display: none; }
+:is(#chat-panel, #space-page, #doc-pane) .command-menu { left: 0; right: 0; }
+:is(#chat-panel, #space-page, #doc-pane) .picker { position: relative; flex-shrink: 0; }
+:is(#chat-panel, #space-page, #doc-pane) .picker-menu { right: 0; width: 224px; }
+:is(#chat-panel, #space-page, #doc-pane) .picker-button { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 980px; font-size: 13px; color: #64748b; white-space: nowrap; transition: color 150ms, background 150ms; }
+:is(#chat-panel, #space-page, #doc-pane) .picker-button:hover, :is(#chat-panel, #space-page, #doc-pane) .picker-button[aria-expanded=true] { color: #1e293b; background: #f8fafc; }
+:is(#chat-panel, #space-page, #doc-pane) .picker-button svg { color: #94a3b8; }

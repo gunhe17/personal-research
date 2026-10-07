@@ -14,10 +14,32 @@ from usecase.common import llm
 from usecase.common import log
 from usecase.common import store
 from usecase.conversation.record import record
+from usecase.setting.record import record as setting
 from usecase.space.record import record as spaces
 
 BIN = os.environ.get("CODEX_BIN") or shutil.which("codex") or "codex"
 MODEL = os.environ.get("CODEX_MODEL") or ""
+CLAUDE = os.environ.get("CLAUDE_BIN") or shutil.which("claude") or str(Path.home() / ".local" / "bin" / "claude")
+MODELS = {
+    "openai": {
+        "label": "OpenAI",
+        "models": [
+            {"id": "gpt-6-astra", "label": "GPT-6-Astra"},
+            {"id": "gpt-6-sol", "label": "GPT-6-Sol"},
+            {"id": "gpt-6-luna", "label": "GPT-6-Luna"},
+            {"id": "gpt-6.1-sol", "label": "GPT-6.1-Sol"},
+        ],
+    },
+    "anthropic": {
+        "label": "Anthropic",
+        "models": [
+            {"id": "claude-opus-5-5", "label": "Claude Opus 5.5"},
+            {"id": "claude-sonnet-5-5", "label": "Claude Sonnet 5.5"},
+            {"id": "claude-fable-5-1", "label": "Claude Fable 5.1"},
+            {"id": "claude-haiku-4-5-20251001", "label": "Claude Haiku 4.5"},
+        ],
+    },
+}
 CORPUS = store.API / "data" / "corpus"
 TIMEOUT = 600
 TURN = threading.Lock()
@@ -87,6 +109,26 @@ def available() -> bool:
     return Path(BIN).is_file() or bool(shutil.which(BIN))
 
 
+def models() -> dict:
+    return {
+        "default": default(),
+        "providers": [{"id": k, **v} for k, v in MODELS.items()],
+    }
+
+
+def default() -> dict:
+    return {"provider": "openai", "model": MODEL or MODELS["openai"]["models"][0]["id"]}
+
+
+def chosen(*, question: dict) -> dict:
+    picked = (question.get("context") or {}).get("model") or {}
+    known = MODELS.get(picked.get("provider"), {}).get("models", [])
+    if any(m["id"] == picked.get("model") for m in known):
+        return {"provider": picked["provider"], "model": picked["model"]}
+
+    return default()
+
+
 # #
 # command
 
@@ -131,9 +173,16 @@ def run(*, domain: str, id: str, message_id: str) -> None:
 
 def generate(*, conversation: dict, question: dict) -> dict:
     refresh()
-    thread_id = conversation["meta"].get("codex", {}).get("thread_id")
+    picked = chosen(question=question)
     request = prompt(conversation=conversation, question=question)
-    started_at = store.now()
+    if picked["provider"] == "anthropic":
+        return claude(conversation=conversation, question=question, request=request, model=picked["model"])
+
+    return codex(conversation=conversation, question=question, request=request, model=picked["model"])
+
+
+def codex(*, conversation: dict, question: dict, request: str, model: str) -> dict:
+    thread_id = conversation["meta"].get("codex", {}).get("thread_id")
     with tempfile.TemporaryDirectory(prefix="conversation-") as folder:
         output = Path(folder) / "answer.json"
         schema = Path(folder) / "schema.json"
@@ -144,50 +193,84 @@ def generate(*, conversation: dict, question: dict) -> dict:
             "--output-schema", str(schema),
             "-o", str(output),
             "-C", str(CORPUS),
+            "-m", model,
         ]
-        command += ["-m", MODEL] if MODEL else []
         command += ["resume", thread_id] if thread_id else []
         command += ["-"]
-        process = subprocess.Popen(
-            command,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            start_new_session=True,
-        )
-        RUNNING[question["id"]] = process
-        stdout = stderr = ""
-        try:
-            stdout, stderr = process.communicate(input=request, timeout=TIMEOUT)
-        except subprocess.TimeoutExpired:
-            halt(process=process)
-            stdout, stderr = process.communicate()
-            raise RuntimeError("응답 시간이 길어 중단했습니다. 다시 시도해 주세요.")
-        finally:
-            RUNNING.pop(question["id"], None)
-            llm.record(
-                provider="codex",
-                model=MODEL,
-                purpose=f"{conversation['domain']}_answer",
-                owner_id=question["id"],
-                command=command,
-                request=request,
-                response=stdout or "",
-                stderr=stderr or "",
-                exit_code=process.returncode,
-                started_at=started_at,
-            )
+        exit_code, stdout, stderr = call(command=command, request=request, conversation=conversation, question=question, provider="codex", model=model)
         parsed = events(stdout=stdout)
         started = next((e for e in parsed if e.get("type") == "thread.started"), None)
         if started and not thread_id:
-            record.remember(domain=conversation["domain"], id=conversation["id"], provider="codex", values={"thread_id": started["thread_id"], "model": MODEL})
-        if process.returncode != 0 or not output.is_file():
+            record.remember(domain=conversation["domain"], id=conversation["id"], provider="codex", values={"thread_id": started["thread_id"], "model": model})
+        if exit_code != 0 or not output.is_file():
             failed = next((e["message"] for e in reversed(parsed) if e.get("type") == "error"), stderr)
-            raise RuntimeError(f"Codex 가 답하지 못했습니다 (exit {process.returncode}). {failed.strip()[-300:]}")
+            raise RuntimeError(f"Codex 가 답하지 못했습니다 (exit {exit_code}). {failed.strip()[-300:]}")
         generated = validate(answer=json.loads(output.read_text(encoding="utf-8")))
 
     return generated
+
+
+def claude(*, conversation: dict, question: dict, request: str, model: str) -> dict:
+    session_id = conversation["meta"].get("claude", {}).get("session_id")
+    command = [
+        CLAUDE if Path(CLAUDE).exists() else "claude", "-p",
+        "--output-format", "json",
+        "--json-schema", json.dumps(SCHEMA),
+        "--model", model,
+        "--allowedTools", "Read", "Grep", "Glob",
+    ]
+    command += ["--resume", session_id] if session_id else []
+    exit_code, stdout, stderr = call(command=command, request=request, conversation=conversation, question=question, provider="claude", model=model)
+    try:
+        result = json.loads(stdout)
+    except json.JSONDecodeError:
+        result = {}
+    if result.get("session_id") and not session_id:
+        record.remember(domain=conversation["domain"], id=conversation["id"], provider="claude", values={"session_id": result["session_id"], "model": model})
+    if exit_code != 0 or result.get("is_error") or not isinstance(result.get("structured_output"), dict):
+        failed = str(result.get("result") or stderr or stdout)
+        raise RuntimeError(f"Claude 가 답하지 못했습니다 (exit {exit_code}). {failed.strip()[-300:]}")
+    generated = validate(answer=result["structured_output"])
+
+    return generated
+
+
+def call(*, command: list, request: str, conversation: dict, question: dict, provider: str, model: str) -> tuple[int, str, str]:
+    started_at = store.now()
+    process = subprocess.Popen(
+        command,
+        cwd=CORPUS,
+        env=setting.environment(provider="anthropic" if provider == "claude" else "openai"),
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        start_new_session=True,
+    )
+    RUNNING[question["id"]] = process
+    stdout = stderr = ""
+    try:
+        stdout, stderr = process.communicate(input=request, timeout=TIMEOUT)
+    except subprocess.TimeoutExpired:
+        halt(process=process)
+        stdout, stderr = process.communicate()
+        raise RuntimeError("응답 시간이 길어 중단했습니다. 다시 시도해 주세요.")
+    finally:
+        RUNNING.pop(question["id"], None)
+        llm.record(
+            provider=provider,
+            model=model,
+            purpose=f"{conversation['domain']}_answer",
+            owner_id=question["id"],
+            command=command,
+            request=request,
+            response=stdout or "",
+            stderr=stderr or "",
+            exit_code=process.returncode,
+            started_at=started_at,
+        )
+
+    return process.returncode, stdout or "", stderr or ""
 
 
 def prompt(*, conversation: dict, question: dict) -> str:
@@ -286,6 +369,9 @@ def halt(*, process: subprocess.Popen) -> None:
 if __name__ == "__main__":
     good = {"x": 2, "y": 6, "w": 2, "h": 0.1, "learning_rate": 0.05}
     assert supported(config=good)
+    assert chosen(question={"context": {"model": {"provider": "anthropic", "model": "claude-opus-5-5"}}})["provider"] == "anthropic"
+    assert chosen(question={"context": {"model": {"provider": "anthropic", "model": "gpt-6-sol"}}}) == default()
+    assert chosen(question={"context": {}}) == default()
     assert not supported(config={**good, "h": 0})
     assert not supported(config={**good, "x": True})
     assert validate(answer={"blocks": [{"kind": "paragraph", "text": "a", "playground": None}]})

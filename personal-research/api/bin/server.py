@@ -19,6 +19,7 @@ from usecase.common import store
 from usecase.conversation.converse import converse
 from usecase.conversation.record import record
 from usecase.space.record import record as spaces
+from usecase.setting.record import record as setting
 from usecase.collected.collect import pipeline
 from usecase.collected.read import read
 from usecase.collected.search import search
@@ -72,6 +73,10 @@ class Handler(BaseHTTPRequestHandler):
             return self.serve(path=VIEWER / "index.html")
         if path.startswith("/viewer/"):
             return self.serve(path=VIEWER / path[len("/viewer/"):])
+        if path == "/api/settings":
+            return self.reply(code=200, payload=setting.get())
+        if path == "/api/models":
+            return self.reply(code=200, payload=converse.models())
         if path == "/api/health":
             return self.reply(code=200, payload={
                 "ok": True,
@@ -170,6 +175,10 @@ class Handler(BaseHTTPRequestHandler):
         if body is None:
             return self.reply(code=400, payload={"error": "invalid json"})
         try:
+            if path == "/api/settings":
+                if self.headers.get("Origin") not in (None, f"http://{self.headers.get('Host')}"):
+                    return self.reply(code=403, payload={"error": "forbidden"})
+                return self.reply(code=200, payload=setting.edit(data=body))
             if SPACE.fullmatch(path):
                 return self.reply(code=200, payload=spaces.edit(id=SPACE.fullmatch(path).group(1), data=body))
             if MATERIAL.fullmatch(path):

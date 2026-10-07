@@ -10,6 +10,7 @@ from usecase.collected.collect.type import paper
 from usecase.collected.collect.type import x
 from usecase.common import llm
 from usecase.common import store
+from usecase.setting.record import record as setting
 
 
 # #
@@ -82,7 +83,7 @@ def korean(*, id: str) -> str:
             "--permission-mode", "acceptEdits",
         ]
         started_at = store.now()
-        done = subprocess.run(command, cwd=folder, capture_output=True, text=True, timeout=1800)
+        done = subprocess.run(command, cwd=folder, capture_output=True, text=True, timeout=1800, env=setting.environment(provider="anthropic"))
         llm.record(
             provider="claude",
             model="",

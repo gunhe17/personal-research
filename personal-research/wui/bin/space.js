@@ -11,11 +11,18 @@ let scope = { domain: 'space', space: null }, chat = null, sending = false, time
 let quote = cache.quote || null, activeContext = cache.context || null, retryPayload = cache.retryPayload || null;
 let selectionText = '', selectionAnswer = null;
 const threads = new Map(), rendered = new Set(), playgrounds = new Map();
+const COMMANDS = [
+  { name: '/next', hint: '다음 학습 단계로 넘어갑니다', kind: 'next' },
+  { name: '/retrieval', hint: '배운 내용을 내 말로 설명하고 점검받습니다', kind: 'retrieval' },
+];
+let commandIndex = 0, catalog = null, model = null;
+try { model = JSON.parse(localStorage.getItem('model') || 'null'); } catch (_) {}
 const annotations = annotationUI({ initial: cache.annotations || [], changed: () => { retryPayload = null; persist(); } });
 
 function button(text, cls, fn) { const b = el('button', cls, text); b.type = 'button'; b.addEventListener('click', fn); return b; }
 function persist() { try { localStorage.setItem(KEY, JSON.stringify({ draft: $('message-input').value, quote, annotations: annotations.items, context: activeContext, retryPayload })); } catch (_) {} }
-function author(label = 'Codex') { const n = el('div', 'author'); n.append(el('span', 'author-mark', label === 'Codex' ? '∂' : '↓'), el('span', '', label)); return n; }
+function author(label = 'Codex') { const n = el('div', 'author'); n.append(el('span', 'author-mark', label === '수집' ? '↓' : '∂'), el('span', '', label)); return n; }
+function answeredBy(question) { const picked = question?.context?.model; return catalog?.providers.flatMap(p => p.models).find(m => m.id === picked?.model)?.label || 'Codex'; }
 function scroller() { return $('space-scroll'); }
 
 // render
@@ -92,7 +99,7 @@ function renderMessages() {
     } else if (!rendered.has(message.id)) {
       const asked = chat.messages.find(m => m.id === message.question_id) || previous;
       const parent = threads.get(asked?.id)?.answers || $('messages');
-      parent.append(renderAnswer(message, asked?.kind === 'collect' ? '수집' : 'Codex')); rendered.add(message.id); added = true;
+      parent.append(renderAnswer(message, asked?.kind === 'collect' ? '수집' : answeredBy(asked))); rendered.add(message.id); added = true;
     }
   }
   if (added) { if (nearBottom) scrollBottom(); else $('jump-bottom').hidden = false; }
@@ -169,8 +176,8 @@ async function send(event) {
   if (!text || sending) return;
   const payload = retryPayload?.content === text ? retryPayload : {
     client_id: crypto.randomUUID(), content: text,
-    kind: /^(\/next|next|go|다음)$/i.test(text) ? 'next' : /인출/.test(text) ? 'retrieval' : 'question',
-    context: { ...(activeContext || {}), selected_text: quote?.text || '', source_path: quote?.path || '', annotations: annotations.items.map(a => ({ ...a })) },
+    kind: commanded(text)?.kind || (/^(next|go|다음)$/i.test(text) ? 'next' : /인출/.test(text) ? 'retrieval' : 'question'),
+    context: { ...(activeContext || {}), model, selected_text: quote?.text || '', source_path: quote?.path || '', annotations: annotations.items.map(a => ({ ...a })) },
   };
   retryPayload = payload; sending = true; $('send').disabled = true; persist(); $('form-status').textContent = '보내는 중…';
   try {
@@ -194,12 +201,59 @@ function named(text) {
   return text.length > 24 ? `${text.slice(0, 24)}…` : text;
 }
 
+// commands
+function commanded(text) { return COMMANDS.find(c => text === c.name || text.startsWith(`${c.name} `)); }
+function matching() { const value = $('message-input').value; return /^\/\S*$/.test(value) ? COMMANDS.filter(c => c.name.startsWith(value.toLowerCase())) : []; }
+function renderCommands() {
+  const found = matching(), menu = $('command-menu');
+  menu.hidden = !found.length;
+  commandIndex = Math.min(commandIndex, Math.max(found.length - 1, 0));
+  menu.replaceChildren(...found.map((command, index) => row(command.name, command.hint, index === commandIndex, () => pickCommand(command))));
+}
+function pickCommand(command) { $('message-input').value = `${command.name} `; $('command-menu').hidden = true; resizeInput(); persist(); $('message-input').focus(); }
+function row(title, hint, selected, pick) {
+  const item = el('button', 'menu-row'); item.type = 'button'; item.setAttribute('role', 'option'); item.setAttribute('aria-selected', String(selected));
+  item.append(el('strong', '', title), el('span', '', hint));
+  item.addEventListener('pointerdown', event => event.preventDefault());
+  item.addEventListener('click', pick);
+  return item;
+}
+
+// model
+async function loadModels() {
+  catalog = await json('/api/models').catch(() => null);
+  if (!catalog) return;
+  const provider = catalog.providers.find(p => p.id === model?.provider);
+  if (!provider?.models.some(m => m.id === model.model)) model = catalog.default;
+  renderModels();
+}
+function renderModels() {
+  const provider = catalog.providers.find(p => p.id === model.provider);
+  $('provider-label').textContent = provider.label;
+  $('model-label').textContent = provider.models.find(m => m.id === model.model)?.label || model.model;
+  $('provider-menu').replaceChildren(...catalog.providers.map(p => row(p.label, `${p.models.length}개 모델`, p.id === model.provider, () => setModel({ provider: p.id, model: p.id === model.provider ? model.model : p.models[0].id }))));
+  $('model-menu').replaceChildren(...provider.models.map(m => row(m.label, m.id, m.id === model.model, () => setModel({ ...model, model: m.id }))));
+}
+function setModel(next) { model = next; try { localStorage.setItem('model', JSON.stringify(model)); } catch (_) {} closeMenus(); renderModels(); }
+function toggleMenu(name) { const open = $(`${name}-menu`).hidden; closeMenus(); $(`${name}-menu`).hidden = !open; $(`${name}-button`).setAttribute('aria-expanded', String(open)); }
+function closeMenus() { for (const name of ['provider', 'model']) { $(`${name}-menu`).hidden = true; $(`${name}-button`).setAttribute('aria-expanded', 'false'); } }
+
 function resizeInput() { const input = $('message-input'); input.style.height = 'auto'; input.style.height = `${Math.min(input.scrollHeight, 180)}px`; }
 
 // events
 $('message-input').value = cache.draft || '';
-$('message-input').addEventListener('input', () => { resizeInput(); persist(); });
-$('message-input').addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); send(); } });
+$('message-input').addEventListener('input', () => { commandIndex = 0; renderCommands(); resizeInput(); persist(); });
+$('message-input').addEventListener('keydown', event => {
+  const found = $('command-menu').hidden ? [] : matching();
+  if (found.length && ['ArrowDown', 'ArrowUp'].includes(event.key)) { event.preventDefault(); commandIndex = (commandIndex + (event.key === 'ArrowDown' ? 1 : -1) + found.length) % found.length; return renderCommands(); }
+  if (found.length && ['Enter', 'Tab'].includes(event.key) && !event.isComposing) { event.preventDefault(); return pickCommand(found[commandIndex]); }
+  if (found.length && event.key === 'Escape') { $('command-menu').hidden = true; return; }
+  if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); send(); }
+});
+$('message-input').addEventListener('blur', () => { $('command-menu').hidden = true; });
+$('provider-button').addEventListener('click', () => toggleMenu('provider'));
+$('model-button').addEventListener('click', () => toggleMenu('model'));
+document.addEventListener('pointerdown', event => { if (!event.target.closest('.picker')) closeMenus(); });
 $('composer').addEventListener('submit', send);
 $('jump-bottom').addEventListener('click', scrollBottom);
 $('clear-quote').addEventListener('click', () => { quote = null; renderQuote(); persist(); });
@@ -229,7 +283,7 @@ function follow(current) {
 window.addEventListener('research:doc', event => follow(event.detail));
 document.addEventListener('visibilitychange', () => { if (!document.hidden && chat) refresh(); });
 
-renderQuote(); resizeInput();
+renderQuote(); resizeInput(); await loadModels();
 async function start() {
   const url = new URL(location.href), agent = url.searchParams.get('agent'), space = url.searchParams.get('space'), conversation = url.searchParams.get('conversation');
   if (agent) return open('agent', agent);

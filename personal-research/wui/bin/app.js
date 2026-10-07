@@ -103,10 +103,39 @@
     function openSettings() {
       applyDocZoom();
       applyChatZoom();
+      loadProviders();
       const m = $("#settings-modal");
       m.classList.remove("hidden", "leave-fade");
       m.classList.add("flex");
       markSettings(true);
+    }
+
+    async function loadProviders() {
+      const box = $("#settings-providers");
+      if (!box) return;
+      $("#settings-error").hidden = true;
+      const data = await fetch("/api/settings").then((r) => r.json()).catch(() => null);
+      if (!data) return;
+      box.innerHTML = data.providers.map((p) => `
+        <div data-provider="${p.id}" data-auth="${p.auth}">
+          <div class="mb-1.5 flex items-baseline gap-1.5"><span class="text-sm font-medium text-slate-800">${p.label}</span><span class="text-[11px] text-slate-400">${p.cli}</span></div>
+          <div class="inline-flex items-center rounded-full bg-slate-100 p-0.5" role="group" aria-label="${p.label} access">
+            <button type="button" data-auth-choice="subscription" class="seg-btn">Plan login</button>
+            <button type="button" data-auth-choice="api_key" class="seg-btn">API key</button>
+          </div>
+          <input type="password" autocomplete="off" spellcheck="false" placeholder="${p.key ? `Saved ${p.key} · enter to replace` : `${p.label} API key`}" class="mt-2 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-apple focus:bg-white focus:outline-none" />
+        </div>`).join("");
+      box.querySelectorAll("[data-provider]").forEach(paintProvider);
+      box.querySelectorAll("[data-auth-choice]").forEach((b) => b.addEventListener("click", () => {
+        const item = b.closest("[data-provider]");
+        item.dataset.auth = b.dataset.authChoice;
+        paintProvider(item);
+      }));
+    }
+
+    function paintProvider(item) {
+      item.querySelectorAll("[data-auth-choice]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.authChoice === item.dataset.auth)));
+      item.querySelector("input").hidden = item.dataset.auth !== "api_key";
     }
 
     function closeSettings() {
@@ -1733,7 +1762,18 @@
     on("#settings-modal", "click", (e) => {
       if (e.target === $("#settings-modal")) closeSettings();
     });
-    on("#btn-save-settings", "click", () => {
+    on("#btn-save-settings", "click", async () => {
+      const providers = Object.fromEntries([...document.querySelectorAll("[data-provider]")].map((box) => {
+        const key = box.querySelector("input").value.trim();
+        return [box.dataset.provider, { auth: box.dataset.auth, ...(key ? { key } : {}) }];
+      }));
+      const response = await fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ providers }) }).catch(() => null);
+      const body = response ? await response.json().catch(() => ({})) : { error: "Could not reach the server" };
+      if (!response?.ok) {
+        $("#settings-error").textContent = body.error || "Could not save";
+        $("#settings-error").hidden = false;
+        return;
+      }
       closeSettings();
       toast("Settings saved");
     });

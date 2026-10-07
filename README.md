@@ -76,7 +76,9 @@ docker compose --env-file .env/.env.production -f .docker/docker-compose.product
 1. codex 는 `docker exec -it personal-research-{환경}-api codex login --device-auth` 를 실행하고, 화면의 코드를 브라우저에서 승인한다. 대화의 답변을 만든다. ChatGPT 계정은 Codex 기본 모델을 쓰지 못할 수 있으므로 `CODEX_MODEL` 을 비우지 않는다.
 2. claude 는 자기 컴퓨터에서 `claude setup-token` 으로 받은 토큰을 `.env/.env.{환경}` 의 `CLAUDE_CODE_OAUTH_TOKEN` 에 넣고 컨테이너를 다시 띄운다. 수집할 때 번역을 맡는다.
 
-`ANTHROPIC_API_KEY` 를 넣으면 요금제가 아니라 API 과금으로 바뀐다. 서버의 채팅 API 에는 인증이 없으므로, 외부 서버에 둘 때도 포트는 `127.0.0.1` 에만 열고 Tailscale 이나 SSH 터널로 접속한다.
+답변은 두 제공사 모두 만든다. OpenAI 는 codex, Anthropic 은 claude 가 맡고, 입력창의 제공사와 모델 드롭다운으로 메시지마다 고른다. 기본값은 OpenAI 의 `CODEX_MODEL` 이다. 입력창에 `/` 를 치면 `/next` `/retrieval` 명령 목록이 뜬다.
+
+설정의 Model access 에서 제공사마다 요금제 로그인과 API 키 중 하나를 고른다. API 키는 git 이 무시하는 `api/database/setting.json` 에 권한 600 으로 저장되고, 화면에는 끝 네 자리만 보인다. API 키를 고르면 그 제공사 CLI 에 `CODEX_API_KEY` 나 `ANTHROPIC_API_KEY` 로 넘겨 API 과금으로 바뀐다. 요금제 로그인을 고르면 환경 변수에 키가 있어도 지우고 CLI 로그인을 쓴다. 번역의 claude 도 같은 설정을 따른다. 서버의 채팅 API 에는 인증이 없으므로, 외부 서버에 둘 때도 포트는 `127.0.0.1` 에만 열고 Tailscale 이나 SSH 터널로 접속한다.
 
 뷰어를 열면 홈이 먼저 나온다. 입력창 왼쪽 배지로 `ask` 와 `collect` 를 고른다. `ask` 는 질문으로 새 agent 대화를 열고, `collect` 는 주소를 받아 원문을 받고 한국어판까지 만든다.
 

@@ -22,7 +22,16 @@
             <div id="quote-box" class="quote-box" hidden><div><span id="quote-label">인용</span><button id="clear-quote" class="quiet" type="button" aria-label="인용 지우기">×</button></div><blockquote id="quote-text"></blockquote></div>
           </div>
           <form id="composer" class="composer">
-            <textarea id="message-input" rows="1" maxlength="10000" aria-label="메시지" placeholder="질문 · /next 로 다음 설명"></textarea>
+            <div id="command-menu" class="composer-menu command-menu" role="listbox" aria-label="명령어" hidden></div>
+            <textarea id="message-input" rows="1" maxlength="10000" aria-label="메시지" placeholder="질문 · / 로 명령어"></textarea>
+            <div class="picker">
+              <button id="provider-button" class="picker-button" type="button" aria-haspopup="listbox" aria-expanded="false"><span id="provider-label">제공사</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M6 9l6 6 6-6" /></svg></button>
+              <div id="provider-menu" class="composer-menu picker-menu" role="listbox" aria-label="제공사" hidden></div>
+            </div>
+            <div class="picker">
+              <button id="model-button" class="picker-button" type="button" aria-haspopup="listbox" aria-expanded="false"><span id="model-label">모델</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M6 9l6 6 6-6" /></svg></button>
+              <div id="model-menu" class="composer-menu picker-menu" role="listbox" aria-label="모델" hidden></div>
+            </div>
             <button id="send" class="send-button" type="submit" aria-label="보내기"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M12 20V4" /><path d="M5 11l7-7 7 7" /></svg></button>
           </form>
           <p id="form-status" class="form-status" role="status"></p>
