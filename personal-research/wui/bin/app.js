@@ -219,6 +219,7 @@
         const open = state.expanded[item.id] ?? item.id === current;
         box.appendChild(folderRow({
           label: item.title,
+          icon: `<span class="${current === item.id ? "text-apple-link" : "text-slate-500"}">${iconHtml("space", "h-4 w-4")}</span>`,
           open,
           depth: 0,
           strong: current === item.id,
@@ -260,6 +261,7 @@
       log: '<circle cx="12" cy="12" r="8" /><path d="M12 8v4l3 2" />',
       chat: '<path d="M21 11a8 8 0 0 1-8 8H6.5L3 21V11a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z" />',
       plus: '<path d="M12 5v14M5 12h14" />',
+      space: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z" /><path d="M4 7.5l8 4.5 8-4.5M12 12v9" />',
       conversations: '<path d="M16 10a6 6 0 0 1-6 6H6l-3 2.5V10a6 6 0 0 1 6-6h1a6 6 0 0 1 6 6z" /><path d="M18.5 8.5A5 5 0 0 1 21 13v6l-2.5-2H15a5 5 0 0 1-3.6-1.5" />',
       collected: '<rect x="3" y="4" width="18" height="5" rx="1" /><path d="M5 9v9.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V9" /><path d="M10 13h4" />',
       materials: '<path d="M4 19.5V5.5A1.5 1.5 0 0 1 5.5 4H18v13H5.5A1.5 1.5 0 0 0 4 18.5 1.5 1.5 0 0 0 5.5 20H18" /><path d="M8 8h6M8 11h4" />',
