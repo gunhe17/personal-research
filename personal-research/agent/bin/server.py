@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import signal
 import subprocess
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -63,7 +64,7 @@ def run(*, job: dict) -> dict:
     # check
     if not isinstance(command, list) or not command or not all(isinstance(c, str) for c in command):
         return {"error": "command must be a list of strings"}
-    if Path(command[0]).name not in COMMANDS:
+    if Path(command[0]).name not in COMMANDS or not shutil.which(Path(command[0]).name):
         return {"error": f"{Path(command[0]).name} is not allowed"}
     if DATA.resolve() not in [cwd, *cwd.parents] or not cwd.is_dir():
         return {"error": f"cwd must be under {DATA}"}
@@ -71,7 +72,7 @@ def run(*, job: dict) -> dict:
         return {"error": "env must map strings to strings"}
     # spawn
     process = subprocess.Popen(
-        command,
+        [shutil.which(Path(command[0]).name), *command[1:]],
         cwd=cwd,
         env={**os.environ, **env},
         stdin=subprocess.PIPE,
