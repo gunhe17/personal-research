@@ -8,6 +8,7 @@ import Icon from "@/ui/Icon";
 import IconButton from "@/ui/IconButton";
 import Modal from "@/ui/Modal";
 import TreeRow from "@/ui/TreeRow";
+import AgentPane from "./AgentPane";
 import GeneralPane from "./GeneralPane";
 import LoginSheet from "./LoginSheet";
 import ProviderPane, { usable } from "./ProviderPane";
@@ -103,6 +104,7 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
             <TreeRow key={provider.id} variant="nav" label={provider.label} active={tab === provider.id} trailing={<Dot on={ready(provider)} />} onClick={() => setTab(provider.id)} />
           ))}
         </div>
+        <TreeRow variant="nav" label="Agent" icon="chat" active={tab === "agent"} onClick={() => setTab("agent")} />
       </nav>
       <div className="min-w-0 flex-1 overflow-y-auto p-6">
         <IconButton icon="close" label="Close" className="absolute top-3 right-3" onClick={close} />
@@ -116,6 +118,8 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
             onLogin={(method) => setSheet({ provider: current, method })}
             onLogout={(method) => logout(current, method)}
           />
+        ) : tab === "agent" ? (
+          <AgentPane />
         ) : (
           <GeneralPane />
         )}

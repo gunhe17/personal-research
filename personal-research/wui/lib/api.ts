@@ -128,6 +128,8 @@ export type Login = {
 
 export type Meta = { url?: string; path?: string };
 
+export type Skill = { name: string; description: string };
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try {
@@ -167,6 +169,7 @@ export const api = {
     send<unknown>(`/api/${domain}/conversations/${encodeURIComponent(id)}/${action}`, { message_id: message }),
 
   models: () => request<ModelCatalog>("/api/models"),
+  skills: () => request<{ items: Skill[] }>("/api/skills"),
   settings: () => request<{ providers: Provider[] }>("/api/settings"),
   editProvider: (id: string, values: Record<string, unknown>) => send<{ providers: Provider[] }>("/api/settings", { providers: { [id]: values } }, "PUT"),
   login: (provider: string, method: string) => request<Login>(`/api/login?${query({ provider, method })}`),
