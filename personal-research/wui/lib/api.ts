@@ -170,6 +170,9 @@ export const api = {
 
   models: () => request<ModelCatalog>("/api/models"),
   skills: () => request<{ items: Skill[] }>("/api/skills"),
+  collect: (input: string) => send<CollectJob>("/api/collect", { input }),
+  collects: () => request<{ items: CollectJob[] }>("/api/collect"),
+  collectJob: (id: string) => request<CollectJob>(`/api/collect/${encodeURIComponent(id)}`),
   settings: () => request<{ providers: Provider[] }>("/api/settings"),
   editProvider: (id: string, values: Record<string, unknown>) => send<{ providers: Provider[] }>("/api/settings", { providers: { [id]: values } }, "PUT"),
   login: (provider: string, method: string) => request<Login>(`/api/login?${query({ provider, method })}`),
@@ -179,35 +182,21 @@ export const api = {
   logout: (provider: string, method: string) => request<Login>(`/api/login?${query({ provider, method, signout: "1" })}`, { method: "DELETE" }),
 };
 
-export type CollectEvent =
+export type CollectEvent = { at: number } & (
   | { type: "step"; key: string; text: string; state?: string }
-  | { type: "terms"; terms: string[] }
   | { type: "collected"; id: string; path: string }
-  | { type: "delta"; text: string }
   | { type: "done"; text?: string; id?: string }
   | { type: "error"; error: string }
-  | { type: "conversation"; domain: string; id: string };
+);
 
-export async function collect(input: string, onEvent: (event: CollectEvent) => void): Promise<void> {
-  const response = await fetch("/api/collect", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ input }) });
-  if (!response.ok || !response.body) throw new ApiError(await response.text());
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  for (;;) {
-    const { value, done } = await reader.read();
-    if (done) return;
-    buffer += decoder.decode(value, { stream: true });
-    const parts = buffer.split("\n\n");
-    buffer = parts.pop() || "";
-    for (const part of parts) {
-      const line = part.trim();
-      if (!line.startsWith("data:")) continue;
-      const raw = line.slice(5).trim();
-      if (raw === "[DONE]") continue;
-      try {
-        onEvent(JSON.parse(raw) as CollectEvent);
-      } catch {}
-    }
-  }
-}
+export type CollectJob = {
+  id: string;
+  input: string;
+  state: "queued" | "running" | "done" | "failed";
+  events: CollectEvent[];
+  path: string;
+  collected_id: string;
+  conversation_id: string;
+  created_at: string;
+  finished_at: string;
+};
