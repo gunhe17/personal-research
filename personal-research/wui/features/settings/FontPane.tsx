@@ -10,7 +10,7 @@ import { applyZoom, MAX, MIN, readZoom, type Zoom } from "./zoom";
 export default function FontPane() {
   return (
     <div className="space-y-6">
-      <h3 className="text-[21px] font-semibold tracking-tight text-slate-900">General</h3>
+      <h3 className="text-[21px] font-semibold tracking-tight text-slate-900">Font</h3>
       <section>
         <SectionHeader title="Text size" className="mb-2" />
         <ZoomControl zoom="docZoom" label="Document" />
