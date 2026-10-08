@@ -66,7 +66,7 @@ wui/
 | `doc` | 문서 패널, 언어 전환, 내려받기, 선택 막대 |
 | `material` | 자료 패널 |
 | `blocks` | 답변·수업 블록 렌더러, 그래프 실험(Playground) |
-| `settings` | 설정 모달, General, 제공사 화면, 로그인 시트 |
+| `settings` | 설정 모달, General, 제공사 화면, 로그인 시트, Agent(skill 목록 조회) |
 
 ## 공용 부품
 
