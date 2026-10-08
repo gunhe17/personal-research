@@ -70,7 +70,7 @@ export default function ProviderPane({ provider, statuses, error, onSave: persis
         <h3 className="text-[21px] font-semibold tracking-tight text-slate-900">{provider.label}</h3>
         <div className="mt-1 flex items-center gap-1.5 text-[12px] text-slate-500">
           <Dot on={Boolean(first)} />
-          <span>{!first && checking ? "Checking…" : first ? `Ready · ${first.label} first` : "Not ready"}</span>
+          <span>{!first && checking ? "Checking…" : first ? "Ready" : "Not ready"}</span>
         </div>
         {error && <p className="mt-2 text-[12px] text-red-600">{error}</p>}
       </div>
