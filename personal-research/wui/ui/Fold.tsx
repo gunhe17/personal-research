@@ -20,12 +20,15 @@ export default function Fold({ open, children, className }: { open: boolean; chi
       return;
     }
     const running = node.getAnimations().length > 0;
-    const height = node.getBoundingClientRect().height;
-    const opacity = Number(getComputedStyle(node).opacity);
+    const style = getComputedStyle(node);
+    const current = { height: `${node.getBoundingClientRect().height}px`, opacity: Number(style.opacity), marginTop: style.marginTop };
     node.getAnimations().forEach((animation) => animation.cancel());
-    const full = node.scrollHeight;
-    const from = running ? { height: `${height}px`, opacity } : open ? { height: "0px", opacity: 0 } : { height: `${full}px`, opacity: 1 };
-    const to = open ? { height: `${full}px`, opacity: 1 } : { height: "0px", opacity: 0 };
+    const parent = node.parentElement ? getComputedStyle(node.parentElement) : null;
+    const gap = parent && /flex|grid/.test(parent.display) ? parseFloat(parent.rowGap) || 0 : 0;
+    const shut = { height: "0px", opacity: 0, marginTop: `${-gap}px` };
+    const full = { height: `${node.scrollHeight}px`, opacity: 1, marginTop: "0px" };
+    const from = running ? current : open ? shut : full;
+    const to = open ? full : shut;
     node.style.overflow = "hidden";
     const animation = node.animate([from, to], {
       duration: open ? 240 : 180,
