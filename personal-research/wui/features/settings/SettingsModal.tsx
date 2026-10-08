@@ -57,7 +57,21 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
 
   const logout = async (provider: Provider, method: Method) => {
     await api.logout(provider.id, method.id).catch(() => null);
-    reload();
+    if (provider.methods.length > 1) await save(provider, { remove: method.id });
+    else reload();
+  };
+
+  const prune = async () => {
+    for (const provider of providers) {
+      let left = provider.methods.length;
+      for (const method of provider.methods) {
+        const status = statuses[`${provider.id}:${method.id}`];
+        if (method.type !== "plan_key" || method.secret || !status || status.logged_in || status.pending || left <= 1) continue;
+        await api.editProvider(provider.id, { remove: method.id }).catch(() => null);
+        left -= 1;
+      }
+    }
+    emit("settings");
   };
 
   const closeSheet = async (cancelled: boolean) => {
@@ -69,6 +83,7 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
   const close = () => {
     if (sheet) closeSheet(true);
     onClose();
+    prune();
   };
 
   const ready = (provider: Provider) => provider.methods.some((m) => usable(m, statuses[`${provider.id}:${m.id}`]));

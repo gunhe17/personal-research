@@ -114,7 +114,7 @@ export default function ProviderPane({ provider, statuses, error, onSave: persis
                       <KeyDetail method={method} label={provider.label} onSave={onSave} />
                     )}
                     <Usage method={method} />
-                    {removable(provider, method) && (
+                    {!plan(method) && removable(provider, method) && (
                       <KeyValue label="">
                         <button type="button" className="text-[12px] text-slate-500 hover:text-red-600" onClick={() => confirm(`Remove ${method.label}?`) && onSave({ remove: method.id })}>
                           Remove {method.label}
@@ -157,7 +157,7 @@ function PlanDetail({ method, status, cli, onLogin, onLogout }: { method: Method
         <Button tone={status?.logged_in && !status.pending ? "line" : "fill"} size="sm" onClick={onLogin}>
           {status?.pending ? "Continue" : status?.logged_in ? "Log in again" : "Log in"}
         </Button>
-        {status?.logged_in && <Button tone="quiet" size="sm" onClick={() => confirm(`Log ${method.label} out on this server?`) && onLogout()}>Log out</Button>}
+        {status?.logged_in && <Button tone="quiet" size="sm" onClick={() => confirm(`Log out and remove ${method.label}?`) && onLogout()}>Log out</Button>}
       </KeyValue>
       <KeyValue label="Logs in with">{cli}</KeyValue>
     </>
