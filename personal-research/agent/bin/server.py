@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import shutil
@@ -28,6 +29,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         if self.path == "/health":
             return self.reply(code=200, payload={"ok": True})
+        if self.path == "/tools":
+            return self.reply(code=200, payload={"items": tools()})
         self.reply(code=404, payload={"error": "not found"})
 
     def do_POST(self) -> None:
@@ -92,6 +95,16 @@ def run(*, job: dict) -> dict:
         RUNNING.pop(str(job.get("id") or process.pid), None)
 
     return {"code": process.returncode, "stdout": stdout, "stderr": stderr}
+
+
+def tools() -> list[dict]:
+    spec = importlib.util.spec_from_file_location("research_mcp", Path(__file__).with_name("mcp.py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    return [
+        {"name": name, "description": tool["spec"]["description"]} for name, tool in module.TOOLS.items()
+    ]
 
 
 def stop(*, id: str) -> bool:

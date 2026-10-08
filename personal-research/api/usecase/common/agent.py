@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import signal
@@ -34,6 +35,19 @@ def workspace(*, prefix: str) -> tempfile.TemporaryDirectory:
     WORK.mkdir(parents=True, exist_ok=True)
 
     return tempfile.TemporaryDirectory(prefix=prefix, dir=WORK)
+
+
+def skills() -> list[dict]:
+    if URL:
+        with urllib.request.urlopen(URL + "/tools", timeout=10) as response:
+            return json.loads(response.read())["items"]
+    spec = importlib.util.spec_from_file_location("research_mcp", store.API.parent / "agent" / "bin" / "mcp.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    return [
+        {"name": name, "description": tool["spec"]["description"]} for name, tool in module.TOOLS.items()
+    ]
 
 
 def stop(*, id: str) -> None:

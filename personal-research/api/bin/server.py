@@ -12,6 +12,7 @@ from urllib.parse import parse_qs, urlparse
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from usecase.common import agent
 from usecase.common import log
 from usecase.common import store
 
@@ -77,6 +78,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(code=400, payload={"error": str(error)})
         if path == "/api/models":
             return self.reply(code=200, payload=converse.models())
+        if path == "/api/skills":
+            try:
+                return self.reply(code=200, payload={"items": agent.skills()})
+            except OSError as error:
+                return self.reply(code=502, payload={"error": f"agent 에서 목록을 받지 못했습니다. {error}"})
         if path == "/api/health":
             return self.reply(code=200, payload={
                 "ok": True,
