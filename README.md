@@ -58,7 +58,7 @@ personal-research/
 - 대화의 `meta` 는 모델 이름을 키로 한다. 예: `{"codex": {"thread_id": ..., "model": ...}}`. `thread_id` 는 Codex 가 `~/.codex` 에 저장한 대화의 번호로, 다음 질문에서 그 대화를 이어 가는 데 쓴다.
 - 문서를 열면 그 문서를 자료로 가진 space 대화가 열리고, 없으면 첫 질문 때 그 문서를 자료로 새 대화를 만든다.
 - 답할 때마다 Codex 가 `data/corpus/` 의 수집물 사본(`collect.py export` 와 같은 트리)을 읽기 전용으로 조사하고, 근거로 쓴 path 를 `sources` 에 남긴다. 근거가 없으면 그렇다고 밝히고 답한다. 사본은 수집물이 바뀌면 다음 질문 때 다시 만든다.
-- 답하는 CLI(codex, claude, grok)에는 `agent/bin/mcp.py` 가 stdio MCP 서버 `research` 로 붙는다. 지금 도구는 `search_collected`(수집물 본문 검색) 하나이고, DB 를 직접 열지 않고 api 의 `/api/search` 를 부른다. codex 와 claude 는 실행 인자로, grok 은 `data/corpus/.grok/config.toml` 과 `--trust` 로 붙인다. 도구는 `readOnlyHint` 를 달아야 codex 가 승인 없이 부른다. 점검은 `python3 personal-research/agent/bin/mcp.py http://127.0.0.1:8768 check`.
+- 답하는 CLI(codex, claude, grok)에는 `agent/bin/mcp.py` 가 stdio MCP 서버 `research` 로 붙는다. 도구는 `search_collected`(수집물 본문 검색)와 `read_document`(path 로 문서를 줄 단위로 읽기) 둘이고, DB 를 직접 열지 않고 api 의 `/api/search` `/api/file` 을 부른다. codex 와 claude 는 실행 인자로, grok 은 `data/corpus/.grok/config.toml` 과 `--trust` 로 붙인다. 컨테이너 안에서는 codex 의 샌드박스(bwrap)가 돌지 못하므로 codex 의 셸 도구를 끄고 MCP 로만 읽게 한다. grok 은 `--always-approve` 가 있어야 헤드리스에서 MCP 도구를 부르며, 내장 도구는 `--tools` 로 읽기 전용만 남긴다. 도구는 `readOnlyHint` 를 달아야 codex 가 승인 없이 부른다. 점검은 `python3 personal-research/agent/bin/mcp.py http://127.0.0.1:8768 check`.
 - 모델 CLI(답변과 번역)는 `agent` 컨테이너에서 돈다. api 는 `AGENT_URL` 로 실행을 넘기고, 취소도 그쪽으로 보낸다. agent 는 codex, claude, grok 만 실행하고 작업 폴더는 `api/data/` 아래만 받는다. agent 컨테이너에는 `data/corpus`(읽기 전용), `data/cli`(CLI 인증), `data/work`(임시 파일)만 api 와 같은 경로로 연결되고, DB 와 `ENCRYPTION_KEY` 와 env 파일은 들어가지 않는다. 수집물은 웹에서 온 신뢰할 수 없는 글이라, 그 안의 지시를 따르더라도 닿을 수 있는 것을 이렇게 줄인다. `AGENT_URL` 이 없으면(컨테이너 없는 로컬) api 가 CLI 를 직접 띄우며 격리되지 않는다. 이때 grok 은 MCP 를 붙이지 못한다.
 - 모델을 부를 때마다(답변은 Codex, 수집할 때의 번역은 claude) `llm` 에 한 행이 남는다. `owner_id` 는 질문 메시지 id 나 번역한 문서 id 다.
 - DB 를 처음 열 때 `common/store.py` 의 `upgrade` 가 예전 구조(`extra` `body` 열, `opened` `conversations` `agent` `asked` 표, 대화를 JSON 으로 담던 `space`, `space` 의 `purpose` `log` 열, 대화 첫머리에 끼워 둔 수업)를 지금 구조로 옮긴다.
@@ -83,7 +83,7 @@ docker compose --env-file .env/.env.production -f .docker/docker-compose.product
 
 컨테이너 안의 codex, claude, grok 은 개인 요금제로 로그인해 쓴다. 로그인은 설정의 제공사 화면에서 `Log in` 을 눌러 한다. codex 와 grok 은 기기 코드를 보여 주고, 승인하면 CLI 가 서버 전용 홈(`api/data/cli/codex`, `api/data/cli/grok`)의 `auth.json` 에 인증 정보를 쓴다. 서버는 그 내용을 `user_meta` 의 `{제공사}_plan_key` 행에 암호화해 옮기고, 실행할 때마다 홈의 파일과 DB 를 맞춘다. 파일이 더 새것이면(토큰 갱신) DB 로, 파일이 없으면 DB 에서 다시 쓴다. 그래서 컨테이너를 새로 만들어도 DB 만 있으면 로그인이 남는다. claude 는 로그인 주소를 열어 승인한 뒤 화면에 나온 코드를 붙여 넣으면 `claude setup-token` 이 준 1년짜리 토큰을 `anthropic_plan_key` 에 두고 실행할 때 `CLAUDE_CODE_OAUTH_TOKEN` 으로 넘긴다. Log out 은 CLI 로그아웃과 함께 DB 의 값도 지운다. 터미널로 할 수도 있다.
 
-1. codex 는 `docker exec -it -e CODEX_HOME=/app/personal-research/api/data/cli/codex personal-research-{환경}-api codex login --device-auth` 를 실행하고, 화면의 코드를 브라우저에서 승인한다. ChatGPT 계정은 Codex 기본 모델을 쓰지 못할 수 있으므로 `CODEX_MODEL` 을 비우지 않는다.
+1. codex 는 `docker exec -it -e CODEX_HOME=/app/personal-research/api/data/cli/codex personal-research-{환경}-api codex login --device-auth` 를 실행하고, 화면의 코드를 브라우저에서 승인한다. ChatGPT 계정은 `gpt-6-luna` 만 쓸 수 있으므로 `CODEX_MODEL` 을 그 값으로 둔다.
 2. claude 는 자기 컴퓨터에서 `claude setup-token` 으로 받은 토큰을 `.env/.env.{환경}` 의 `CLAUDE_CODE_OAUTH_TOKEN` 에 넣고 컨테이너를 다시 띄운다. 수집할 때 번역도 맡는다.
 3. grok 은 `docker exec -it -e GROK_HOME=/app/personal-research/api/data/cli/grok personal-research-{환경}-api grok login --device-auth` 를 실행하고, 화면의 코드를 브라우저에서 승인한다.
 

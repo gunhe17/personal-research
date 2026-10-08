@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import sys
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -71,6 +72,31 @@ def search_collected(*, terms: list, limit: int = 8) -> list[dict]:
     ]
 
 
+def read_document(*, path: str, language: str = "eng", start: int = 1, lines: int = 300) -> dict:
+    if language not in ("eng", "kor"):
+        raise ValueError("language must be eng or kor")
+    query = urllib.parse.urlencode({"id": path, "language": language})
+    try:
+        with urllib.request.urlopen(f"{API_URL}/api/file?{query}", timeout=30) as response:
+            found = json.loads(response.read())
+    except urllib.error.HTTPError as error:
+        if error.code == 404:
+            raise ValueError(f"no {language} document at {path}") from error
+        raise
+    body = found["content"].splitlines()
+    first = max(1, int(start))
+    last = min(len(body), first + max(1, min(int(lines), 600)) - 1)
+
+    return {
+        "path": found["path"],
+        "language": language,
+        "total_lines": len(body),
+        "start": first,
+        "end": last,
+        "text": "\n".join(body[first - 1:last]),
+    }
+
+
 TOOLS = {
     "search_collected": {
         "run": search_collected,
@@ -83,6 +109,23 @@ TOOLS = {
                     "limit": {"type": "integer", "minimum": 1, "maximum": 8},
                 },
                 "required": ["terms"],
+            },
+            "annotations": {"readOnlyHint": True, "openWorldHint": False},
+        },
+    },
+    "read_document": {
+        "run": read_document,
+        "spec": {
+            "description": "수집물 문서 하나를 path 로 읽는다. 원문은 eng, 한국어판은 kor. 긴 문서는 start 줄부터 lines 줄씩 나눠 읽고, total_lines 로 남은 양을 안다.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string"},
+                    "language": {"type": "string", "enum": ["eng", "kor"]},
+                    "start": {"type": "integer", "minimum": 1},
+                    "lines": {"type": "integer", "minimum": 1, "maximum": 600},
+                },
+                "required": ["path"],
             },
             "annotations": {"readOnlyHint": True, "openWorldHint": False},
         },
@@ -102,6 +145,13 @@ def check() -> None:
     found = respond(message={"jsonrpc": "2.0", "id": 5, "method": "tools/call", "params": {"name": "search_collected", "arguments": {"terms": ["codex"], "limit": 2}}})
     assert "isError" not in found["result"]
     print(found["result"]["content"][0]["text"][:300])
+    path = json.loads(found["result"]["content"][0]["text"])[0]["path"]
+    read = respond(message={"jsonrpc": "2.0", "id": 6, "method": "tools/call", "params": {"name": "read_document", "arguments": {"path": path, "start": 2, "lines": 3}}})
+    page = json.loads(read["result"]["content"][0]["text"])
+    assert page["start"] == 2 and page["end"] == 4 and page["total_lines"] > 4
+    missing = respond(message={"jsonrpc": "2.0", "id": 7, "method": "tools/call", "params": {"name": "read_document", "arguments": {"path": "nope/none.md"}}})
+    assert missing["result"]["isError"]
+    print(page["text"][:200])
 
 
 # #
