@@ -29,7 +29,7 @@ with sync_playwright() as p:
     page.screenshot(path=f"{OUT}/workbench.png")
 
     page.get_by_label("Settings").click()
-    page.wait_for_selector("text=Document text size")
+    page.wait_for_selector("text=Text size")
     page.get_by_role("dialog").get_by_role("button", name="OpenAI", exact=True).click()
     page.wait_for_timeout(2000)
     page.screenshot(path=f"{OUT}/settings.png")
