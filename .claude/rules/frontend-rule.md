@@ -42,7 +42,7 @@ wui/
   features/<이름>/         한 화면 영역의 컴포넌트 묶음
   ui/                     어디서나 쓰는 모양 부품
   lib/                    React 가 없는 함수(api, cx, storage, time, markdown, events)
-  check/                  화면 점검 스크립트(smoke, workbench, chat, flows, panes, settings)
+  check/                  화면 점검 스크립트(smoke, workbench, chat, flows, panes, settings, search)
   design/                 디자인 랩. 앱이 가져오지 않는다
 ```
 
@@ -59,7 +59,7 @@ wui/
 
 | feature | 맡는 것 |
 |---|---|
-| `shell` | 헤더, 사이드바 트리, 사이드바 폭 조절 |
+| `shell` | 헤더, 사이드바 트리와 검색, 사이드바 폭 조절 |
 | `home` | 홈 입력창, ask/collect 모드, 수집 진행 표시 |
 | `workbench` | 그룹(최대 4), 좌우 분할, 드롭 구역, 패널 바, 작업대 Context |
 | `chat` | 대화 패널, 질문과 답변, 입력창(명령어, 제공사·모델), 인용, 주석 |
