@@ -8,8 +8,8 @@ import Icon from "@/ui/Icon";
 import IconButton from "@/ui/IconButton";
 import Modal from "@/ui/Modal";
 import TreeRow from "@/ui/TreeRow";
-import AgentPane from "./AgentPane";
-import GeneralPane from "./GeneralPane";
+import FunctionPane from "./FunctionPane";
+import FontPane from "./FontPane";
 import LoginSheet from "./LoginSheet";
 import ProviderPane, { usable } from "./ProviderPane";
 
@@ -119,9 +119,9 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
             onLogout={(method) => logout(current, method)}
           />
         ) : tab === "agent" ? (
-          <AgentPane />
+          <FunctionPane />
         ) : (
-          <GeneralPane />
+          <FontPane />
         )}
       </div>
       {sheet && (

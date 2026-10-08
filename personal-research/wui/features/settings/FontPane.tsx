@@ -7,7 +7,7 @@ import KeyValue from "@/ui/KeyValue";
 import SectionHeader from "@/ui/SectionHeader";
 import { applyZoom, MAX, MIN, readZoom, type Zoom } from "./zoom";
 
-export default function GeneralPane() {
+export default function FontPane() {
   return (
     <div className="space-y-6">
       <h3 className="text-[21px] font-semibold tracking-tight text-slate-900">General</h3>

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { api, type Skill } from "@/lib/api";
 import SectionHeader from "@/ui/SectionHeader";
 
-export default function AgentPane() {
+export default function FunctionPane() {
   const [skills, setSkills] = useState<Skill[] | null>(null);
   const [error, setError] = useState("");
 
