@@ -41,8 +41,8 @@ wui/
     globals.css           토큰, 전역 글자 스타일(prose), 애니메이션
   features/<이름>/         한 화면 영역의 컴포넌트 묶음
   ui/                     어디서나 쓰는 모양 부품
-  lib/                    React 가 없는 함수(api, cx, storage, time, markdown, events)
-  check/                  화면 점검 스크립트(smoke, workbench, chat, flows, panes, settings, search)
+  lib/                    React 가 없는 함수(api, cx, storage, time, markdown, events, collect)
+  check/                  화면 점검 스크립트(smoke, workbench, chat, flows, panes, settings, search, collect)
   design/                 디자인 랩. 앱이 가져오지 않는다
 ```
 
@@ -60,13 +60,13 @@ wui/
 | feature | 맡는 것 |
 |---|---|
 | `shell` | 헤더, 사이드바 트리와 space 검색, 사이드바 폭 조절 |
-| `home` | 홈 입력창, ask/collect 모드, 수집 진행 표시 |
+| `home` | 홈 입력창, ask/collect 모드, 백그라운드 수집 작업의 진행 표시 |
 | `workbench` | 그룹(최대 4), 좌우 분할, 드롭 구역, 패널 바, 작업대 Context |
 | `chat` | 대화 패널, 질문과 답변, 입력창(명령어, 제공사·모델), 인용, 주석 |
 | `doc` | 문서 패널, 언어 전환, 내려받기, 선택 막대 |
 | `material` | 자료 패널 |
 | `blocks` | 답변·수업 블록 렌더러, 그래프 실험(Playground) |
-| `settings` | 설정 모달(General·Font, Models·제공사, Agent·Function), 로그인 시트 |
+| `settings` | 설정 모달(General·Font, Models·제공사, Agent·Function·Collect), 로그인 시트 |
 
 ## 공용 부품
 
@@ -92,6 +92,7 @@ wui/
 | `KeyValue` | 왼쪽 96px 회색 키, 오른쪽 값과 버튼 | 설정의 세부 |
 | `Icon` | 24 격자 1.5 선. 이름으로 고른다 | 모든 아이콘 |
 | `toast()` (`ui/Toaster.tsx`) | 화면 아래 흰 알약 | 짧은 알림 |
+| `Steps` | 체크·진행 점과 세로선, 단계별 걸린 시간 | 수집 진행(홈 답변, 설정 Collect) |
 
 버튼 규칙:
 
@@ -114,7 +115,7 @@ wui/
 ## 상태와 데이터
 
 - 화면 상태는 그 컴포넌트의 `useState` 에 둔다. 전역 Context 는 작업대(`WorkbenchProvider`) 하나뿐이다. 패널 사이의 일(근거 문서 열기 `open`, 인용 보내기 `sendQuote`, 지금 문서 `doc`, 포커스)은 모두 이 Context 를 거친다.
-- 기능 사이의 짧은 신호는 `lib/events.ts` 의 이름 있는 이벤트로 보낸다: `spaces`(space 목록이 바뀜), `settings`(제공사 설정이 바뀜), `zoom`(글자 크기가 바뀜). 새 신호도 여기에 이름을 더한다.
+- 기능 사이의 짧은 신호는 `lib/events.ts` 의 이름 있는 이벤트로 보낸다: `spaces`(space 목록이 바뀜), `settings`(제공사 설정이 바뀜), `zoom`(글자 크기가 바뀜), `collect`(수집 작업이 생기거나 끝남). 새 신호도 여기에 이름을 더한다.
 - `fetch` 는 `lib/api.ts` 에서만 부른다. 엔드포인트마다 함수 하나, 응답 타입을 함께 둔다. 실패하면 서버의 `error` 문장으로 `ApiError` 를 던지고, 화면이 그 문장을 보여 준다.
 - 브라우저 저장은 `lib/storage.ts` 의 `load` `save` 만 쓴다. 키는 옛 화면과 같게 둔다: `workbench` `sidebarWidth` `spaceExpanded` `docZoom` `chatZoom` `docLang` `dlFmt` `homeMode` `lastDoc` `model` `space-draft:<그룹>` `pg:<key>`.
 - 문서와 대화 글자 크기는 `<html>` 의 CSS 변수 `--doc-zoom` `--chat-zoom` 으로 퍼뜨린다.
