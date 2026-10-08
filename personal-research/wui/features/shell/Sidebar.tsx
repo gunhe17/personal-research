@@ -7,6 +7,7 @@ import { listen } from "@/lib/events";
 import { load, save } from "@/lib/storage";
 import Fold from "@/ui/Fold";
 import Icon from "@/ui/Icon";
+import IconButton from "@/ui/IconButton";
 import TreeRow from "@/ui/TreeRow";
 import { itemKey, type Item } from "@/features/workbench/items";
 import { useWorkbench } from "@/features/workbench/WorkbenchProvider";
@@ -43,6 +44,11 @@ export default function Sidebar() {
     save("spaceExpanded", next);
   };
   const toggle = (key: string, fallback = true) => remember({ ...expanded, [key]: !isOpen(key, fallback) });
+  const collapse = () => remember({
+    ...expanded,
+    spaces: true,
+    ...Object.fromEntries((spaces || []).flatMap((space) => [space.id, ...["conversations", "collected", "materials"].map((key) => `${space.id}:${key}`)]).map((key) => [key, false])),
+  });
   const reveal = (space: string) => {
     remember({ ...expanded, [space]: true });
     setQuery("");
@@ -60,7 +66,10 @@ export default function Sidebar() {
   return (
     <nav className="flex flex-col gap-1 px-2 pt-2 pb-2">
       <TreeRow variant="nav" label="Home" icon="home" active={pathname === "/"} onClick={() => router.push("/")} />
-      <TreeRow variant="nav" label="Space" icon="grid" onClick={() => toggle("spaces")} />
+      <div className="group relative">
+        <TreeRow variant="nav" label="Space" icon="grid" onClick={() => toggle("spaces")} />
+        <IconButton icon="collapse" size="sm" label="Collapse all" onClick={collapse} className="absolute top-1/2 right-1.5 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100" />
+      </div>
       <Fold open={isOpen("spaces")} className="mt-1 ml-3 border-l border-slate-100 pl-1">
         <label className="mb-1 ml-1 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-slate-400 transition focus-within:border-apple focus-within:bg-white">
           <Icon name="search" className="h-3.5 w-3.5" />
