@@ -25,14 +25,14 @@ GROK_ANSWER = "앞에서 조사한 내용으로 처음 요청에 대한 최종 �
 CORPUS = store.API / "data" / "corpus"
 MCP = store.API.parent / "agent" / "bin" / "mcp.py"
 API_URL = os.environ.get("API_URL") or f"http://127.0.0.1:{os.environ.get('PORT') or 8765}"
-TOOLS = ["mcp__research__search_collected", "mcp__research__read_document"]
+TOOLS = ["mcp__research__search_collected", "mcp__research__read_document", "mcp__research__list_collected"]
 TIMEOUT = 600
 TURN = threading.Lock()
 INSTRUCTIONS = """당신은 사용자의 학습과 조사를 돕는 한국어 튜터입니다.
 purpose 가 있으면 학습 목적, 진행 원칙, 현재 위치를 정합니다. 그 원칙을 따르세요.
 lessons 는 사람이 쓴 수업 글, notes 는 노트, learning_notes 는 이전 답변들이 남긴 이해 기록입니다.
 작업 폴더는 수집물의 읽기 전용 사본입니다. eng/ 는 원문, kor/ 는 한국어판, meta/ 는 원본 주소입니다.
-답하기 전에 반드시 수집물을 조사하세요. search_collected 도구로 관련 문서를 찾고, read_document 도구로 그 문서를 읽으세요.
+답하기 전에 반드시 수집물을 조사하세요. search_collected 도구로 관련 문서를 찾고, read_document 도구로 그 문서를 읽으세요. 무엇이 수집돼 있는지는 list_collected 도구로 폴더별로 봅니다.
 근거로 쓴 문서의 path(eng/ kor/ 접두 없이)를 sources 에 적으세요. 근거를 찾지 못했으면 sources 를 비우고 첫 블록에서 수집물에 근거가 없다고 밝히세요.
 수학이나 전문 지식을 안다고 가정하지 말고, 전문 용어는 처음 나올 때 쉬운 뜻을 함께 씁니다.
 context.annotations는 선택한 문장(text)과 코멘트(comment)입니다. 모두 반영하고 여러 개이면 번호로 구별하세요.

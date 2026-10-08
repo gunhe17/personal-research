@@ -97,6 +97,34 @@ def read_document(*, path: str, language: str = "eng", start: int = 1, lines: in
     }
 
 
+def list_collected(*, folder: str = "", limit: int = 100) -> dict:
+    with urllib.request.urlopen(f"{API_URL}/api/tree", timeout=30) as response:
+        nodes = json.loads(response.read())["tree"]
+    wanted = folder.strip("/")
+    for part in [p for p in wanted.split("/") if p]:
+        found = next((n for n in nodes if n["type"] == "dir" and n["name"] == part), None)
+        if found is None:
+            raise ValueError(f"no folder {wanted}")
+        nodes = found["children"]
+    documents = [n for n in nodes if n["type"] == "file"]
+
+    return {
+        "folder": wanted,
+        "total_documents": sum(counted(node=n) for n in nodes),
+        "folders": [{"path": n["path"], "documents": counted(node=n)} for n in nodes if n["type"] == "dir"],
+        "documents": [
+            {"path": n["path"], "languages": n["languages"], "published": n["published"]} for n in documents[:max(1, min(int(limit), 500))]
+        ],
+    }
+
+
+def counted(*, node: dict) -> int:
+    if node["type"] == "file":
+        return 1
+
+    return sum(counted(node=c) for c in node["children"])
+
+
 TOOLS = {
     "search_collected": {
         "run": search_collected,
@@ -109,6 +137,20 @@ TOOLS = {
                     "limit": {"type": "integer", "minimum": 1, "maximum": 8},
                 },
                 "required": ["terms"],
+            },
+            "annotations": {"readOnlyHint": True, "openWorldHint": False},
+        },
+    },
+    "list_collected": {
+        "run": list_collected,
+        "spec": {
+            "description": "수집물 목록을 폴더 하나씩 본다. folder 를 비우면 맨 위(docs, papers, repos, videos). 하위 폴더와 그 문서 수, 그 폴더에 바로 있는 문서의 path 와 언어(eng, kor)를 돌려준다.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "folder": {"type": "string"},
+                    "limit": {"type": "integer", "minimum": 1, "maximum": 500},
+                },
             },
             "annotations": {"readOnlyHint": True, "openWorldHint": False},
         },
@@ -152,6 +194,13 @@ def check() -> None:
     missing = respond(message={"jsonrpc": "2.0", "id": 7, "method": "tools/call", "params": {"name": "read_document", "arguments": {"path": "nope/none.md"}}})
     assert missing["result"]["isError"]
     print(page["text"][:200])
+    top = json.loads(respond(message={"jsonrpc": "2.0", "id": 8, "method": "tools/call", "params": {"name": "list_collected", "arguments": {}}})["result"]["content"][0]["text"])
+    assert top["total_documents"] >= 1 and top["folders"]
+    inner = "/".join(path.split("/")[:-1])
+    leaf = json.loads(respond(message={"jsonrpc": "2.0", "id": 9, "method": "tools/call", "params": {"name": "list_collected", "arguments": {"folder": inner}}})["result"]["content"][0]["text"])
+    assert path in [d["path"] for d in leaf["documents"]]
+    assert respond(message={"jsonrpc": "2.0", "id": 10, "method": "tools/call", "params": {"name": "list_collected", "arguments": {"folder": "nope"}}})["result"]["isError"]
+    print(top)
 
 
 # #
