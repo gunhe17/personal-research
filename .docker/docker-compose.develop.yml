@@ -9,10 +9,33 @@ services:
     volumes:
       - ..:/app
       - claude-config:/root/.claude
+    environment:
+      AGENT_URL: http://agent:8770
+      API_URL: http://api:${PORT}
     ports:
       - "127.0.0.1:${DEVELOP_API_PORT}:${PORT}"
     env_file:
       - ../.env/.env.develop
+    networks:
+      - default
+      - agent
+
+  agent:
+    container_name: personal-research-develop-agent
+    build:
+      context: ..
+      dockerfile: .docker/Dockerfile.develop.agent
+    volumes:
+      - ../personal-research/agent:/app/personal-research/agent:ro
+      - ../personal-research/api/data/corpus:/app/personal-research/api/data/corpus:ro
+      - ../personal-research/api/data/cli:/app/personal-research/api/data/cli
+      - ../personal-research/api/data/work:/app/personal-research/api/data/work
+      - agent-claude:/root/.claude
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8770
+    networks:
+      - agent
 
   wui:
     container_name: personal-research-develop-wui
@@ -30,7 +53,11 @@ services:
     depends_on:
       - api
 
+networks:
+  agent:
+
 volumes:
+  agent-claude:
   claude-config:
   wui-modules:
   wui-next:

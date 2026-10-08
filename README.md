@@ -6,8 +6,10 @@ AI 모델과 에이전트에 관한 외부 문서를 원문 그대로 모아 두
 
 ```
 personal-research/
+├── agent/
+│   └── bin/              server.py(모델 CLI 실행), mcp.py(MCP 서버 research)
 ├── api/
-│   ├── bin/              진입점. server.py, collect.py, mcp.py, sync.sh
+│   ├── bin/              진입점. server.py, collect.py, sync.sh
 │   ├── usecase/          도메인 아래 동작 하나에 폴더 하나
 │   │   ├── collected/
 │   │   │   ├── collect/    수집. 유형별 type/
@@ -56,7 +58,8 @@ personal-research/
 - 대화의 `meta` 는 모델 이름을 키로 한다. 예: `{"codex": {"thread_id": ..., "model": ...}}`. `thread_id` 는 Codex 가 `~/.codex` 에 저장한 대화의 번호로, 다음 질문에서 그 대화를 이어 가는 데 쓴다.
 - 문서를 열면 그 문서를 자료로 가진 space 대화가 열리고, 없으면 첫 질문 때 그 문서를 자료로 새 대화를 만든다.
 - 답할 때마다 Codex 가 `data/corpus/` 의 수집물 사본(`collect.py export` 와 같은 트리)을 읽기 전용으로 조사하고, 근거로 쓴 path 를 `sources` 에 남긴다. 근거가 없으면 그렇다고 밝히고 답한다. 사본은 수집물이 바뀌면 다음 질문 때 다시 만든다.
-- 답하는 CLI(codex, claude, grok)에는 `bin/mcp.py` 가 stdio MCP 서버 `research` 로 붙는다. 지금 도구는 `search_collected`(수집물 본문 검색) 하나다. codex 와 claude 는 실행 인자로, grok 은 `data/corpus/.grok/config.toml` 로 붙인다. 도구는 `readOnlyHint` 를 달아야 codex 가 승인 없이 부른다. 점검은 `python3 personal-research/api/bin/mcp.py check`.
+- 답하는 CLI(codex, claude, grok)에는 `agent/bin/mcp.py` 가 stdio MCP 서버 `research` 로 붙는다. 지금 도구는 `search_collected`(수집물 본문 검색) 하나이고, DB 를 직접 열지 않고 api 의 `/api/search` 를 부른다. codex 와 claude 는 실행 인자로, grok 은 `data/corpus/.grok/config.toml` 과 `--trust` 로 붙인다. 도구는 `readOnlyHint` 를 달아야 codex 가 승인 없이 부른다. 점검은 `python3 personal-research/agent/bin/mcp.py http://127.0.0.1:8768 check`.
+- 모델 CLI(답변과 번역)는 `agent` 컨테이너에서 돈다. api 는 `AGENT_URL` 로 실행을 넘기고, 취소도 그쪽으로 보낸다. agent 는 codex, claude, grok 만 실행하고 작업 폴더는 `api/data/` 아래만 받는다. agent 컨테이너에는 `data/corpus`(읽기 전용), `data/cli`(CLI 인증), `data/work`(임시 파일)만 api 와 같은 경로로 연결되고, DB 와 `ENCRYPTION_KEY` 와 env 파일은 들어가지 않는다. 수집물은 웹에서 온 신뢰할 수 없는 글이라, 그 안의 지시를 따르더라도 닿을 수 있는 것을 이렇게 줄인다. `AGENT_URL` 이 없으면(컨테이너 없는 로컬) api 가 CLI 를 직접 띄우며 격리되지 않는다. 이때 grok 은 MCP 를 붙이지 못한다.
 - 모델을 부를 때마다(답변은 Codex, 수집할 때의 번역은 claude) `llm` 에 한 행이 남는다. `owner_id` 는 질문 메시지 id 나 번역한 문서 id 다.
 - DB 를 처음 열 때 `common/store.py` 의 `upgrade` 가 예전 구조(`extra` `body` 열, `opened` `conversations` `agent` `asked` 표, 대화를 JSON 으로 담던 `space`, `space` 의 `purpose` `log` 열, 대화 첫머리에 끼워 둔 수업)를 지금 구조로 옮긴다.
 
@@ -64,7 +67,7 @@ personal-research/
 
 본문(`/collected`)은 VS Code 같은 편집기 그룹이다. 그룹 하나에 항목 하나만 뜬다. 사이드바 항목을 누르면 지금 그룹의 항목을 바꾸고, 끌어서 그룹 왼쪽이나 오른쪽 가장자리에 놓으면 그 쪽으로 화면이 나뉜다(최대 4개, 모두 나란히). 그룹 위의 `유형 / 이름` 줄을 끌면 그룹을 옮기고, 그 줄 오른쪽의 ×로 닫는다. 수집물은 × 왼쪽에 내려받기가 있다. 항목마다 유형에 맞는 패널이 뜬다: 대화는 `ChatPane`, 수집물은 `DocPane`, 자료는 `MaterialPane`. 패널 사이의 연결(근거 열기, 인용 보내기, 포커스)은 작업대 Context(`features/workbench/WorkbenchProvider.tsx`) 하나가 맡는다. 답변의 근거를 누르면 옆 그룹에 문서가 열리고, 문서에서 인용하면 열린 대화로 들어간다. 배치는 브라우저에 남아 다시 열어도 그대로다.
 
-서비스는 둘이다. `api` 는 Python 서버로 `/api/*` 만 내고, `wui` 는 Next.js 서버로 화면을 낸다. 브라우저는 wui 만 보고, wui 가 `/api/*` 를 compose 네트워크 안의 `http://api:${PORT}` 로 넘긴다. 환경은 둘이고, 포트와 경로는 `.env/.env.{환경}` 에서 정한다.
+서비스는 셋이다. `api` 는 Python 서버로 `/api/*` 만 내고, `wui` 는 Next.js 서버로 화면을 내고, `agent` 는 모델 CLI 를 실행한다. 브라우저는 wui 만 보고, wui 가 `/api/*` 를 compose 네트워크 안의 `http://api:${PORT}` 로 넘긴다. agent 는 포트를 열지 않고 api 와만 `agent` 네트워크(`http://agent:8770`)로 만난다. 환경은 둘이고, 포트와 경로는 `.env/.env.{환경}` 에서 정한다.
 
 | 환경 | 코드 | api 포트 | wui 포트 | 재시작 |
 |------|------|------|------|------|

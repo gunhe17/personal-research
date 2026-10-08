@@ -5,13 +5,10 @@ import math
 import os
 import re
 import shutil
-import signal
-import subprocess
-import sys
-import tempfile
 import threading
 from pathlib import Path
 
+from usecase.common import agent
 from usecase.common import llm
 from usecase.common import log
 from usecase.common import store
@@ -26,11 +23,11 @@ MISSING = re.compile(r"no conversation found|session not found|thread not found|
 GROK_RESEARCH = "지금은 답하지 말고 조사만 하세요. search_collected 도구로 관련 문서를 찾고 작업 폴더의 수집물을 읽어, 답에 쓸 내용과 근거 path 를 짧게 정리해 두세요. 답변 JSON 은 다음 요청에서 만듭니다."
 GROK_ANSWER = "앞에서 조사한 내용으로 처음 요청에 대한 최종 답변을 요청된 JSON 하나로 만드세요. 근거로 쓴 문서의 path 를 sources 에 적으세요."
 CORPUS = store.API / "data" / "corpus"
-MCP = store.API / "bin" / "mcp.py"
+MCP = store.API.parent / "agent" / "bin" / "mcp.py"
+API_URL = os.environ.get("API_URL") or f"http://127.0.0.1:{os.environ.get('PORT') or 8765}"
 SEARCH = "mcp__research__search_collected"
 TIMEOUT = 600
 TURN = threading.Lock()
-RUNNING: dict[str, subprocess.Popen] = {}
 INSTRUCTIONS = """당신은 사용자의 학습과 조사를 돕는 한국어 튜터입니다.
 purpose 가 있으면 학습 목적, 진행 원칙, 현재 위치를 정합니다. 그 원칙을 따르세요.
 lessons 는 사람이 쓴 수업 글, notes 는 노트, learning_notes 는 이전 답변들이 남긴 이해 기록입니다.
@@ -136,9 +133,7 @@ def submit(*, domain: str, id: str, message_id: str) -> None:
 
 def cancel(*, domain: str, message_id: str) -> None:
     record.change(domain=domain, message_id=message_id, status="cancelled", error=None)
-    process = RUNNING.get(message_id)
-    if process:
-        halt(process=process)
+    agent.stop(id=message_id)
 
 
 def status(*, domain: str, message_id: str) -> str:
@@ -200,7 +195,7 @@ def attempt(*, runner, conversation: dict, question: dict, request: str, model: 
 
 def codex(*, conversation: dict, question: dict, request: str, model: str, method: str, fresh: bool) -> dict:
     thread_id = None if fresh else conversation["meta"].get("codex", {}).get("thread_id")
-    with tempfile.TemporaryDirectory(prefix="conversation-") as folder:
+    with agent.workspace(prefix="conversation-") as folder:
         output = Path(folder) / "answer.json"
         schema = Path(folder) / "schema.json"
         schema.write_text(json.dumps(SCHEMA), encoding="utf-8")
@@ -211,8 +206,8 @@ def codex(*, conversation: dict, question: dict, request: str, model: str, metho
             "-o", str(output),
             "-C", str(CORPUS),
             "-m", model,
-            "-c", f"mcp_servers.research.command={json.dumps(sys.executable)}",
-            "-c", f"mcp_servers.research.args={json.dumps([str(MCP)])}",
+            "-c", 'mcp_servers.research.command="python3"',
+            "-c", f"mcp_servers.research.args={json.dumps([str(MCP), API_URL])}",
         ]
         command += ["resume", thread_id] if thread_id else []
         command += ["-"]
@@ -237,8 +232,9 @@ def claude(*, conversation: dict, question: dict, request: str, model: str, meth
         "--json-schema", json.dumps(SCHEMA),
         "--model", model,
         "--strict-mcp-config",
-        "--mcp-config", json.dumps({"mcpServers": {"research": {"command": sys.executable, "args": [str(MCP)]}}}),
+        "--mcp-config", json.dumps({"mcpServers": {"research": {"command": "python3", "args": [str(MCP), API_URL]}}}),
         "--allowedTools", "Read", "Grep", "Glob", SEARCH,
+        "--disallowedTools", "Bash", "Edit", "Write", "WebFetch", "WebSearch",
     ]
     command += ["--resume", session_id] if session_id else []
     exit_code, stdout, stderr = call(command=command, request=request, conversation=conversation, question=question, provider="claude", model=model, method=method)
@@ -265,8 +261,9 @@ def grok(*, conversation: dict, question: dict, request: str, model: str, method
         "--tools", "read_file,grep,list_dir",
         "--disallowed-tools", "Agent",
         "--disable-web-search",
+        *(["--trust"] if agent.URL else []),
     ]
-    with tempfile.TemporaryDirectory(prefix="conversation-") as folder:
+    with agent.workspace(prefix="conversation-") as folder:
         research = Path(folder) / "research.txt"
         research.write_text(request + "\n\n" + GROK_RESEARCH, encoding="utf-8")
         command = [*base, "--prompt-file", str(research), *(["-r", session_id] if session_id else [])]
@@ -299,26 +296,19 @@ def parsed_json(*, text: str) -> dict:
 
 def call(*, command: list, request: str, conversation: dict, question: dict, provider: str, model: str, method: str) -> tuple[int, str, str]:
     started_at = store.now()
-    process = subprocess.Popen(
-        command,
-        cwd=CORPUS,
-        env=setting.environment(provider=next(k for k, v in setting.RUNNERS.items() if v == provider), method=method),
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        start_new_session=True,
-    )
-    RUNNING[question["id"]] = process
-    stdout = stderr = ""
+    exit_code, stdout, stderr = -1, "", ""
     try:
-        stdout, stderr = process.communicate(input=request, timeout=TIMEOUT)
-    except subprocess.TimeoutExpired:
-        halt(process=process)
-        stdout, stderr = process.communicate()
+        exit_code, stdout, stderr = agent.run(
+            id=question["id"],
+            command=command,
+            cwd=str(CORPUS),
+            env=setting.environment(provider=next(k for k, v in setting.RUNNERS.items() if v == provider), method=method),
+            stdin=request,
+            timeout=TIMEOUT,
+        )
+    except agent.Timeout:
         raise RuntimeError("응답 시간이 길어 중단했습니다. 다시 시도해 주세요.")
     finally:
-        RUNNING.pop(question["id"], None)
         if setting.kind(method=method) == "plan_key":
             setting.sync(provider=next(k for k, v in setting.RUNNERS.items() if v == provider), method=method)
         llm.record(
@@ -330,12 +320,12 @@ def call(*, command: list, request: str, conversation: dict, question: dict, pro
             request=request,
             response=stdout or "",
             stderr=stderr or "",
-            exit_code=process.returncode,
+            exit_code=exit_code,
             started_at=started_at,
             auth=method,
         )
 
-    return process.returncode, stdout or "", stderr or ""
+    return exit_code, stdout or "", stderr or ""
 
 
 def prompt(*, conversation: dict, question: dict) -> str:
@@ -370,13 +360,15 @@ def refresh() -> None:
         ).fetchone())
     marker = CORPUS / ".stamp"
     if not marker.is_file() or marker.read_text(encoding="utf-8") != stamp:
-        shutil.rmtree(CORPUS, ignore_errors=True)
+        CORPUS.mkdir(parents=True, exist_ok=True)
+        for child in CORPUS.iterdir():
+            shutil.rmtree(child) if child.is_dir() else child.unlink()
         store.export(folder=CORPUS)
         marker.write_text(stamp, encoding="utf-8")
     grok_config = CORPUS / ".grok" / "config.toml"
     grok_config.parent.mkdir(exist_ok=True)
     grok_config.write_text(
-        f"[mcp_servers.research]\ncommand = {json.dumps(sys.executable)}\nargs = {json.dumps([str(MCP)])}\nenabled = true\n",
+        f"[mcp_servers.research]\ncommand = \"python3\"\nargs = {json.dumps([str(MCP), API_URL])}\nenabled = true\n",
         encoding="utf-8",
     )
 
@@ -424,13 +416,6 @@ def supported(*, config) -> bool:
     x, y, w, h, rate = numbers
 
     return 0.1 <= abs(x) <= 10 and abs(y) <= 100 and abs(w) <= 10 and 0.001 <= abs(h) <= 1 and 0.001 <= rate <= 0.3
-
-
-def halt(*, process: subprocess.Popen) -> None:
-    try:
-        os.killpg(process.pid, signal.SIGTERM)
-    except ProcessLookupError:
-        pass
 
 
 # #

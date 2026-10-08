@@ -9,11 +9,37 @@ services:
     restart: unless-stopped
     volumes:
       - ../personal-research/api/database:/app/personal-research/api/database
+      - corpus:/app/personal-research/api/data/corpus
+      - cli:/app/personal-research/api/data/cli
+      - work:/app/personal-research/api/data/work
       - claude-config:/root/.claude
+    environment:
+      AGENT_URL: http://agent:8770
+      API_URL: http://api:${PORT}
     ports:
       - "127.0.0.1:${PRODUCTION_API_PORT}:${PORT}"
     env_file:
       - ../.env/.env.production
+    networks:
+      - default
+      - agent
+
+  agent:
+    container_name: personal-research-production-agent
+    build:
+      context: ..
+      dockerfile: .docker/Dockerfile.production.agent
+    restart: unless-stopped
+    volumes:
+      - corpus:/app/personal-research/api/data/corpus:ro
+      - cli:/app/personal-research/api/data/cli
+      - work:/app/personal-research/api/data/work
+      - agent-claude:/root/.claude
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8770
+    networks:
+      - agent
 
   wui:
     container_name: personal-research-production-wui
@@ -28,5 +54,12 @@ services:
     depends_on:
       - api
 
+networks:
+  agent:
+
 volumes:
+  agent-claude:
   claude-config:
+  cli:
+  corpus:
+  work:

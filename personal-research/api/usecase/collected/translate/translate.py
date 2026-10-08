@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import os
 import shutil
-import subprocess
-import tempfile
 from pathlib import Path
 
 from usecase.collected.collect.type import paper
 from usecase.collected.collect.type import x
+from usecase.common import agent
 from usecase.common import llm
 from usecase.common import store
 from usecase.setting.record import record as setting
@@ -72,7 +71,7 @@ def korean(*, id: str) -> str:
     if not available():
         raise RuntimeError("claude CLI not found")
     body = store.read(id=id, language="eng")
-    with tempfile.TemporaryDirectory() as folder:
+    with agent.workspace(prefix="translate-") as folder:
         work = Path(folder)
         (work / "doc.md").write_text(body, encoding="utf-8")
         request = f"{rules()}\n\n번역: {work / 'doc.md'} → {work / 'doc.ko.md'}"
@@ -81,10 +80,18 @@ def korean(*, id: str) -> str:
             "-p", request,
             "--allowed-tools", "Read,Write",
             "--permission-mode", "acceptEdits",
+            "--disallowedTools", "Bash", "WebFetch", "WebSearch",
         ]
         method = (setting.methods(provider="anthropic") or ["plan_key"])[0]
         started_at = store.now()
-        done = subprocess.run(command, cwd=folder, capture_output=True, text=True, timeout=1800, env=setting.environment(provider="anthropic", method=method))
+        exit_code, stdout, stderr = agent.run(
+            id=f"translate-{id}",
+            command=command,
+            cwd=folder,
+            env=setting.environment(provider="anthropic", method=method),
+            stdin="",
+            timeout=1800,
+        )
         llm.record(
             provider="claude",
             model="",
@@ -92,15 +99,15 @@ def korean(*, id: str) -> str:
             owner_id=id,
             command=command,
             request=request,
-            response=done.stdout,
-            stderr=done.stderr,
-            exit_code=done.returncode,
+            response=stdout,
+            stderr=stderr,
+            exit_code=exit_code,
             started_at=started_at,
             auth=method,
         )
         target = work / "doc.ko.md"
         if not target.is_file():
-            raise RuntimeError(f"No translation produced: {done.stderr.strip()[-300:] or done.stdout.strip()[-300:]}")
+            raise RuntimeError(f"No translation produced: {stderr.strip()[-300:] or stdout.strip()[-300:]}")
         translated = target.read_text(encoding="utf-8")
     if store.path_of(id=id).startswith("docs/x/"):
         x.verify(source=body, translated=translated)

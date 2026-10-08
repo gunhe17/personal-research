@@ -3,11 +3,10 @@ from __future__ import annotations
 
 import json
 import sys
-from pathlib import Path
+import urllib.parse
+import urllib.request
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from usecase.collected.search import search
+API_URL = (sys.argv[1:2] or ["http://127.0.0.1:8765"])[0].rstrip("/")
 
 
 # #
@@ -51,7 +50,7 @@ def called(*, params: dict) -> dict:
         return {"isError": True, "content": [{"type": "text", "text": f"unknown tool {params.get('name')}"}]}
     try:
         output = tool["run"](**(params.get("arguments") or {}))
-    except (TypeError, ValueError) as error:
+    except (TypeError, ValueError, OSError) as error:
         return {"isError": True, "content": [{"type": "text", "text": str(error)}]}
 
     return {"content": [{"type": "text", "text": json.dumps(output, ensure_ascii=False)}]}
@@ -63,10 +62,12 @@ def called(*, params: dict) -> dict:
 def search_collected(*, terms: list, limit: int = 8) -> list[dict]:
     if not isinstance(terms, list) or not all(isinstance(t, str) for t in terms):
         raise ValueError("terms must be a list of strings")
-    found = search.run(terms=terms, limit=max(1, min(int(limit), 20)))
+    query = urllib.parse.urlencode({"q": " ".join(terms)})
+    with urllib.request.urlopen(f"{API_URL}/api/search?{query}", timeout=30) as response:
+        found = json.loads(response.read())["items"]
 
     return [
-        {"path": f["path"], "language": f["language"], "hits": f["hits"], "excerpt": f["excerpt"]} for f in found
+        {"path": f["path"], "language": f["language"], "hits": f["hits"], "excerpt": f["excerpt"]} for f in found[:max(1, min(int(limit), 8))]
     ]
 
 
@@ -79,7 +80,7 @@ TOOLS = {
                 "type": "object",
                 "properties": {
                     "terms": {"type": "array", "items": {"type": "string"}, "minItems": 1},
-                    "limit": {"type": "integer", "minimum": 1, "maximum": 20},
+                    "limit": {"type": "integer", "minimum": 1, "maximum": 8},
                 },
                 "required": ["terms"],
             },
@@ -107,4 +108,4 @@ def check() -> None:
 # cli
 
 if __name__ == "__main__":
-    check() if sys.argv[1:] == ["check"] else main()
+    check() if sys.argv[2:] == ["check"] else main()
