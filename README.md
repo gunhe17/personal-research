@@ -7,7 +7,7 @@ AI 모델과 에이전트에 관한 외부 문서를 원문 그대로 모아 두
 ```
 personal-research/
 ├── api/
-│   ├── bin/              진입점. server.py, collect.py, sync.sh
+│   ├── bin/              진입점. server.py, collect.py, mcp.py, sync.sh
 │   ├── usecase/          도메인 아래 동작 하나에 폴더 하나
 │   │   ├── collected/
 │   │   │   ├── collect/    수집. 유형별 type/
@@ -56,6 +56,7 @@ personal-research/
 - 대화의 `meta` 는 모델 이름을 키로 한다. 예: `{"codex": {"thread_id": ..., "model": ...}}`. `thread_id` 는 Codex 가 `~/.codex` 에 저장한 대화의 번호로, 다음 질문에서 그 대화를 이어 가는 데 쓴다.
 - 문서를 열면 그 문서를 자료로 가진 space 대화가 열리고, 없으면 첫 질문 때 그 문서를 자료로 새 대화를 만든다.
 - 답할 때마다 Codex 가 `data/corpus/` 의 수집물 사본(`collect.py export` 와 같은 트리)을 읽기 전용으로 조사하고, 근거로 쓴 path 를 `sources` 에 남긴다. 근거가 없으면 그렇다고 밝히고 답한다. 사본은 수집물이 바뀌면 다음 질문 때 다시 만든다.
+- 답하는 CLI(codex, claude, grok)에는 `bin/mcp.py` 가 stdio MCP 서버 `research` 로 붙는다. 지금 도구는 `search_collected`(수집물 본문 검색) 하나다. codex 와 claude 는 실행 인자로, grok 은 `data/corpus/.grok/config.toml` 로 붙인다. 도구는 `readOnlyHint` 를 달아야 codex 가 승인 없이 부른다. 점검은 `python3 personal-research/api/bin/mcp.py check`.
 - 모델을 부를 때마다(답변은 Codex, 수집할 때의 번역은 claude) `llm` 에 한 행이 남는다. `owner_id` 는 질문 메시지 id 나 번역한 문서 id 다.
 - DB 를 처음 열 때 `common/store.py` 의 `upgrade` 가 예전 구조(`extra` `body` 열, `opened` `conversations` `agent` `asked` 표, 대화를 JSON 으로 담던 `space`, `space` 의 `purpose` `log` 열, 대화 첫머리에 끼워 둔 수업)를 지금 구조로 옮긴다.
 
