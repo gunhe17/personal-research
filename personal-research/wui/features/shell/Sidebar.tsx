@@ -44,7 +44,7 @@ export default function Sidebar() {
   };
   const toggle = (key: string, fallback = true) => remember({ ...expanded, [key]: !isOpen(key, fallback) });
   const reveal = (space: string) => {
-    remember({ ...expanded, spaces: true, [space]: true });
+    remember({ ...expanded, [space]: true });
     setQuery("");
   };
 
@@ -59,29 +59,29 @@ export default function Sidebar() {
 
   return (
     <nav className="flex flex-col gap-0.5 px-2 pt-2 pb-2">
-      <label className="mb-1 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-slate-400 transition focus-within:border-apple focus-within:bg-white">
-        <Icon name="search" className="h-3.5 w-3.5" />
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          onKeyDown={(event) => event.key === "Escape" && setQuery("")}
-          placeholder="Search"
-          aria-label="Search the sidebar"
-          className="min-w-0 flex-1 bg-transparent text-[13px] text-slate-900 placeholder:text-slate-400 focus:outline-none"
-        />
-        {query && (
-          <button type="button" aria-label="Clear search" onClick={() => setQuery("")} className="text-slate-400 hover:text-slate-700">
-            <Icon name="close" className="h-3 w-3" />
-          </button>
-        )}
-      </label>
-      {needle ? (
-        <Results needle={needle} spaces={spaces || []} details={details} active={workbench.activeKey} onOpen={(item) => workbench.open(item)} onReveal={reveal} />
-      ) : (
-        <>
-          <TreeRow variant="nav" label="Home" icon="home" active={pathname === "/"} onClick={() => router.push("/")} />
-          <TreeRow variant="nav" label="Space" icon="grid" onClick={() => toggle("spaces")} />
-          <Fold open={isOpen("spaces")} className="mt-1 ml-3 border-l border-slate-100 pl-1">
+      <TreeRow variant="nav" label="Home" icon="home" active={pathname === "/"} onClick={() => router.push("/")} />
+      <TreeRow variant="nav" label="Space" icon="grid" onClick={() => toggle("spaces")} />
+      <Fold open={isOpen("spaces")} className="mt-1 ml-3 border-l border-slate-100 pl-1">
+        <label className="mb-1 ml-1 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-slate-400 transition focus-within:border-apple focus-within:bg-white">
+          <Icon name="search" className="h-3.5 w-3.5" />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={(event) => event.key === "Escape" && setQuery("")}
+            placeholder="Search spaces"
+            aria-label="Search spaces"
+            className="min-w-0 flex-1 bg-transparent text-[13px] text-slate-900 placeholder:text-slate-400 focus:outline-none"
+          />
+          {query && (
+            <button type="button" aria-label="Clear search" onClick={() => setQuery("")} className="text-slate-400 hover:text-slate-700">
+              <Icon name="close" className="h-3 w-3" />
+            </button>
+          )}
+        </label>
+        {needle ? (
+          <Results needle={needle} spaces={spaces || []} details={details} active={workbench.activeKey} onOpen={(item) => workbench.open(item)} onReveal={reveal} />
+        ) : (
+          <>
             {spaces && !spaces.length && <div className="px-2 py-1.5 text-xs text-slate-400">Nothing yet</div>}
             {(spaces || []).slice(0, 12).map((space) => (
               <div key={space.id}>
@@ -97,9 +97,9 @@ export default function Sidebar() {
                 </Fold>
               </div>
             ))}
-          </Fold>
-        </>
-      )}
+          </>
+        )}
+      </Fold>
     </nav>
   );
 }

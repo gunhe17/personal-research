@@ -18,7 +18,7 @@ with sync_playwright() as p:
     page.reload()
     page.get_by_label("Toggle sidebar").click()
     nav = page.locator("nav").first
-    box = page.get_by_label("Search the sidebar")
+    box = page.get_by_label("Search spaces")
     space = next(s for s in page.evaluate("fetch('/api/spaces').then(r => r.json())")["items"] if s["collected_count"] > 0)
     detail = page.evaluate("id => fetch(`/api/spaces/${id}`).then(r => r.json())", space["id"])
     path = (detail["collected"][0]["documents"] or [detail["collected"][0]])[0]["path"]
@@ -27,7 +27,7 @@ with sync_playwright() as p:
     box.fill(name.lower())
     leaf = nav.get_by_role("button", name="/".join(path.split("/")[2:]), exact=True)
     leaf.wait_for()
-    print("1 doc found by name:", leaf.count(), "| tree hidden:", nav.get_by_role("button", name="Home").count() == 0)
+    print("1 doc found by name:", leaf.count(), "| home stays:", nav.get_by_role("button", name="Home").count() == 1)
     page.screenshot(path=f"{OUT}/search.png")
     leaf.click()
     page.wait_for_selector(".prose-doc")
@@ -36,7 +36,7 @@ with sync_playwright() as p:
     box.fill("zzzz-no-such")
     print("3 empty:", nav.get_by_text("No matches").count())
     box.press("Escape")
-    print("4 escape clears:", box.input_value() == "", "| tree back:", nav.get_by_role("button", name="Home").count())
+    print("4 escape clears:", box.input_value() == "", "| tree back:", nav.get_by_role("button", name=space["title"]).count())
 
     box.fill(space["title"][:4])
     nav.get_by_role("button", name=space["title"]).first.click()
