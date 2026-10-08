@@ -1,0 +1,23 @@
+FROM python:3.13-slim
+
+ENV PYTHONUNBUFFERED=1
+
+RUN \
+    apt-get update && \
+    apt-get install -y --no-install-recommends curl ca-certificates git ripgrep && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN \
+    curl -fsSL "https://github.com/openai/codex/releases/latest/download/codex-$(uname -m)-unknown-linux-musl.tar.gz" | tar -xz -C /tmp && \
+    mv /tmp/codex-$(uname -m)-unknown-linux-musl /usr/local/bin/codex
+
+RUN curl -fsSL https://claude.ai/install.sh | bash
+RUN curl -fsSL https://x.ai/cli/install.sh | bash
+ENV PATH="/root/.local/bin:/root/.grok/bin:${PATH}" \
+    CLAUDE_CONFIG_DIR=/root/.claude \
+    DISABLE_AUTOUPDATER=1 \
+    GROK_MEMORY=0
+
+WORKDIR /app
+
+CMD ["python", "personal-research/agent/bin/server.py"]
