@@ -30,7 +30,7 @@ export function usable(method: Method, status?: Login): boolean {
 }
 
 export default function ProviderPane({ provider, statuses, error, onSave: persist, onLogin, onLogout }: Props) {
-  const [open, setOpen] = useState<Set<string>>(() => new Set([provider.methods[0]?.id]));
+  const [open, setOpen] = useState<Set<string>>(() => new Set());
   const [saving, setSaving] = useState(false);
   const onSave = async (values: Record<string, unknown>) => {
     setSaving(true);
