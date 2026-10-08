@@ -58,7 +58,7 @@ export default function Sidebar() {
   });
 
   return (
-    <nav className="flex flex-col gap-0.5 px-2 pt-2 pb-2">
+    <nav className="flex flex-col gap-1 px-2 pt-2 pb-2">
       <TreeRow variant="nav" label="Home" icon="home" active={pathname === "/"} onClick={() => router.push("/")} />
       <TreeRow variant="nav" label="Space" icon="grid" onClick={() => toggle("spaces")} />
       <Fold open={isOpen("spaces")} className="mt-1 ml-3 border-l border-slate-100 pl-1">

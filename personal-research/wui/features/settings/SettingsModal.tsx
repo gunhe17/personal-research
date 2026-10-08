@@ -91,14 +91,14 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
 
   return (
     <Modal open={open} onClose={close} label="Settings" className="flex h-[min(560px,90vh)] max-w-2xl">
-      <nav className="flex w-48 shrink-0 flex-col gap-0.5 border-r border-slate-100 bg-white px-2 pt-3 pb-2 max-sm:w-36">
+      <nav className="flex w-48 shrink-0 flex-col gap-1 border-r border-slate-100 bg-white px-2 pt-3 pb-2 max-sm:w-36">
         <div className="mb-2 px-2 text-sm font-semibold text-slate-900">Settings</div>
         <TreeRow variant="nav" label="General" icon="gear" active={tab === "general"} onClick={() => setTab("general")} />
         <div className="flex items-center gap-2 px-2 py-1.5 text-sm text-slate-600">
           <Icon name="chip" className="h-4 w-4" />
           Models
         </div>
-        <div className="mt-0.5 ml-3 flex flex-col gap-0.5 border-l border-slate-100 pl-1">
+        <div className="ml-3 flex flex-col gap-1 border-l border-slate-100 pl-1">
           {providers.map((provider) => (
             <TreeRow key={provider.id} variant="nav" label={provider.label} active={tab === provider.id} trailing={<Dot on={ready(provider)} />} onClick={() => setTab(provider.id)} />
           ))}
