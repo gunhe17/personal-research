@@ -57,7 +57,7 @@ with sync_playwright() as p:
     methods = page.evaluate("fetch('/api/settings').then(r => r.json())")["providers"][1]["methods"]
     added = next(m for m in methods if m["id"] not in before)
     print("4 added:", added["id"], added["enabled"], "count", len(before), "->", len(methods))
-    row = dialog.locator("div.pl-5.border-l").nth([m["id"] for m in methods].index(added["id"]))
+    row = dialog.locator("div.pl-5.border-l").first
     box = row.get_by_placeholder("Anthropic API key")
     box.fill(FAKE)
     box.press("Enter")
