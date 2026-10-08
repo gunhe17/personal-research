@@ -19,19 +19,29 @@ export default function Fold({ open, children, className }: { open: boolean; chi
       if (!open) setShown(false);
       return;
     }
+    const running = node.getAnimations().length > 0;
+    const height = node.getBoundingClientRect().height;
+    const opacity = Number(getComputedStyle(node).opacity);
     node.getAnimations().forEach((animation) => animation.cancel());
-    const height = node.scrollHeight;
+    const full = node.scrollHeight;
+    const from = running ? { height: `${height}px`, opacity } : open ? { height: "0px", opacity: 0 } : { height: `${full}px`, opacity: 1 };
+    const to = open ? { height: `${full}px`, opacity: 1 } : { height: "0px", opacity: 0 };
     node.style.overflow = "hidden";
-    const animation = node.animate(
-      open ? [{ height: "0px", opacity: 0 }, { height: `${height}px`, opacity: 1 }] : [{ height: `${height}px`, opacity: 1 }, { height: "0px", opacity: 0 }],
-      { duration: open ? 240 : 180, easing: open ? "cubic-bezier(0.22, 1, 0.36, 1)" : "cubic-bezier(0.4, 0, 1, 1)" },
-    );
+    const animation = node.animate([from, to], {
+      duration: open ? 240 : 180,
+      easing: open ? "cubic-bezier(0.22, 1, 0.36, 1)" : "cubic-bezier(0.4, 0, 0.2, 1)",
+      fill: open ? "none" : "forwards",
+    });
     animation.onfinish = () => {
-      node.style.overflow = "";
-      if (!open) setShown(false);
+      if (open) node.style.overflow = "";
+      else setShown(false);
     };
   }, [open]);
 
   if (!shown) return null;
-  return <div ref={box} className={className}>{children}</div>;
+  return (
+    <div ref={box} className="flow-root">
+      <div className={className}>{children}</div>
+    </div>
+  );
 }
