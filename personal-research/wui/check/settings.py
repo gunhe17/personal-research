@@ -23,9 +23,14 @@ with sync_playwright() as p:
     nav = page.locator("nav").first
     print("0 closed sidebar inert:", page.locator("aside[inert]").count() == 1)
     page.get_by_label("Toggle sidebar").click()
-    nav.get_by_role("button", name=space["title"]).first.click()
+    def expand(row):
+        if row.get_attribute("aria-expanded") != "true":
+            row.click()
+            page.wait_for_timeout(300)
+
+    expand(nav.get_by_role("button", name=space["title"]).first)
     folder = nav.get_by_role("button", name="Conversations")
-    folder.click()
+    expand(folder)
     print("1 conversations folder:", folder.inner_text().replace("\n", " "), "| api count", space["conversation_count"])
     nav.get_by_text("새 대화").click()
     page.wait_for_url("**/collected**")
@@ -33,8 +38,7 @@ with sync_playwright() as p:
     print("2 new chat pane:", page.locator("text=이 space 에서 무엇을 배울까요?").count())
     page.get_by_label("닫기").last.click()
     page.wait_for_timeout(300)
-    collected = nav.get_by_role("button", name="Collected")
-    collected.click()
+    expand(nav.get_by_role("button", name="Collected"))
     detail = page.evaluate("id => fetch(`/api/spaces/${id}`).then(r => r.json())", space["id"])
     root = detail["collected"][0]
     path = (root["documents"] or [root])[0]["path"]
