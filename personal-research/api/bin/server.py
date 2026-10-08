@@ -5,7 +5,6 @@ import json
 import os
 import re
 import sys
-import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -21,7 +20,7 @@ from usecase.conversation.record import record
 from usecase.space.record import record as spaces
 from usecase.setting.login import login
 from usecase.setting.record import record as setting
-from usecase.collected.collect import pipeline
+from usecase.collected.collect import job
 from usecase.collected.read import read
 from usecase.collected.search import search
 
@@ -78,6 +77,13 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(code=400, payload={"error": str(error)})
         if path == "/api/models":
             return self.reply(code=200, payload=converse.models())
+        if path == "/api/collect":
+            return self.reply(code=200, payload={"items": job.listed()})
+        if path.startswith("/api/collect/"):
+            found = job.get(id=path.removeprefix("/api/collect/"))
+            if found is None:
+                return self.reply(code=404, payload={"error": "not found"})
+            return self.reply(code=200, payload=found)
         if path == "/api/skills":
             try:
                 return self.reply(code=200, payload={"items": agent.skills()})
@@ -180,10 +186,12 @@ class Handler(BaseHTTPRequestHandler):
         except (ValueError, KeyError, StopIteration) as error:
             return self.reply(code=400, payload={"error": str(error) or "요청을 처리하지 못했습니다."})
         if parsed.path == "/api/collect":
-            given = (body.get("input") or "").strip()
-            if not given:
-                return self.reply(code=400, payload={"error": "input 이 비어 있다"})
-            return self.stream(work=lambda send: collecting(given=given, send=send))
+            if not self.trusted():
+                return self.reply(code=403, payload={"error": "forbidden"})
+            try:
+                return self.reply(code=200, payload=job.start(input=str(body.get("input") or "")))
+            except ValueError as error:
+                return self.reply(code=400, payload={"error": str(error)})
 
         self.reply(code=404, payload={"error": "not found"})
 
@@ -275,29 +283,6 @@ class Handler(BaseHTTPRequestHandler):
     # #
     # chat
 
-    def stream(self, *, work) -> None:
-        self.send_response(200)
-        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
-        self.send_header("Cache-Control", "no-cache")
-        self.send_header("Connection", "keep-alive")
-        self.cors()
-        self.end_headers()
-
-        def emit(event: dict) -> None:
-            self.wfile.write(f"data: {json.dumps(event, ensure_ascii=False)}\n\n".encode("utf-8"))
-            self.wfile.flush()
-
-        try:
-            work(emit)
-        except Exception as error:
-            log.write(level="error", message=f"stream {error}")
-            emit({"type": "error", "error": str(error)})
-        try:
-            self.wfile.write(b"data: [DONE]\n\n")
-            self.wfile.flush()
-        except BrokenPipeError:
-            pass
-
     # #
     # respond
 
@@ -340,35 +325,6 @@ class Handler(BaseHTTPRequestHandler):
         self.cors()
         self.end_headers()
         self.wfile.write(data)
-
-
-def collecting(*, given: str, send) -> None:
-    started = record.create(domain="agent", data={})
-    question = record.ask(domain="agent", id=started["id"], data={"content": given, "kind": "collect", "status": "completed"})
-    send({"type": "conversation", "domain": "agent", "id": started["id"]})
-    outcome = {}
-
-    def forward(event: dict) -> None:
-        if event.get("type") in ("done", "error"):
-            outcome.update(event)
-        send(event)
-
-    try:
-        pipeline.run(input=given, send=forward)
-    except Exception as error:
-        outcome["error"] = str(error)
-        raise
-    finally:
-        if outcome.get("id"):
-            record.edit(domain="agent", id=started["id"], data={"collected_id": outcome["id"]})
-        record.add(domain="agent", id=started["id"], message={
-            "id": str(uuid.uuid4()),
-            "role": "assistant",
-            "question_id": question["id"],
-            "content": outcome.get("text") or outcome.get("error") or "수집을 마치지 못했습니다.",
-            "sources": [{"id": outcome["id"], "path": store.path_of(id=outcome["id"])}] if outcome.get("id") else None,
-            "created_at": store.now(),
-        })
 
 
 # #
