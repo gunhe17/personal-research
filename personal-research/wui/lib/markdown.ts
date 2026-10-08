@@ -3,12 +3,29 @@ import { Marked, type Token } from "marked";
 const chat = new Marked({ gfm: true, breaks: true });
 const doc = new Marked({ gfm: true, breaks: false });
 
+const BLOCKED = "script,iframe,frame,object,embed,style,link,meta,base,form,animate,set";
+const UNSAFE = /^\s*(javascript|vbscript|data):/i;
+
+function clean(html: string): string {
+  if (typeof document === "undefined") return html;
+  const box = document.createElement("template");
+  box.innerHTML = html;
+  box.content.querySelectorAll(BLOCKED).forEach((node) => node.remove());
+  box.content.querySelectorAll("*").forEach((node) => {
+    for (const { name, value } of [...node.attributes]) {
+      const link = /^(href|src|xlink:href|action|formaction|srcdoc)$/.test(name);
+      if (name.startsWith("on") || (link && UNSAFE.test(value) && !/^\s*data:image\//i.test(value))) node.removeAttribute(name);
+    }
+  });
+  return box.innerHTML;
+}
+
 export function chatHtml(source: string): string {
-  return (chat.parse(source || "") as string).replace(/<p>\s*<\/p>/g, "");
+  return clean((chat.parse(source || "") as string).replace(/<p>\s*<\/p>/g, ""));
 }
 
 export function docHtml(source: string): string {
-  return doc.parse(source || "") as string;
+  return clean(doc.parse(source || "") as string);
 }
 
 function blocks(source: string): Token[] {
@@ -16,11 +33,11 @@ function blocks(source: string): Token[] {
 }
 
 function sentences(text: string): string[] {
-  return text.match(/[^.!?]+[.!?]+["')\]]*\s*|[^.!?]+$/g) || [text];
+  return text.split(/(?<=[.!?]["')\]]*)\s+/).filter(Boolean);
 }
 
 function paired(a: Token | undefined, b: Token | undefined): [string[], string[]] | null {
-  if (!a || !b || a.type !== "paragraph" || b.type !== "paragraph" || a.raw.trim() === b.raw.trim()) return null;
+  if (!a || !b || a.type !== "paragraph" || b.type !== "paragraph" || a.raw.trim() === b.raw.trim() || /\]\(|`/.test(a.raw + b.raw)) return null;
   const left = sentences(a.raw.trim());
   const right = sentences(b.raw.trim());
   return left.length === right.length ? [left, right] : null;
@@ -39,7 +56,7 @@ export function interleavedHtml(original: string, translation: string): string {
     if (a[i]) html += `<div class="original-block">${doc.parser([a[i]])}</div>`;
     if (b[i] && (!a[i] || b[i].raw.trim() !== a[i].raw.trim())) html += `<div class="translation-block">${doc.parser([b[i]])}</div>`;
   }
-  return html;
+  return clean(html);
 }
 
 export function bilingualMarkdown(original: string, translation: string): string {

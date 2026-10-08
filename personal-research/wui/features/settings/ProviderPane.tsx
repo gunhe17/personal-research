@@ -29,8 +29,17 @@ export function usable(method: Method, status?: Login): boolean {
   return plan(method) ? Boolean(status?.logged_in) : Boolean(method.secret);
 }
 
-export default function ProviderPane({ provider, statuses, error, onSave, onLogin, onLogout }: Props) {
+export default function ProviderPane({ provider, statuses, error, onSave: persist, onLogin, onLogout }: Props) {
   const [open, setOpen] = useState<Set<string>>(() => new Set([provider.methods[0]?.id]));
+  const [saving, setSaving] = useState(false);
+  const onSave = async (values: Record<string, unknown>) => {
+    setSaving(true);
+    try {
+      return await persist(values);
+    } finally {
+      setSaving(false);
+    }
+  };
   const status = (method: Method) => statuses[method.id];
   const first = provider.methods.find((m) => usable(m, status(m)));
   const checking = provider.methods.some((m) => m.enabled && plan(m) && !status(m));
@@ -92,10 +101,10 @@ export default function ProviderPane({ provider, statuses, error, onSave, onLogi
                     </span>
                   </button>
                   <span className="flex shrink-0 items-center text-slate-400 opacity-60 transition group-hover:opacity-100">
-                    <Arrow label="Move up" path="M4 10l4-4 4 4" disabled={blocked(i - 1)} onClick={() => shift(method, -1)} />
-                    <Arrow label="Move down" path="M4 6l4 4 4-4" disabled={blocked(i + 1)} onClick={() => shift(method, 1)} />
+                    <Arrow label="Move up" path="M4 10l4-4 4 4" disabled={saving || blocked(i - 1)} onClick={() => shift(method, -1)} />
+                    <Arrow label="Move down" path="M4 6l4 4 4-4" disabled={saving || blocked(i + 1)} onClick={() => shift(method, 1)} />
                   </span>
-                  <Switch checked={method.enabled} label="Use this method" onChange={() => onSave({ enabled: { [method.id]: !method.enabled } })} />
+                  <Switch checked={method.enabled} label="Use this method" disabled={saving} onChange={() => onSave({ enabled: { [method.id]: !method.enabled } })} />
                 </div>
                 <Fold open={expanded} className="ml-3 border-l border-slate-100 pl-5">
                   <div className="pt-0.5 pb-2">

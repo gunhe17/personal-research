@@ -96,6 +96,7 @@ class Handler(BaseHTTPRequestHandler):
                 code=200,
                 data=found["content"].encode("utf-8"),
                 content_type=read.content_type(path=found["path"]),
+                sandbox=True,
             )
         if path == "/api/file":
             found = read.document(
@@ -322,9 +323,11 @@ class Handler(BaseHTTPRequestHandler):
             content_type="application/json; charset=utf-8",
         )
 
-    def send(self, *, code: int, data: bytes, content_type: str, no_store: bool = False) -> None:
+    def send(self, *, code: int, data: bytes, content_type: str, no_store: bool = False, sandbox: bool = False) -> None:
         self.send_response(code)
         self.send_header("Content-Type", content_type)
+        if sandbox:
+            self.send_header("Content-Security-Policy", "sandbox allow-scripts allow-popups")
         self.send_header("Content-Length", str(len(data)))
         if no_store:
             self.send_header("Cache-Control", "no-store, must-revalidate")

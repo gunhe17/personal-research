@@ -97,7 +97,7 @@ function Folders({ space, isOpen, toggle, active, onOpen }: { space: Space; isOp
         const id = `${space.id}:${key}`;
         return (
           <div key={key}>
-            <TreeRow small label={name} icon={<Icon name={key} className="h-3.5 w-3.5 text-apple-link" />} open={isOpen(id)} count={rows.length} onClick={() => toggle(id)} />
+            <TreeRow small label={name} icon={<Icon name={key} className="h-3.5 w-3.5 text-apple-link" />} open={isOpen(id)} count={key === "conversations" ? space.conversations.length : rows.length} onClick={() => toggle(id)} />
             <Fold open={isOpen(id)}>
               {!rows.length && <div className="pr-2 pb-1 pl-9 text-[11px] text-slate-400">비어 있음</div>}
               {rows.map(([item, icon, label]) => (

@@ -55,6 +55,7 @@ export default function Shell({ children }: { children: ReactNode }) {
       <div className="relative flex min-h-0 flex-1">
         {sidebar && <div className="absolute inset-0 z-20 bg-slate-900/20 md:hidden" onClick={() => setSidebar(false)} />}
         <aside
+          inert={!sidebar}
           className={cx("flex h-full shrink-0 flex-col overflow-hidden bg-white max-md:absolute max-md:inset-y-0 max-md:left-0 max-md:z-30", !resizing && "transition-all duration-300 ease-spring")}
           style={{ width: sidebar ? width : 0, opacity: sidebar ? 1 : 0 }}
         >

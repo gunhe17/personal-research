@@ -1,4 +1,4 @@
-const NAMES = ["spaces", "settings"] as const;
+const NAMES = ["spaces", "settings", "zoom"] as const;
 
 export type Signal = (typeof NAMES)[number];
 

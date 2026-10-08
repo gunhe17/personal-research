@@ -1,3 +1,4 @@
+import { emit } from "@/lib/events";
 import { load, save } from "@/lib/storage";
 
 export type Zoom = "docZoom" | "chatZoom";
@@ -15,6 +16,7 @@ export function applyZoom(key: Zoom, value: number): number {
   const next = clamp(value);
   document.documentElement.style.setProperty(VARIABLE[key], String(next));
   save(key, next);
+  emit("zoom");
   return next;
 }
 

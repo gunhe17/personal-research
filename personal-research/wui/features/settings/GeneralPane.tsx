@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { listen } from "@/lib/events";
 import Button from "@/ui/Button";
 import SectionHeader from "@/ui/SectionHeader";
 import { applyZoom, MAX, MIN, readZoom, type Zoom } from "./zoom";
@@ -18,6 +19,7 @@ export default function GeneralPane() {
 function ZoomControl({ zoom, title }: { zoom: Zoom; title: string }) {
   const [value, setValue] = useState(() => readZoom(zoom));
   const change = (next: number) => setValue(applyZoom(zoom, next));
+  useEffect(() => listen("zoom", () => setValue(readZoom(zoom))), [zoom]);
   const step = "h-8 w-8 rounded-full border border-slate-200 text-[13px] font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-40";
   return (
     <section>

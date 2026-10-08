@@ -42,7 +42,7 @@ export default function LoginSheet({ provider, method, title, initial, onClose }
         setLogin(data);
         if (!data.pending && !data.logged_in) setMessage("Login ended without approval. Try again.");
         finish(data);
-      }, () => {});
+      }, () => live.current && setLogin((current) => current && { ...current }));
     }, 2000);
     return () => clearTimeout(timer);
   }, [login, provider, method, finish]);
@@ -58,7 +58,7 @@ export default function LoginSheet({ provider, method, title, initial, onClose }
   }, [onClose]);
 
   const submit = async () => {
-    if (!code.trim()) return;
+    if (!code.trim() || checking) return;
     setChecking(true);
     setMessage("Checking the code…");
     try {
