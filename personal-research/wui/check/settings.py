@@ -28,7 +28,7 @@ with sync_playwright() as p:
             row.click()
             page.wait_for_timeout(300)
 
-    expand(nav.get_by_role("button", name=space["title"]).first)
+    expand(nav.get_by_role("button", name=space["title"], exact=True).first)
     folder = nav.get_by_role("button", name="Conversations")
     expand(folder)
     print("1 conversations folder:", folder.inner_text().replace("\n", " "), "| api count", space["conversation_count"])
