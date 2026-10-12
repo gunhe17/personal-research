@@ -142,7 +142,7 @@ function Folders({ space, isOpen, toggle, active, onOpen }: { space: Space; isOp
           <div key={key} className="flex flex-col gap-1">
             <TreeRow small label={name} icon={<Icon name={key} className="h-3.5 w-3.5 text-apple-link" />} open={isOpen(id)} count={key === "conversations" ? space.conversations.length : rows.length} onClick={() => toggle(id)} />
             <Fold open={isOpen(id)} className="flex flex-col gap-1">
-              {!rows.length && <div className="flex h-8 items-center pr-2 pl-9 text-[11px] text-slate-400">비어 있음</div>}
+              {!rows.length && <div className="flex h-8 items-center pr-2 pl-9 text-[11px] text-slate-400">Nothing yet</div>}
               {rows.map((row) => <Leaf key={itemKey(row[0])} row={row} active={active} onOpen={onOpen} />)}
             </Fold>
           </div>
