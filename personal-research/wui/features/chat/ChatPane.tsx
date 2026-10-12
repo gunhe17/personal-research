@@ -68,10 +68,11 @@ export default function ChatPane({ group }: { group: Group }) {
     }
   }, []);
 
+  const replace = workbench.replace;
   const remember = useCallback((item: Item) => {
     loaded.current = itemKey(item);
-    workbench.replace(group.id, item);
-  }, [workbench, group.id]);
+    replace(group.id, item);
+  }, [replace, group.id]);
 
   useEffect(() => {
     const item = group.item;
@@ -83,7 +84,8 @@ export default function ChatPane({ group }: { group: Group }) {
     (async () => {
       if (item.kind === "agent") {
         setDomain("agent");
-        return refresh("agent", item.agent);
+        if (item.agent) await refresh("agent", item.agent);
+        return;
       }
       if (item.kind !== "chat") return;
       setDomain("space");
@@ -94,11 +96,13 @@ export default function ChatPane({ group }: { group: Group }) {
     })();
   }, [group.item, refresh]);
 
+  const shown = useRef(group.item);
+  shown.current = group.item;
   useEffect(() => {
     if (!chat) return;
     const item: Item = chat.domain === "agent" ? { kind: "agent", agent: chat.id, title: chat.title } : { kind: "chat", space: chat.space_id || space?.id || "", conversation: chat.id, title: chat.title };
-    if (itemKey(item) !== itemKey(group.item) || group.item.title !== chat.title) remember(item);
-  }, [chat, space, group.item, remember]);
+    if (itemKey(item) !== itemKey(shown.current) || shown.current.title !== chat.title) remember(item);
+  }, [chat, space, remember]);
 
   useEffect(() => {
     if (!chat?.messages.some((m) => m.status === "queued" || m.status === "running")) return;
@@ -183,6 +187,10 @@ export default function ChatPane({ group }: { group: Group }) {
     setStatus("보내는 중…");
     try {
       let current = chat;
+      if (!current && domain === "agent") {
+        current = await api.conversation("agent", (await api.startAgent("")).id);
+        setChat(current);
+      }
       if (!current) {
         let target = space || (group.item.kind === "chat" ? await api.space(group.item.space).catch(() => null) : null);
         if (domain === "space" && !target) {
@@ -202,7 +210,7 @@ export default function ChatPane({ group }: { group: Group }) {
       persist({ quote: null, retryPayload: null });
       setStatus("");
       await refresh(current.domain, current.id);
-      emit("spaces");
+      emit(current.domain === "agent" ? "agents" : "spaces");
     } catch (error) {
       setStatus(`${(error as Error).message} 입력 내용은 유지됩니다.`);
     }
@@ -228,7 +236,7 @@ export default function ChatPane({ group }: { group: Group }) {
           {banner && <div role="alert" className="mx-4 mt-3 rounded-lg border border-slate-200 bg-ice px-3.5 py-2.5 text-[13px]">{banner}</div>}
           {!chat?.messages.length && (
             <div className="mx-auto max-w-[560px] px-6 pt-16 text-center text-[14px] leading-relaxed text-slate-500">
-              <p className="mb-2 text-[21px] font-semibold text-slate-800">이 space 에서 무엇을 배울까요?</p>
+              <p className="mb-2 text-[21px] font-semibold text-slate-800">{domain === "agent" ? "무엇을 물어볼까요?" : "이 space 에서 무엇을 배울까요?"}</p>
               <p>질문하면 수집물을 먼저 조사해 근거와 함께 답합니다. 문서에서 문장을 골라 인용할 수 있습니다.</p>
             </div>
           )}

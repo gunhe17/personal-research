@@ -35,7 +35,7 @@ with sync_playwright() as p:
     folder = nav.get_by_role("button", name="Conversations")
     expand(folder)
     print("1 conversations folder:", folder.inner_text().replace("\n", " "), "| api count", space["conversation_count"])
-    nav.get_by_text("새 대화").click()
+    nav.get_by_text("새 대화").last.click()
     page.wait_for_url("**/collected**")
     page.wait_for_selector("textarea")
     print("2 new chat pane:", page.locator("text=이 space 에서 무엇을 배울까요?").count())
