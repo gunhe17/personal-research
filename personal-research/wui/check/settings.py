@@ -41,7 +41,7 @@ with sync_playwright() as p:
     print("2 new chat pane:", page.locator("text=이 space 에서 무엇을 배울까요?").count())
     page.get_by_label("닫기").last.click()
     page.wait_for_timeout(300)
-    expand(nav.get_by_role("button", name="Collected"))
+    expand(nav.get_by_role("button", name="Collected").last)
     detail = page.evaluate("id => fetch(`/api/spaces/${id}`).then(r => r.json())", space["id"])
     root = detail["collected"][0]
     path = (root["documents"] or [root])[0]["path"]

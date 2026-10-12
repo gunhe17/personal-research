@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
-import { api, type ConversationItem, type Space, type SpaceItem } from "@/lib/api";
+import { api, type ConversationItem, type Space, type SpaceItem, type TreeNode } from "@/lib/api";
 import { listen } from "@/lib/events";
 import { load, save } from "@/lib/storage";
 import Fold from "@/ui/Fold";
@@ -23,6 +23,8 @@ export default function Sidebar() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [query, setQuery] = useState("");
   const [agentQuery, setAgentQuery] = useState("");
+  const [tree, setTree] = useState<TreeNode[] | null>(null);
+  const [docQuery, setDocQuery] = useState("");
   const [agents, setAgents] = useState<ConversationItem[] | null>(null);
   const requested = useRef(new Set<string>());
 
@@ -43,6 +45,10 @@ export default function Sidebar() {
     reload();
     return listen("agents", reload);
   }, []);
+
+  useEffect(() => {
+    if (isOpen("library", false) && !tree) api.tree().then((data) => setTree(data.tree), () => setTree([]));
+  });
 
   const current = workbench.activeSpace;
   const shownAgents = (agents || []).filter((conversation) => (conversation.title || "새 대화").toLowerCase().includes(agentQuery.trim().toLowerCase()));
@@ -89,6 +95,16 @@ export default function Sidebar() {
           />
         ))}
         <Leaf row={[{ kind: "agent", agent: "", title: "새 대화" }, "plus", "새 대화"]} active={workbench.activeKey} onOpen={(item) => workbench.open(item)} flat />
+      </Fold>
+      <TreeRow variant="nav" label="Collected" icon="collected" onClick={() => toggle("library", false)} />
+      <Fold open={isOpen("library", false)} className="ml-3 flex flex-col gap-1 border-l border-slate-100 pl-2">
+        <Search value={docQuery} onChange={setDocQuery} label="Search collected" />
+        {tree && !tree.length && <div className="flex h-8 items-center px-2 text-xs text-slate-400">Nothing yet</div>}
+        {docQuery.trim() ? (
+          <Found needle={docQuery.trim().toLowerCase()} tree={tree || []} active={workbench.activeKey} onOpen={(item) => workbench.open(item)} />
+        ) : (
+          (tree || []).map((node) => <Branch key={node.path} node={node} isOpen={(key) => isOpen(key, false)} toggle={(key) => toggle(key, false)} active={workbench.activeKey} onOpen={(item) => workbench.open(item)} />)
+        )}
       </Fold>
       <div className="group relative">
         <TreeRow variant="nav" label="Space" icon="grid" onClick={() => toggle("spaces")} />
@@ -141,6 +157,30 @@ function Search({ value, onChange, label }: { value: string; onChange: (value: s
       )}
     </label>
   );
+}
+
+function Branch({ node, isOpen, toggle, active, onOpen }: { node: TreeNode; isOpen: (key: string) => boolean; toggle: (key: string) => void; active: string; onOpen: (item: Item) => void }) {
+  if (node.type === "file") return <Leaf row={documentRow(node)} active={active} onOpen={onOpen} flat />;
+  const key = `library:${node.path}`;
+  return (
+    <div className="flex flex-col gap-1">
+      <TreeRow label={node.name} icon={<Icon name="folder" className="h-3.5 w-3.5 text-slate-500" />} open={isOpen(key)} onClick={() => toggle(key)} />
+      <Fold open={isOpen(key)} className="ml-3 flex flex-col gap-1 border-l border-slate-100 pl-2">
+        {node.children.map((child) => <Branch key={child.path} node={child} isOpen={isOpen} toggle={toggle} active={active} onOpen={onOpen} />)}
+      </Fold>
+    </div>
+  );
+}
+
+function Found({ needle, tree, active, onOpen }: { needle: string; tree: TreeNode[]; active: string; onOpen: (item: Item) => void }) {
+  const files = (nodes: TreeNode[]): TreeNode[] => nodes.flatMap((node) => (node.type === "file" ? [node] : files(node.children)));
+  const hits = files(tree).filter((node) => node.path.toLowerCase().includes(needle));
+  if (!hits.length) return <div className="flex h-8 items-center px-2 text-[12px] text-slate-400">No matches</div>;
+  return <>{hits.slice(0, 50).map((node) => <Leaf key={node.path} row={documentRow(node)} active={active} onOpen={onOpen} flat />)}</>;
+}
+
+function documentRow(node: TreeNode): Row {
+  return [{ kind: "doc", id: node.type === "file" ? node.id : "", title: node.name, path: node.path }, node.path.split("/")[0], node.name];
 }
 
 function Folders({ space, isOpen, toggle, active, onOpen }: { space: Space; isOpen: (key: string) => boolean; toggle: (key: string) => void; active: string; onOpen: (item: Item) => void }) {

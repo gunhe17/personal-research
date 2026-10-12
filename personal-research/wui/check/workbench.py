@@ -24,9 +24,9 @@ with sync_playwright() as p:
     page.get_by_label("Toggle sidebar").click()
     page.wait_for_timeout(800)
     nav = page.locator("nav").first
-    if nav.get_by_role("button", name="Collected").count() == 0:
+    if nav.get_by_role("button", name="Collected").count() < 2:
         nav.get_by_role("button", name="openai/codex").click()
-    nav.get_by_role("button", name="Collected").wait_for()
+    nav.get_by_role("button", name="Collected").last.wait_for()
     leaf = nav.get_by_role("button", name="openai/codex/README.md")
     target = page.locator("section").first.bounding_box()
     leaf.drag_to(page.locator("section").first, target_position={"x": target["width"] - 20, "y": target["height"] / 2})
