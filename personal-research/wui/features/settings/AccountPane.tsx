@@ -42,12 +42,18 @@ export default function AccountPane({ account }: { account: Account | null }) {
           <Button tone="quiet" size="sm" onClick={signOut}>Log out</Button>
         </KeyValue>
         <KeyValue label="Role">{account?.role === "admin" ? "Admin" : "User"}</KeyValue>
-      </section>
-      <section>
-        <SectionHeader title="Password" className="mb-2" />
-        <KeyValue label="New">
-          <input type="password" autoComplete="new-password" aria-label="New password" placeholder="8자 이상" value={next} onChange={(event) => setNext(event.target.value)} onKeyDown={(event) => event.key === "Enter" && change()} className={field} />
-          <Button tone="fill" size="sm" disabled={next.length < 8} onClick={change}>Save</Button>
+        <KeyValue label="Password">
+          <input
+            type="password"
+            autoComplete="new-password"
+            aria-label="New password"
+            placeholder="새 비밀번호 8자 이상"
+            value={next}
+            onChange={(event) => setNext(event.target.value)}
+            onKeyDown={(event) => event.key === "Enter" && change()}
+            className={field}
+          />
+          <Button size="sm" disabled={next.length < 8} onClick={change}>Change</Button>
         </KeyValue>
         {message && <p className={message.ok ? "mt-1 text-[12px] text-slate-500" : "mt-1 text-[12px] text-red-600"}>{message.text}</p>}
       </section>

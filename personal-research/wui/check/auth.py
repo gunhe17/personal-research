@@ -32,7 +32,7 @@ with sync_playwright() as p:
     dialog.get_by_role("button", name="Profile", exact=True).click()
     page.wait_for_selector(f"text={EMAIL}")
     dialog.get_by_label("New password").fill("short")
-    print("4 profile shows email, short password cannot be saved:", dialog.get_by_role("button", name="Save").is_disabled())
+    print("4 profile shows email, short password cannot be saved:", dialog.get_by_role("button", name="Change", exact=True).is_disabled())
     role = page.evaluate("fetch('/api/auth/me').then(r => r.json())")["role"]
     print("5 users menu matches role:", dialog.get_by_role("button", name="Users", exact=True).count() == (1 if role == "admin" else 0))
     page.screenshot(path=f"{OUT}/auth.png")
