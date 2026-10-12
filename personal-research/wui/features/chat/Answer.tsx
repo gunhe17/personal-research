@@ -3,11 +3,13 @@
 import type { Message, MessageContext } from "@/lib/api";
 import { chatHtml } from "@/lib/markdown";
 import Button from "@/ui/Button";
+import Logo from "@/ui/Logo";
 import Blocks, { type Scene } from "@/features/blocks/Blocks";
 
 type Props = {
   message: Message;
   label: string;
+  provider: string | null;
   scene: Scene | null;
   onContext: (context: MessageContext) => void;
   onAsk: () => void;
@@ -15,11 +17,11 @@ type Props = {
   onOpen: (source: { id: string; path: string }) => void;
 };
 
-export default function Answer({ message, label, scene, onContext, onAsk, onCopy, onOpen }: Props) {
+export default function Answer({ message, label, provider, scene, onContext, onAsk, onCopy, onOpen }: Props) {
   return (
     <article data-answer-id={message.id} className="mb-10">
       <div className="mb-4 flex items-center gap-2 text-[12px] text-slate-500">
-        <span className="grid h-5 w-5 place-items-center rounded-full border border-slate-200 font-serif text-[14px]">{label === "수집" ? "↓" : "∂"}</span>
+        <span className="grid h-5 w-5 place-items-center rounded-full border border-slate-200 font-serif text-[14px] text-slate-800">{provider ? <Logo provider={provider} className="h-3 w-3" /> : "↓"}</span>
         <span>{label}</span>
       </div>
       <div data-article className="article">

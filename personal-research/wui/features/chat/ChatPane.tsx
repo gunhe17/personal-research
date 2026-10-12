@@ -253,6 +253,7 @@ export default function ChatPane({ group }: { group: Group }) {
                     key={answer.id}
                     message={answer}
                     label={label(question, answer)}
+                    provider={question.kind === "collect" ? null : question.context?.model?.provider || catalog?.default.provider || "openai"}
                     scene={scene}
                     onContext={(c) => {
                       const merged = { ...c, source_answer_id: answer.id };
