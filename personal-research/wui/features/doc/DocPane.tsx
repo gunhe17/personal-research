@@ -64,7 +64,7 @@ export default function DocPane({ group, id }: { group: Group; id: string }) {
       setMeta(info);
       setTexts({ orig: data.content, trans: null });
       save("lastDoc", id);
-      api.opened(id).catch(() => {});
+      api.markOpened(id).catch(() => {});
     })().catch(() => setError("Could not load the document"));
   }, [id]);
 
@@ -100,8 +100,8 @@ export default function DocPane({ group, id }: { group: Group; id: string }) {
           <p className="px-6 text-[21px] font-semibold tracking-tight break-all text-slate-800">{file.name}</p>
           <p className="mt-2 text-[14px] font-light text-slate-500">An HTML document with its original typesetting. Opens as is in a new tab.</p>
           <div className="mt-6 flex items-center justify-center gap-2">
-            <Button tone="fill" size="lg" onClick={() => window.open(api.raw(id, "eng"), "_blank", "noopener")}>Open original</Button>
-            {file.languages.includes("kor") && <Button size="lg" onClick={() => window.open(api.raw(id, "kor"), "_blank", "noopener")}>Open Korean</Button>}
+            <Button tone="fill" size="lg" onClick={() => window.open(api.rawUrl(id, "eng"), "_blank", "noopener")}>Open original</Button>
+            {file.languages.includes("kor") && <Button size="lg" onClick={() => window.open(api.rawUrl(id, "kor"), "_blank", "noopener")}>Open Korean</Button>}
           </div>
         </div>
       );

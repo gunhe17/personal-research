@@ -37,7 +37,7 @@ export default function LoginSheet({ provider, method, title, initial, onClose }
   useEffect(() => {
     if (!login?.pending || login.pending.needs_code) return;
     const timer = setTimeout(() => {
-      api.login(provider, method).then((data) => {
+      api.loginStatus(provider, method).then((data) => {
         if (!live.current) return;
         setLogin(data);
         if (!data.pending && !data.logged_in) setMessage("Login ended without approval. Try again.");

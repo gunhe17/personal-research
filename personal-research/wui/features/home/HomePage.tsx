@@ -55,7 +55,7 @@ export default function HomePage() {
     setBusy(true);
     let job: CollectJob;
     try {
-      job = await api.collect(text);
+      job = await api.startCollect(text);
     } catch (error) {
       update({ input: text, steps: [], content: `Error: ${(error as Error).message}`, sources: [], streaming: false });
       setBusy(false);

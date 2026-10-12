@@ -29,7 +29,7 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
   const check = useCallback((list: Provider[]) => {
     for (const provider of list) {
       for (const method of provider.methods.filter((m) => m.type === "plan_key")) {
-        api.login(provider.id, method.id).then((status) => setStatuses((all) => ({ ...all, [`${provider.id}:${method.id}`]: status })), () => {});
+        api.loginStatus(provider.id, method.id).then((status) => setStatuses((all) => ({ ...all, [`${provider.id}:${method.id}`]: status })), () => {});
       }
     }
   }, []);
@@ -65,7 +65,7 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
   };
 
   const logout = async (provider: Provider, method: Method) => {
-    await api.logout(provider.id, method.id).catch(() => null);
+    await api.logoutProvider(provider.id, method.id).catch(() => null);
     if (provider.methods.length > 1) await save(provider, { remove: method.id });
     else reload();
   };

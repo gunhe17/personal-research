@@ -46,7 +46,7 @@ export default function Sidebar() {
   }, [refresh]);
 
   useEffect(() => {
-    const reload = () => api.agents().then((data) => setAgents(data.items), () => setAgents([]));
+    const reload = () => api.agentConversations().then((data) => setAgents(data.items), () => setAgents([]));
     reload();
     return listen("agents", reload);
   }, []);

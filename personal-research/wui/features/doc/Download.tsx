@@ -65,7 +65,7 @@ export default function Download({ id, path, paired, html, lang, texts, content,
       setTimeout(() => URL.revokeObjectURL(url), 10000);
       return toast(`${base}-bilingual.md downloaded`);
     }
-    trigger(api.raw(id, choice === "trans" && paired ? "kor" : "eng"), name);
+    trigger(api.rawUrl(id, choice === "trans" && paired ? "kor" : "eng"), name);
     toast(`${name} downloaded`);
   };
 

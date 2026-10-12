@@ -16,7 +16,7 @@ export default function CollectLive({ conversation, onDone, onOpen }: { conversa
     let alive = true;
     let timer: ReturnType<typeof setTimeout>;
     const tick = async () => {
-      const items = await api.collects().then((data) => data.items, () => []);
+      const items = await api.collectJobs().then((data) => data.items, () => []);
       if (!alive) return;
       const found = items.find((item) => item.conversation_id === conversation) || null;
       setJob(found);

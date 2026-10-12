@@ -160,8 +160,8 @@ export const api = {
   tree: () => request<{ tree: TreeNode[] }>("/api/tree"),
   meta: (id: string) => request<Meta>(`/api/meta?${query({ id })}`),
   file: (id: string, language: string) => request<{ content: string }>(`/api/file?${query({ id, language })}`),
-  raw: (id: string, language: string) => `/api/raw?${query({ id, language })}`,
-  opened: (id: string) => send<{ id: string }>("/api/opened", { id }),
+  rawUrl: (id: string, language: string) => `/api/raw?${query({ id, language })}`,
+  markOpened: (id: string) => send<{ id: string }>("/api/opened", { id }),
 
   spaces: () => request<{ items: SpaceItem[] }>("/api/spaces"),
   space: (id: string) => request<Space>(`/api/spaces/${encodeURIComponent(id)}`),
@@ -170,7 +170,7 @@ export const api = {
   material: (id: string) => request<Material>(`/api/materials/${encodeURIComponent(id)}`),
 
   conversation: (domain: Domain, id: string) => request<Conversation>(`/api/${domain}/conversations/${encodeURIComponent(id)}`),
-  agents: () => request<{ items: ConversationItem[] }>("/api/agent/conversations"),
+  agentConversations: () => request<List<ConversationItem>>("/api/agent/conversations"),
   startAgent: (question: string) => send<{ id: string }>("/api/agent/conversations", { question, client_id: crypto.randomUUID() }),
   startSpace: (space: string, collected: string) => send<{ id: string }>("/api/space/conversations", { space_id: space, collected_id: collected }),
   ask: (domain: Domain, id: string, payload: unknown) => send<Message>(`/api/${domain}/conversations/${encodeURIComponent(id)}/messages`, payload),
@@ -185,34 +185,15 @@ export const api = {
   addUser: (name: string, email: string) => send<Account & { password: string }>("/api/users", { name, email }),
   removeUser: (id: string) => request<{ ok: boolean }>(`/api/users/${encodeURIComponent(id)}`, { method: "DELETE" }),
   models: () => request<ModelCatalog>("/api/models"),
-  skills: () => request<{ items: Skill[] }>("/api/skills"),
-  collect: (input: string) => send<CollectJob>("/api/collect", { input }),
-  collects: () => request<{ items: CollectJob[] }>("/api/collect"),
+  skills: () => request<List<Skill>>("/api/skills"),
+  startCollect: (input: string) => send<CollectJob>("/api/collect", { input }),
+  collectJobs: () => request<List<CollectJob>>("/api/collect"),
   collectJob: (id: string) => request<CollectJob>(`/api/collect/${encodeURIComponent(id)}`),
   settings: () => request<{ providers: Provider[] }>("/api/settings"),
   editProvider: (id: string, values: Record<string, unknown>) => send<{ providers: Provider[] }>("/api/settings", { providers: { [id]: values } }, "PUT"),
-  login: (provider: string, method: string) => request<Login>(`/api/login?${query({ provider, method })}`),
+  loginStatus: (provider: string, method: string) => request<Login>(`/api/login?${query({ provider, method })}`),
   startLogin: (provider: string, method: string) => send<Login>("/api/login", { provider, method }),
   submitLogin: (provider: string, method: string, code: string) => send<Login>("/api/login", { provider, method, code }),
-  cancelLogin: (provider: string, method: string) => request<{ ok: boolean }>(`/api/login?${query({ provider, method })}`, { method: "DELETE" }),
-  logout: (provider: string, method: string) => request<Login>(`/api/login?${query({ provider, method, signout: "1" })}`, { method: "DELETE" }),
-};
-
-export type CollectEvent = { at: number } & (
-  | { type: "step"; key: string; text: string; state?: string }
-  | { type: "collected"; id: string; path: string }
-  | { type: "done"; text?: string; id?: string }
-  | { type: "error"; error: string }
-);
-
-export type CollectJob = {
-  id: string;
-  input: string;
-  state: "queued" | "running" | "done" | "failed";
-  events: CollectEvent[];
-  path: string;
-  collected_id: string;
-  conversation_id: string;
-  created_at: string;
-  finished_at: string;
+  cancelLogin: (provider: string, method: string) => request<Ok>(`/api/login?${query({ provider, method })}`, { method: "DELETE" }),
+  logoutProvider: (provider: string, method: string) => request<Login>(`/api/login?${query({ provider, method, signout: "1" })}`, { method: "DELETE" }),
 };
