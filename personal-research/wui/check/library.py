@@ -53,6 +53,6 @@ with sync_playwright() as p:
     nav.get_by_role("button", name="Collected", exact=True).hover()
     nav.get_by_label("Collapse collected").click()
     page.wait_for_timeout(400)
-    print("5 collapse collected:", nav.get_by_role("button", name=trail[0], exact=True).get_attribute("aria-expanded"), nav.get_by_label("Collapse collected").count())
+    print("5 collapse collected:", nav.get_by_role("button", name=trail[0], exact=True).get_attribute("aria-expanded"))
     print("errors:", errors[:5])
     browser.close()
