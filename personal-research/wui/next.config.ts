@@ -1,8 +1,14 @@
+import os from "node:os";
 import type { NextConfig } from "next";
+
+const addresses = Object.values(os.networkInterfaces())
+  .flat()
+  .filter((address) => address && address.family === "IPv4" && !address.internal)
+  .map((address) => address!.address);
 
 const config: NextConfig = {
   output: "standalone",
-  allowedDevOrigins: ["127.0.0.1"],
+  allowedDevOrigins: ["127.0.0.1", os.hostname(), "*.local", ...addresses],
   turbopack: {
     rules: {
       "*.css": {

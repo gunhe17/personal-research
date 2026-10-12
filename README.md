@@ -32,6 +32,8 @@ docker compose --env-file .env/.env.develop -f .docker/docker-compose.develop.ym
 
 브라우저에서 http://localhost:3000 을 연다. 포트는 `.env/.env.develop` 의 `DEVELOP_WUI_PORT` 다.
 
+같은 네트워크의 다른 기기(폰, 태블릿)에서는 이 컴퓨터의 주소로 연다. 주소는 macOS 에서 `ipconfig getifaddr en0` 으로 본다(예: http://192.168.1.3:3000). 화면(wui)만 바깥에 열리고 api 는 이 컴퓨터 안에서만 듣는다. 이 컴퓨터에서만 쓰려면 `DEVELOP_WUI_HOST=127.0.0.1` 로 바꾼다. macOS 방화벽이 켜져 있으면 처음 한 번 Docker 의 수신을 허용한다.
+
 멈출 때는 `up -d --build` 를 `down` 으로 바꿔 실행한다.
 
 ## 로그인

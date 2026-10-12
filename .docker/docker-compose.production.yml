@@ -50,7 +50,7 @@ services:
         API_URL: http://api:${PORT}
     restart: unless-stopped
     ports:
-      - "127.0.0.1:${PRODUCTION_WUI_PORT}:3000"
+      - "${PRODUCTION_WUI_HOST:-0.0.0.0}:${PRODUCTION_WUI_PORT}:3000"
     depends_on:
       - api
 
