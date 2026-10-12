@@ -96,7 +96,12 @@ export default function Sidebar() {
         ))}
         <Leaf row={[{ kind: "agent", agent: "", title: "새 대화" }, "plus", "새 대화"]} active={workbench.activeKey} onOpen={(item) => workbench.open(item)} flat />
       </Fold>
-      <TreeRow variant="nav" label="Collected" icon="collected" onClick={() => toggle("library", false)} />
+      <div className="group relative">
+        <TreeRow variant="nav" label="Collected" icon="collected" onClick={() => toggle("library", false)} />
+        {isOpen("library", false) && Object.entries(expanded).some(([key, open]) => open && key.startsWith("library:")) && (
+          <IconButton icon="collapse" size="sm" label="Collapse collected" onClick={() => remember({ ...expanded, ...Object.fromEntries(Object.keys(expanded).filter((key) => key.startsWith("library:")).map((key) => [key, false])) })} className="absolute top-1/2 right-1.5 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100" />
+        )}
+      </div>
       <Fold open={isOpen("library", false)} className="ml-3 flex flex-col gap-1 border-l border-slate-100 pl-2">
         <Search value={docQuery} onChange={setDocQuery} label="Search collected" />
         {tree && !tree.length && <div className="flex h-8 items-center px-2 text-xs text-slate-400">Nothing yet</div>}
