@@ -1,9 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { api, type Account, type Login, type Method, type Provider } from "@/lib/api";
-import { emit } from "@/lib/events";
-import { load, save as keep } from "@/lib/storage";
+import { useEffect, useState, type ReactNode } from "react";
+import { api, type Account, type Provider } from "@/lib/api";
+import { load, save } from "@/lib/storage";
 import Dot from "@/ui/Dot";
 import Icon from "@/ui/Icon";
 import IconButton from "@/ui/IconButton";
@@ -14,80 +13,20 @@ import FunctionPane from "./FunctionPane";
 import UsersPane from "./UsersPane";
 import FontPane from "./FontPane";
 import LoginSheet from "./LoginSheet";
-import ProviderPane, { usable } from "./ProviderPane";
-
-type Sheet = { provider: Provider; method: Method };
+import { usable } from "./MethodRow";
+import ProviderPane from "./ProviderPane";
+import useProviders, { statusKey } from "./useProviders";
 
 export default function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [tab, setTab] = useState(() => load("settingsTab", "font", true));
-  const [providers, setProviders] = useState<Provider[]>([]);
-  const [statuses, setStatuses] = useState<Record<string, Login | undefined>>({});
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [sheet, setSheet] = useState<Sheet | null>(null);
   const [account, setAccount] = useState<Account | null>(null);
-
-  const check = useCallback((list: Provider[]) => {
-    for (const provider of list) {
-      for (const method of provider.methods.filter((m) => m.type === "plan_key")) {
-        api.loginStatus(provider.id, method.id).then((status) => setStatuses((all) => ({ ...all, [`${provider.id}:${method.id}`]: status })), () => {});
-      }
-    }
-  }, []);
-
-  const reload = useCallback(() => {
-    api.settings().then((data) => {
-      setProviders(data.providers);
-      check(data.providers);
-    }, () => {});
-  }, [check]);
+  const { providers, statuses, errors, sheet, openSheet, saveProvider, logout, prune, closeSheet } = useProviders(open);
 
   useEffect(() => {
-    if (!open) return;
-    reload();
-    api.me().then(setAccount, () => {});
-  }, [open, reload]);
+    if (open) api.me().then(setAccount, () => {});
+  }, [open]);
 
-  useEffect(() => keep("settingsTab", tab, true), [tab]);
-
-  const save = async (provider: Provider, values: Record<string, unknown>): Promise<Provider | null> => {
-    try {
-      const data = await api.editProvider(provider.id, values);
-      setProviders(data.providers);
-      if (values.remove) setStatuses((all) => ({ ...all, [`${provider.id}:${values.remove}`]: undefined }));
-      check(data.providers.filter((p) => p.id === provider.id));
-      setErrors((all) => ({ ...all, [provider.id]: "" }));
-      emit("settings");
-      return data.providers.find((p) => p.id === provider.id) || null;
-    } catch (error) {
-      setErrors((all) => ({ ...all, [provider.id]: (error as Error).message }));
-      return null;
-    }
-  };
-
-  const logout = async (provider: Provider, method: Method) => {
-    await api.logoutProvider(provider.id, method.id).catch(() => null);
-    if (provider.methods.length > 1) await save(provider, { remove: method.id });
-    else reload();
-  };
-
-  const prune = async () => {
-    for (const provider of providers) {
-      let left = provider.methods.length;
-      for (const method of provider.methods) {
-        const status = statuses[`${provider.id}:${method.id}`];
-        if (method.type !== "plan_key" || method.secret || !status || status.logged_in || status.pending || left <= 1) continue;
-        await api.editProvider(provider.id, { remove: method.id }).catch(() => null);
-        left -= 1;
-      }
-    }
-    emit("settings");
-  };
-
-  const closeSheet = async (cancelled: boolean) => {
-    if (sheet && cancelled) await api.cancelLogin(sheet.provider.id, sheet.method.id).catch(() => null);
-    setSheet(null);
-    reload();
-  };
+  useEffect(() => save("settingsTab", tab, true), [tab]);
 
   const close = () => {
     if (sheet) closeSheet(true);
@@ -95,7 +34,7 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
     prune();
   };
 
-  const ready = (provider: Provider) => provider.methods.some((m) => usable(m, statuses[`${provider.id}:${m.id}`]));
+  const ready = (provider: Provider) => provider.methods.some((m) => usable(m, statuses[statusKey(provider, m)]));
   const current = providers.find((p) => p.id === tab);
 
   return (
@@ -124,10 +63,10 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
           <ProviderPane
             key={current.id}
             provider={current}
-            statuses={Object.fromEntries(current.methods.map((m) => [m.id, statuses[`${current.id}:${m.id}`]]))}
+            statuses={Object.fromEntries(current.methods.map((m) => [m.id, statuses[statusKey(current, m)]]))}
             error={errors[current.id] || ""}
-            onSave={(values) => save(current, values)}
-            onLogin={(method) => setSheet({ provider: current, method })}
+            onSave={(values) => saveProvider(current, values)}
+            onLogin={(method) => openSheet({ provider: current, method })}
             onLogout={(method) => logout(current, method)}
           />
         ) : tab === "account" ? (
@@ -145,7 +84,7 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
           provider={sheet.provider.id}
           method={sheet.method.id}
           title={`Log in to ${sheet.provider.label}${sheet.method.label === "Plan login" ? "" : ` · ${sheet.method.label}`}`}
-          initial={statuses[`${sheet.provider.id}:${sheet.method.id}`]}
+          initial={statuses[statusKey(sheet.provider, sheet.method)]}
           onClose={closeSheet}
         />
       )}

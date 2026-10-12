@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { api, type Skill } from "@/lib/api";
 import Icon from "@/ui/Icon";
 import SectionHeader from "@/ui/SectionHeader";
+import SettingsPage from "./SettingsPage";
 
 export default function FunctionPane() {
   const [skills, setSkills] = useState<Skill[] | null>(null);
@@ -14,8 +15,7 @@ export default function FunctionPane() {
   }, []);
 
   return (
-    <div className="space-y-6">
-      <h3 className="text-[21px] font-semibold tracking-tight text-slate-900">Function</h3>
+    <SettingsPage title="Function">
       <section>
         <SectionHeader title="Functions" count={skills?.length} className="mb-2" />
         {error && <p className="text-[12px] text-red-600">{error}</p>}
@@ -34,6 +34,6 @@ export default function FunctionPane() {
           ))}
         </ul>
       </section>
-    </div>
+    </SettingsPage>
   );
 }

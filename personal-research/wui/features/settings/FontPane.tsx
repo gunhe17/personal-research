@@ -5,18 +5,18 @@ import { listen } from "@/lib/events";
 import Button from "@/ui/Button";
 import KeyValue from "@/ui/KeyValue";
 import SectionHeader from "@/ui/SectionHeader";
+import SettingsPage from "./SettingsPage";
 import { applyZoom, MAX, MIN, readZoom, type Zoom } from "@/lib/zoom";
 
 export default function FontPane() {
   return (
-    <div className="space-y-6">
-      <h3 className="text-[21px] font-semibold tracking-tight text-slate-900">Font</h3>
+    <SettingsPage title="Font">
       <section>
         <SectionHeader title="Text size" className="mb-2" />
         <ZoomControl zoom="docZoom" label="Document" />
         <ZoomControl zoom="chatZoom" label="Chat" />
       </section>
-    </div>
+    </SettingsPage>
   );
 }
 

@@ -2,16 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { api, type CollectEvent, type CollectJob, type Source } from "@/lib/api";
-import { stepsOf, type Step } from "@/lib/collect";
+import { clock, lead, origin, recalled, seconds, stepsOf, type Step, type Texts } from "@/lib/collect";
 import { cx } from "@/lib/cx";
 import Button from "@/ui/Button";
 import Segmented from "@/ui/Segmented";
-import { Profile } from "./Answer";
+import StepMark from "@/ui/StepMark";
+import Profile from "./Profile";
 
 type View = "both" | "eng" | "kor";
 
 const STAGES: [string, string][] = [["detect", "판별"], ["fetch", "원문"], ["translate", "번역"], ["check", "검사"]];
-const MARKS: Record<string, string> = { done: "M4 12.5l5 5L20 6.5", error: "M6 6l12 12M18 6L6 18", skip: "M5 12h14" };
 
 type Props = {
   input: string;
@@ -65,15 +65,7 @@ function Row({ label, step, now }: { label: string; step?: Step; now: number }) 
   return (
     <li className="flex items-center gap-2.5 py-1.5">
       <span className="flex h-4 w-4 items-center justify-center">
-        {MARKS[state] ? (
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={cx("h-[11px] w-[11px]", state === "error" ? "text-red-500" : state === "skip" ? "text-slate-300" : "text-slate-400")}>
-            <path d={MARKS[state]} />
-          </svg>
-        ) : state === "running" ? (
-          <span className="breathe block h-[7px] w-[7px] rounded-full bg-apple" />
-        ) : (
-          <span className="block h-[7px] w-[7px] rounded-full border border-slate-300" />
-        )}
+        <StepMark state={state} />
       </span>
       <span className={cx("w-10 shrink-0 text-[12px]", state === "idle" ? "text-slate-300" : "text-slate-800")}>{label}</span>
       <span className={cx("min-w-0 flex-1 truncate text-[12px]", state === "running" ? "sweep" : state === "error" ? "text-red-600" : state === "skip" ? "text-slate-400" : "text-slate-500")} title={step?.text}>
@@ -88,30 +80,19 @@ function Row({ label, step, now }: { label: string; step?: Step; now: number }) 
   );
 }
 
-type Texts = { eng: string[]; kor: string[] };
-
 function useTexts(id: string | null): Texts | null {
-  const [texts, setTexts] = useState<Texts | null>(null);
+  const [loaded, setLoaded] = useState<{ id: string; texts: Texts } | null>(null);
   useEffect(() => {
     if (!id) return;
+    let cancelled = false;
     const read = (language: string) => api.file(id, language).then((data) => lead(data.content), () => []);
-    Promise.all([read("eng"), read("kor")]).then(([eng, kor]) => setTexts({ eng, kor }));
+    Promise.all([read("eng"), read("kor")]).then(([eng, kor]) => !cancelled && setLoaded({ id, texts: { eng, kor } }));
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
-  return texts;
-}
-
-const KINDS: [string, string][] = [["paper/", "arXiv paper"], ["video/", "YouTube transcript"], ["document/x/", "X article"], ["repository/", "GitHub document"], ["document/", "Web document"]];
-
-function recalled(path: string, texts: Texts | null): Step[] {
-  const step = (key: string, text: string, state = "done"): Step => ({ key, text, state, at: 0, took: null });
-  const kind = KINDS.find(([prefix]) => path.startsWith(prefix))?.[1] || "Document";
-  return [
-    step("detect", `Detected ${kind}`),
-    step("fetch", `Saved ${path}`),
-    texts?.kor.length ? step("translate", "Korean translation saved") : step("translate", path.endsWith(".html") ? "Paper HTML needs segmented translation" : "No Korean translation", "skip"),
-    step("check", "Checked consistency"),
-  ];
+  return loaded && loaded.id === id ? loaded.texts : null;
 }
 
 function Preview({ texts }: { texts: Texts }) {
@@ -156,36 +137,4 @@ function useNow(ticking: boolean): number {
   }, [ticking]);
 
   return now;
-}
-
-function origin(input: string): [string, string] {
-  try {
-    const url = new URL(input);
-    return [url.host.replace(/^www\./, ""), `${url.pathname}${url.search}`];
-  } catch {
-    return [input, ""];
-  }
-}
-
-function lead(text: string): string[] {
-  const paragraph = text
-    .split(/\n\s*\n/)
-    .map((part) => part.replace(/<[^>]*>/g, " ").trim())
-    .find((part) => /[A-Za-z가-힣]/.test(part) && !/^(#|!\[|```|[-*+>|]|\d+\.|---)/.test(part)) || "";
-  const plain = paragraph
-    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
-    .replace(/[`*_]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  return plain.split(/(?<=[.!?])\s+/).filter(Boolean).slice(0, 2);
-}
-
-function seconds(ms: number): string {
-  return ms >= 60000 ? `${Math.floor(ms / 60000)}m ${Math.round((ms % 60000) / 1000)}s` : `${(ms / 1000).toFixed(1)}s`;
-}
-
-function clock(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
 }

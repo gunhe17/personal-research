@@ -8,15 +8,15 @@ import Button from "@/ui/Button";
 type Props = { question: Message; canRetry: boolean; children: ReactNode; onScene: (context: MessageContext) => void; onAction: (action: "retry" | "cancel") => void };
 
 export default function Exchange({ question, canRetry, children, onScene, onAction }: Props) {
-  const c = question.context || {};
+  const context = question.context || {};
   const quote = "mb-2 border-l-2 border-slate-200 pl-2.5 text-slate-500";
   return (
     <section className="mt-12 first:mt-0">
       <div className="mb-8 ml-auto w-fit max-w-[85%] rounded-lg border border-slate-100 bg-white px-4 py-3 leading-[1.7] whitespace-pre-wrap" style={{ fontSize: "calc(14px * var(--chat-zoom))" }}>
         <div className="mb-1 text-[11px] text-slate-500">나</div>
-        {c.selected_text && <blockquote className={quote}>{c.selected_text}</blockquote>}
-        {(c.citations || []).map((cite, i) => <blockquote key={i} className={quote}>{cite.text}</blockquote>)}
-        {(c.annotations || []).map((a, i) => (
+        {context.selected_text && <blockquote className={quote}>{context.selected_text}</blockquote>}
+        {(context.citations || []).map((cite, i) => <blockquote key={i} className={quote}>{cite.text}</blockquote>)}
+        {(context.annotations || []).map((a, i) => (
           <details key={a.id || i}>
             <summary className="cursor-pointer text-[12px] text-slate-500">{i + 1}. {a.text.slice(0, 80)}</summary>
             <blockquote className={quote}>{a.text}</blockquote>
@@ -24,11 +24,11 @@ export default function Exchange({ question, canRetry, children, onScene, onActi
           </details>
         ))}
         <div>{question.content}</div>
-        {c.source_path && <div className="mt-1.5 text-[11px] text-slate-500">{c.source_path}</div>}
-        {Number.isFinite(c.w) && (
+        {context.source_path && <div className="mt-1.5 text-[11px] text-slate-500">{context.source_path}</div>}
+        {Number.isFinite(context.w) && (
           <div className="mt-1.5 text-[11px] text-slate-500">
-            w={format(c.w!)}, h={format(c.h!)} · {c.mode}{"  "}
-            <Button tone="link" onClick={() => onScene(c)}>이 장면 보기</Button>
+            w={format(context.w!)}, h={format(context.h!)} · {context.mode}{"  "}
+            <Button tone="link" onClick={() => onScene(context)}>이 장면 보기</Button>
           </div>
         )}
       </div>

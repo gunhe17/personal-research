@@ -59,11 +59,10 @@ export default function DocPane({ group, id }: { group: Group; id: string }) {
     setLang(load<Lang>("docLang", "orig"));
     (async () => {
       const node = await lookup(id);
-      const [data, info] = await Promise.all([api.file(id, "eng"), api.meta(id).catch(() => null)]);
-      setFile(node || { type: "file", id, name: info?.path?.split("/").pop() || id, path: info?.path || id, ext: "", languages: ["eng"], published: null });
-      setMeta(info);
-      setTexts({ orig: data.content, trans: null });
-      save("lastDoc", id);
+      const [english, details] = await Promise.all([api.file(id, "eng"), api.meta(id).catch(() => null)]);
+      setFile(node || { type: "file", id, name: details?.path?.split("/").pop() || id, path: details?.path || id, ext: "", languages: ["eng"], published: null });
+      setMeta(details);
+      setTexts({ orig: english.content, trans: null });
       api.markOpened(id).catch(() => {});
     })().catch(() => setError("Could not load the document"));
   }, [id]);
@@ -75,7 +74,7 @@ export default function DocPane({ group, id }: { group: Group; id: string }) {
 
   useEffect(() => {
     if (shown === "orig" || texts.trans !== null || !file) return;
-    api.file(id, "kor").then((data) => setTexts((t) => ({ ...t, trans: data.content })), () => {
+    api.file(id, "kor").then((korean) => setTexts((t) => ({ ...t, trans: korean.content })), () => {
       toast("Could not load the translation");
       setLang("orig");
     });

@@ -83,7 +83,7 @@ export default function HomePage() {
     <section className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-slate-50">
       <div className={cx("mx-auto flex h-full w-full max-w-2xl flex-col px-6 pb-10", empty && "justify-center")}>
         {empty && (
-          <h1 className="text-center text-[40px] font-semibold tracking-tight text-slate-800" style={{ letterSpacing: "0.44px" }}>
+          <h1 className="text-center text-[40px] font-semibold tracking-[0.44px] text-slate-800">
             오늘의 research는 무엇인가요?
           </h1>
         )}

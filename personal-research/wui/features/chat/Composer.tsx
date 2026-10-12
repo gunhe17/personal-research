@@ -7,7 +7,7 @@ import Menu, { MenuItem } from "@/ui/Menu";
 import SendButton from "@/ui/SendButton";
 import ModelPicker from "./ModelPicker";
 
-export const COMMANDS = [
+const COMMANDS = [
   { name: "/next", hint: "다음 학습 단계로 넘어갑니다", kind: "next" },
   { name: "/retrieval", hint: "배운 내용을 내 말로 설명하고 점검받습니다", kind: "retrieval" },
 ];
@@ -82,7 +82,7 @@ export default function Composer({ value, sending, catalog, choice, input, onPic
             onSend();
           }
         }}
-        className="max-h-[180px] min-w-0 flex-1 resize-none self-center bg-transparent px-1 py-1 text-[17px] leading-normal text-slate-900 placeholder:text-slate-400 focus:outline-none"
+        className="max-h-[180px] min-w-0 flex-1 resize-none self-center bg-transparent px-1 py-1 leading-normal text-slate-900 placeholder:text-slate-400 focus:outline-none"
         style={{ fontSize: "calc(17px * var(--chat-zoom))" }}
       />
       {catalog && choice && <ModelPicker catalog={catalog} choice={choice} onPick={onPick} />}

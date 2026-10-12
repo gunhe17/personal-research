@@ -7,8 +7,7 @@ import IconButton from "@/ui/IconButton";
 import KeyValue from "@/ui/KeyValue";
 import Popup from "@/ui/Popup";
 import SectionHeader from "@/ui/SectionHeader";
-
-const field = "min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[13px] text-slate-900 focus:border-apple focus:bg-white focus:outline-none";
+import SettingsPage, { field } from "./SettingsPage";
 
 export default function UsersPane({ me }: { me: string }) {
   const [members, setMembers] = useState<Member[]>([]);
@@ -49,8 +48,7 @@ export default function UsersPane({ me }: { me: string }) {
   };
 
   return (
-    <div className="space-y-6">
-      <h3 className="text-[21px] font-semibold tracking-tight text-slate-900">Users</h3>
+    <SettingsPage title="Users">
       <section>
         <SectionHeader title="Users" count={members.length} className="mb-2" />
         <div className="space-y-3">
@@ -101,7 +99,7 @@ export default function UsersPane({ me }: { me: string }) {
           {doomed.name} ({doomed.email}) 를 지웁니다. 이 사람의 로그인과 저장된 요금제·API 키도 함께 지워집니다.
         </Popup>
       )}
-    </div>
+    </SettingsPage>
   );
 }
 

@@ -46,15 +46,15 @@ export default function Download({ id, path, paired, html, lang, texts, content,
 
   const name = path.split("/").pop() || "document";
   const base = name.replace(/\.[^.]+$/, "");
-  const fmt = html && format === "pdf" ? "md" : format;
+  const output = html && format === "pdf" ? "md" : format;
 
   const run = async () => {
     setOpen(false);
-    if (fmt === "pdf") {
-      const win = window.open("", "_blank");
-      if (!win) return toast("Could not open the print window. Allow pop-ups.");
+    if (output === "pdf") {
+      const popup = window.open("", "_blank");
+      if (!popup) return toast("Could not open the print window. Allow pop-ups.");
       if (paired && choice !== lang) onLang(choice);
-      setTimeout(() => print(win, base, content.current), 150);
+      setTimeout(() => print(popup, base, content.current), 150);
       return;
     }
     if (choice === "both" && paired) {
@@ -89,7 +89,7 @@ export default function Download({ id, path, paired, html, lang, texts, content,
           <SectionHeader title="Format" size="sm" />
           <Segmented
             label="Format"
-            value={fmt}
+            value={output}
             onChange={(next) => {
               setFormat(next);
               save("dlFmt", next);
@@ -116,18 +116,18 @@ function trigger(href: string, name: string) {
   link.remove();
 }
 
-function print(win: Window, title: string, article: HTMLElement | null) {
+function print(popup: Window, title: string, article: HTMLElement | null) {
   const styles = [...document.querySelectorAll('link[rel="stylesheet"], style')].map((node) => node.outerHTML).join("\n");
   const zoom = getComputedStyle(document.documentElement).getPropertyValue("--doc-zoom").trim() || "1";
-  win.document.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><base href="${location.origin}/"><title>${title.replace(/</g, "&lt;")}</title>${styles}
+  popup.document.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><base href="${location.origin}/"><title>${title.replace(/</g, "&lt;")}</title>${styles}
 <style>html,body{height:auto;overflow:visible;background:#fff;margin:0}.doc-print{--doc-zoom:${zoom};padding:14mm 0}@page{margin:0 18mm}@media print{.prose-doc h1,.prose-doc h2,.prose-doc h3{break-after:avoid}.prose-doc pre,.prose-doc table,.prose-doc img,.prose-doc blockquote,.pair{break-inside:avoid}.prose-doc pre{white-space:pre-wrap;word-break:break-word}}</style>
 </head><body class="font-sans antialiased bg-white text-slate-900"><article class="doc-print">${(article?.innerHTML || "").replace(/\benter-fade\b/g, "")}</article></body></html>`);
-  win.document.close();
+  popup.document.close();
   toast("In the print dialog, set the destination to Save as PDF");
   const go = () => {
-    win.focus();
-    win.print();
+    popup.focus();
+    popup.print();
   };
-  if (win.document.readyState === "complete") setTimeout(go, 300);
-  else win.addEventListener("load", go);
+  if (popup.document.readyState === "complete") setTimeout(go, 300);
+  else popup.addEventListener("load", go);
 }
