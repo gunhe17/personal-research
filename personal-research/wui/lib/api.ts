@@ -183,6 +183,7 @@ export const api = {
   changePassword: (password: string) => send<{ ok: boolean }>("/api/auth/password", { password }),
   users: () => request<{ items: Member[] }>("/api/users"),
   addUser: (name: string, email: string) => send<Account & { password: string }>("/api/users", { name, email }),
+  removeUser: (id: string) => request<{ ok: boolean }>(`/api/users/${encodeURIComponent(id)}`, { method: "DELETE" }),
   models: () => request<ModelCatalog>("/api/models"),
   skills: () => request<{ items: Skill[] }>("/api/skills"),
   collect: (input: string) => send<CollectJob>("/api/collect", { input }),

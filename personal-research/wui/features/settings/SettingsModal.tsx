@@ -118,8 +118,8 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
           <TreeRow variant="nav" label="Function" active={tab === "function"} onClick={() => setTab("function")} />
         </Group>
       </nav>
+      <IconButton icon="close" label="Close" className="absolute top-3 right-3 z-10 bg-white" onClick={close} />
       <div className="min-w-0 flex-1 overflow-y-auto p-6">
-        <IconButton icon="close" label="Close" className="absolute top-3 right-3" onClick={close} />
         {current ? (
           <ProviderPane
             key={current.id}
@@ -133,7 +133,7 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
         ) : tab === "account" ? (
           <AccountPane account={account} />
         ) : tab === "users" && account?.role === "admin" ? (
-          <UsersPane />
+          <UsersPane me={account.id} />
         ) : tab === "function" ? (
           <FunctionPane />
         ) : (
