@@ -112,4 +112,4 @@ URL 이나 식별자를 주고 `/collect` 를 부른다. `collect.py` 가 유형
 
 공식 문서 사이트 전체를 다시 받을 때는 `bash personal-research/api/bin/sync.sh` 를 실행한다.
 
-수집물을 다루는 규칙과 공급자별 사정은 [collected-rule.md](.claude/rules/collected-rule.md) 에, 절차는 [collect 스킬](.claude/skills/collect/SKILL.md) 에 있다.
+수집물을 다루는 규칙과 공급자별 사정은 [collected-rule.md](../.claude/rules/collected-rule.md) 에, 절차는 [collect 스킬](../.claude/skills/collect/SKILL.md) 에 있다.
