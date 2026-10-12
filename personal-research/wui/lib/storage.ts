@@ -1,7 +1,9 @@
-export function load<T>(key: string, fallback: T): T {
+const area = (session: boolean) => (session ? sessionStorage : localStorage);
+
+export function load<T>(key: string, fallback: T, session = false): T {
   let raw: string | null = null;
   try {
-    raw = localStorage.getItem(key);
+    raw = area(session).getItem(key);
   } catch {
     return fallback;
   }
@@ -13,8 +15,8 @@ export function load<T>(key: string, fallback: T): T {
   }
 }
 
-export function save(key: string, value: unknown): void {
+export function save(key: string, value: unknown, session = false): void {
   try {
-    localStorage.setItem(key, typeof value === "string" ? value : JSON.stringify(value));
+    area(session).setItem(key, typeof value === "string" ? value : JSON.stringify(value));
   } catch {}
 }

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { api, type Login, type Method, type Provider } from "@/lib/api";
 import { emit } from "@/lib/events";
+import { load, save as keep } from "@/lib/storage";
 import Dot from "@/ui/Dot";
 import Icon from "@/ui/Icon";
 import IconButton from "@/ui/IconButton";
@@ -16,7 +17,7 @@ import ProviderPane, { usable } from "./ProviderPane";
 type Sheet = { provider: Provider; method: Method };
 
 export default function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [tab, setTab] = useState("font");
+  const [tab, setTab] = useState(() => load("settingsTab", "font", true));
   const [providers, setProviders] = useState<Provider[]>([]);
   const [statuses, setStatuses] = useState<Record<string, Login | undefined>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -40,6 +41,8 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
   useEffect(() => {
     if (open) reload();
   }, [open, reload]);
+
+  useEffect(() => keep("settingsTab", tab, true), [tab]);
 
   const save = async (provider: Provider, values: Record<string, unknown>): Promise<Provider | null> => {
     try {

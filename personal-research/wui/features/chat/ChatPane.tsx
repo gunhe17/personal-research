@@ -130,9 +130,11 @@ export default function ChatPane({ group }: { group: Group }) {
     const before = seen.current;
     seen.current = count;
     if (!box || !count || count === before) return;
-    if (!before || box.scrollTop + box.clientHeight >= box.scrollHeight - 300) box.scrollTo({ top: box.scrollHeight });
+    const kept = before ? 0 : Number(load(`chatScroll:${group.id}`, 0, true)) || 0;
+    if (kept) box.scrollTop = kept;
+    else if (!before || box.scrollTop + box.clientHeight >= box.scrollHeight - 300) box.scrollTo({ top: box.scrollHeight });
     else setBelow(true);
-  }, [count]);
+  }, [count, group.id]);
 
   useEffect(() => {
     const changed = () => {
@@ -219,6 +221,7 @@ export default function ChatPane({ group }: { group: Group }) {
       <PaneBar group={group} name={chat?.title || "새 대화"} />
       <div className="relative flex min-h-0 flex-1 flex-col">
         <div ref={scroller} onScroll={(event) => {
+          save(`chatScroll:${group.id}`, Math.round(event.currentTarget.scrollTop), true);
           const box = event.currentTarget;
           if (box.scrollTop + box.clientHeight >= box.scrollHeight - 300) setBelow(false);
         }} className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto">

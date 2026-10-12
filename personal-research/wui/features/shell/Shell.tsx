@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cx } from "@/lib/cx";
 import { load, save } from "@/lib/storage";
 import SettingsModal from "@/features/settings/SettingsModal";
@@ -15,12 +15,24 @@ export default function Shell({ children }: { children: ReactNode }) {
   const [width, setWidth] = useState(288);
   const [resizing, setResizing] = useState(false);
   const [settings, setSettings] = useState(false);
+  const pane = useRef<HTMLDivElement>(null);
+
+  const showSidebar = (next: boolean) => {
+    setSidebar(next);
+    save("sidebarOpen", next);
+  };
+  const showSettings = (next: boolean) => {
+    setSettings(next);
+    save("settingsOpen", next, true);
+  };
 
   useEffect(() => {
     setWidth(clampWidth(Number(load("sidebarWidth", 288)) || 288));
+    setSidebar(load("sidebarOpen", false));
+    setSettings(load("settingsOpen", false, true));
     applyZoom("docZoom", readZoom("docZoom"));
     applyZoom("chatZoom", readZoom("chatZoom"));
-    document.body.classList.remove("booting");
+    requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove("booting")));
     const keys = (event: KeyboardEvent) => {
       if (!(event.metaKey || event.ctrlKey)) return;
       const step = { "=": 0.1, "+": 0.1, "-": -0.1 }[event.key];
@@ -34,6 +46,23 @@ export default function Shell({ children }: { children: ReactNode }) {
     };
     window.addEventListener("keydown", keys);
     return () => window.removeEventListener("keydown", keys);
+  }, []);
+
+  useEffect(() => {
+    const box = pane.current;
+    const target = Number(load("sidebarScroll", 0, true)) || 0;
+    if (!box?.firstElementChild || !target) return;
+    const observer = new ResizeObserver(() => {
+      if (box.scrollHeight - box.clientHeight < target) return;
+      box.scrollTop = target;
+      observer.disconnect();
+    });
+    observer.observe(box.firstElementChild);
+    const timer = setTimeout(() => observer.disconnect(), 5000);
+    return () => {
+      observer.disconnect();
+      clearTimeout(timer);
+    };
   }, []);
 
   useEffect(() => {
@@ -51,15 +80,15 @@ export default function Shell({ children }: { children: ReactNode }) {
 
   return (
     <div className={cx("flex h-full flex-col", resizing && "cursor-col-resize select-none")}>
-      <Header sidebar={sidebar} settings={settings} onSidebar={() => setSidebar(!sidebar)} onSettings={() => setSettings(true)} />
+      <Header sidebar={sidebar} settings={settings} onSidebar={() => showSidebar(!sidebar)} onSettings={() => showSettings(true)} />
       <div className="relative flex min-h-0 flex-1">
-        {sidebar && <div className="absolute inset-0 z-20 bg-slate-900/20 md:hidden" onClick={() => setSidebar(false)} />}
+        {sidebar && <div className="absolute inset-0 z-20 bg-slate-900/20 md:hidden" onClick={() => showSidebar(false)} />}
         <aside
           inert={!sidebar}
           className={cx("flex h-full shrink-0 flex-col overflow-hidden bg-white max-md:absolute max-md:inset-y-0 max-md:left-0 max-md:z-30", !resizing && "transition-all duration-300 ease-spring")}
           style={{ width: sidebar ? width : 0, opacity: sidebar ? 1 : 0 }}
         >
-          <div className="min-h-0 flex-1 overflow-y-auto text-sm" style={{ width }}>
+          <div ref={pane} onScroll={(event) => save("sidebarScroll", Math.round(event.currentTarget.scrollTop), true)} className="min-h-0 flex-1 overflow-y-auto text-sm" style={{ width }}>
             <Sidebar />
           </div>
         </aside>
@@ -84,7 +113,7 @@ export default function Shell({ children }: { children: ReactNode }) {
         )}
         <div className="relative flex min-h-0 min-w-0 flex-1">{children}</div>
       </div>
-      <SettingsModal open={settings} onClose={() => setSettings(false)} />
+      <SettingsModal open={settings} onClose={() => showSettings(false)} />
     </div>
   );
 }

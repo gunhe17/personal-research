@@ -83,7 +83,7 @@ export default function DocPane({ group, id }: { group: Group; id: string }) {
 
   useEffect(() => {
     if (!file || !texts.orig || !scroller.current) return;
-    const y = Number(sessionStorage.getItem(`docScroll:${file.path}`)) || 0;
+    const y = Number(load(`docScroll:${file.path}`, 0, true)) || 0;
     if (y) scroller.current.scrollTop = y;
   }, [file, texts.orig]);
 
@@ -123,7 +123,7 @@ export default function DocPane({ group, id }: { group: Group; id: string }) {
       />
       <main
         ref={scroller}
-        onScroll={(event) => file && sessionStorage.setItem(`docScroll:${file.path}`, String(Math.round(event.currentTarget.scrollTop)))}
+        onScroll={(event) => file && save(`docScroll:${file.path}`, Math.round(event.currentTarget.scrollTop), true)}
         className="relative min-h-0 flex-1 overflow-y-auto select-text"
       >
         {paired && (
