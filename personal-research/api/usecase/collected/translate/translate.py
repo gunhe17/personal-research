@@ -82,7 +82,10 @@ def korean(*, id: str) -> str:
             "--permission-mode", "acceptEdits",
             "--disallowedTools", "Bash", "WebFetch", "WebSearch",
         ]
-        method = (setting.methods(provider="anthropic") or ["plan_key"])[0]
+        usable = setting.methods(provider="anthropic")
+        if not usable:
+            raise RuntimeError("Anthropic 에 쓸 수 있는 인증이 없습니다. 설정에서 Claude 로 로그인하거나 API 키를 넣어 주세요.")
+        method = usable[0]
         started_at = store.now()
         exit_code, stdout, stderr = agent.run(
             id=f"translate-{id}",

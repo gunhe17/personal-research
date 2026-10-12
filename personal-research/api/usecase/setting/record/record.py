@@ -97,7 +97,7 @@ def methods(*, provider: str) -> list[str]:
             continue
         if broken[provider].get(m["id"]):
             raise RuntimeError(f"{PROVIDERS[provider]['label']} {label(method=m['id'])} 를 풀 수 없습니다. 설정에서 다시 입력해 주세요.")
-        if kind(method=m["id"]) == "plan_key" or secrets[provider].get(m["id"]):
+        if secrets[provider].get(m["id"]):
             usable.append(m["id"])
 
     return usable
@@ -130,15 +130,15 @@ def label(*, method: str) -> str:
 
 
 def home(*, provider: str, method: str) -> Path:
-    return HOMES[provider][1] / method
+    return HOMES[provider][1] / store.user() / method
 
 
 def usage() -> dict:
     with store.session() as connection:
         rows = connection.execute(
             """SELECT provider, auth, SUM(started_at >= ?), MAX(started_at) FROM llm
-               WHERE auth != '' AND exit_code = 0 GROUP BY provider, auth""",
-            (store.now()[:7],),
+               WHERE auth != '' AND exit_code = 0 AND user_id = ? GROUP BY provider, auth""",
+            (store.now()[:7], store.user()),
         ).fetchall()
     found = {}
     for runner, auth, month, last in rows:
@@ -158,7 +158,7 @@ def load() -> tuple[dict, dict, dict, dict]:
     with store.session() as connection:
         rows = connection.execute(
             "SELECT kind, value, secret, updated_at FROM user_meta WHERE user_id = ? AND collected_id = ''",
-            (store.USER,),
+            (store.user(),),
         ).fetchall()
     found = {r[0]: r[1:] for r in rows}
     options, secrets, saved, broken = {}, {}, {}, {}
@@ -293,11 +293,11 @@ def sync(*, provider: str, method: str) -> None:
 
 def write(*, connection, kind: str, value: str, secret: str) -> None:
     if kind not in PROVIDERS and not secret:
-        connection.execute("DELETE FROM user_meta WHERE user_id = ? AND kind = ? AND collected_id = ''", (store.USER, kind))
+        connection.execute("DELETE FROM user_meta WHERE user_id = ? AND kind = ? AND collected_id = ''", (store.user(), kind))
         return
     connection.execute(
         "INSERT OR REPLACE INTO user_meta (user_id, kind, collected_id, value, secret, updated_at) VALUES (?, ?, '', ?, ?, ?)",
-        (store.USER, kind, value, secret, store.now()),
+        (store.user(), kind, value, secret, store.now()),
     )
 
 
@@ -309,7 +309,7 @@ def migrate() -> None:
         legacy = [c for c in PROVIDERS if c in store.columns(connection=connection, table="user_meta")]
         row = connection.execute(
             f"SELECT value, {', '.join(legacy)} FROM user_meta WHERE user_id = ? AND kind = 'credential' AND collected_id = ''",
-            (store.USER,),
+            (store.user(),),
         ).fetchone() if legacy else None
         if row:
             saved = json.loads(row[0])
@@ -367,7 +367,7 @@ if __name__ == "__main__":
             connection.execute(f"ALTER TABLE user_meta ADD COLUMN {column} TEXT NOT NULL DEFAULT ''")
         connection.execute(
             "INSERT INTO user_meta (user_id, kind, collected_id, value, anthropic, updated_at) VALUES (?, 'credential', '', ?, ?, ?)",
-            (store.USER, json.dumps({"anthropic": {"auth": "api_key"}}), encrypt(key=json.dumps({"api_key": "sk-old-1111", "token": "sk-ant-oat01-old-2222"})), store.now()),
+            (store.user(), json.dumps({"anthropic": {"auth": "api_key"}}), encrypt(key=json.dumps({"api_key": "sk-old-1111", "token": "sk-ant-oat01-old-2222"})), store.now()),
         )
     by = lambda: {p["id"]: p for p in get()["providers"]}
     ids = lambda provider: [m["id"] for m in by()[provider]["methods"]]
@@ -381,25 +381,25 @@ if __name__ == "__main__":
     assert normalized(given={"order": ["subscription", "api_key"], "enabled": {"api_key": False}}) == [{"id": "plan_key", "enabled": True}, {"id": "api_key", "enabled": False}]
     assert normalized(given={"methods": [{"id": "plan_key"}, {"id": "../x"}, {"id": "api_key_2", "enabled": False}]}) == [{"id": "plan_key", "enabled": True}, {"id": "api_key_2", "enabled": False}]
     assert label(method="plan_key") == "Plan login" and label(method="plan_key_2") == "Plan login 2"
-    assert methods(provider="openai") == ["plan_key"]
+    assert methods(provider="openai") == []
     edit(data={"providers": {"openai": {"add": "plan_key"}}})
     edit(data={"providers": {"openai": {"add": "api_key"}}})
     assert ids("openai") == ["plan_key", "api_key", "plan_key_2", "api_key_2"], ids("openai")
     edit(data={"providers": {"openai": {"keys": {"api_key_2": "sk-two-2222"}}}})
-    assert methods(provider="openai") == ["plan_key", "plan_key_2", "api_key_2"]
+    assert methods(provider="openai") == ["api_key_2"]
     assert environment(provider="openai", method="api_key_2")["CODEX_API_KEY"] == "sk-two-2222"
-    assert environment(provider="openai", method="plan_key_2")["CODEX_HOME"] == str(folder / "codex" / "plan_key_2")
+    assert environment(provider="openai", method="plan_key_2")["CODEX_HOME"] == str(folder / "codex" / store.USER / "plan_key_2")
     edit(data={"providers": {"openai": {"order": ["api_key_2", "plan_key", "api_key", "plan_key_2"], "enabled": {"plan_key": False}}}})
     assert ids("openai") == ["api_key_2", "api_key", "plan_key_2", "plan_key"]
-    (folder / "codex" / "plan_key_2" / "auth.json").write_text('{"tokens": "login-2"}')
+    (folder / "codex" / store.USER / "plan_key_2" / "auth.json").write_text('{"tokens": "login-2"}')
     environment(provider="openai", method="plan_key_2")
     assert {m["id"]: m["secret"] for m in by()["openai"]["methods"]}["plan_key_2"] == "…-2\"}"
-    (folder / "codex" / "plan_key_2" / "auth.json").unlink()
+    (folder / "codex" / store.USER / "plan_key_2" / "auth.json").unlink()
     environment(provider="openai", method="plan_key_2")
-    assert (folder / "codex" / "plan_key_2" / "auth.json").read_text() == '{"tokens": "login-2"}'
-    assert oct((folder / "codex" / "plan_key_2" / "auth.json").stat().st_mode & 0o777) == "0o600"
+    assert (folder / "codex" / store.USER / "plan_key_2" / "auth.json").read_text() == '{"tokens": "login-2"}'
+    assert oct((folder / "codex" / store.USER / "plan_key_2" / "auth.json").stat().st_mode & 0o777) == "0o600"
     edit(data={"providers": {"openai": {"remove": "plan_key_2"}}})
-    assert "plan_key_2" not in ids("openai") and not (folder / "codex" / "plan_key_2").exists()
+    assert "plan_key_2" not in ids("openai") and not (folder / "codex" / store.USER / "plan_key_2").exists()
     with store.session() as connection:
         assert not connection.execute("SELECT 1 FROM user_meta WHERE kind = 'openai_plan_key_2'").fetchone()
     remember(provider="anthropic", method="plan_key", token="sk-ant-oat01-test-5678")

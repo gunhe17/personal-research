@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextvars
 import threading
 import time
 import uuid
@@ -35,7 +36,7 @@ def start(*, input: str) -> dict:
     JOBS[job["id"]] = job
     for old in [j["id"] for j in listed() if j["state"] in ("done", "failed")][KEPT:]:
         JOBS.pop(old, None)
-    threading.Thread(target=run, kwargs={"job": job}, daemon=True).start()
+    threading.Thread(target=contextvars.copy_context().run, args=(run,), kwargs={"job": job}, daemon=True).start()
 
     return job
 

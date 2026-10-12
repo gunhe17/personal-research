@@ -26,8 +26,8 @@ def record(
     id = str(uuid.uuid4())
     with store.session() as connection:
         connection.execute(
-            """INSERT INTO llm (id, provider, model, purpose, owner_id, command, request, response, stderr, exit_code, started_at, finished_at, auth)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            """INSERT INTO llm (id, provider, model, purpose, owner_id, command, request, response, stderr, exit_code, started_at, finished_at, auth, user_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 id,
                 provider,
@@ -42,6 +42,7 @@ def record(
                 started_at,
                 store.now(),
                 auth,
+                store.user(),
             ),
         )
 

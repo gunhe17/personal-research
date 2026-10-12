@@ -8,6 +8,7 @@ import urllib.parse
 import urllib.request
 
 API_URL = (sys.argv[1:2] or ["http://127.0.0.1:8765"])[0].rstrip("/")
+TOKEN = sys.argv[2] if len(sys.argv) > 2 and sys.argv[2] != "check" else ""
 
 
 # #
@@ -60,11 +61,15 @@ def called(*, params: dict) -> dict:
 # #
 # tools
 
+def request(url: str) -> urllib.request.Request:
+    return urllib.request.Request(url, headers={"Authorization": f"Bearer {TOKEN}"} if TOKEN else {})
+
+
 def search_collected(*, terms: list, limit: int = 8) -> list[dict]:
     if not isinstance(terms, list) or not all(isinstance(t, str) for t in terms):
         raise ValueError("terms must be a list of strings")
     query = urllib.parse.urlencode({"q": " ".join(terms)})
-    with urllib.request.urlopen(f"{API_URL}/api/search?{query}", timeout=30) as response:
+    with urllib.request.urlopen(request(f"{API_URL}/api/search?{query}"), timeout=30) as response:
         found = json.loads(response.read())["items"]
 
     return [
@@ -77,7 +82,7 @@ def read_document(*, path: str, language: str = "eng", start: int = 1, lines: in
         raise ValueError("language must be eng or kor")
     query = urllib.parse.urlencode({"id": path, "language": language})
     try:
-        with urllib.request.urlopen(f"{API_URL}/api/file?{query}", timeout=30) as response:
+        with urllib.request.urlopen(request(f"{API_URL}/api/file?{query}"), timeout=30) as response:
             found = json.loads(response.read())
     except urllib.error.HTTPError as error:
         if error.code == 404:
@@ -98,7 +103,7 @@ def read_document(*, path: str, language: str = "eng", start: int = 1, lines: in
 
 
 def list_collected(*, folder: str = "", limit: int = 100) -> dict:
-    with urllib.request.urlopen(f"{API_URL}/api/tree", timeout=30) as response:
+    with urllib.request.urlopen(request(f"{API_URL}/api/tree"), timeout=30) as response:
         nodes = json.loads(response.read())["tree"]
     wanted = folder.strip("/")
     for part in [p for p in wanted.split("/") if p]:
@@ -207,4 +212,4 @@ def check() -> None:
 # cli
 
 if __name__ == "__main__":
-    check() if sys.argv[2:] == ["check"] else main()
+    check() if sys.argv[-1] == "check" else main()

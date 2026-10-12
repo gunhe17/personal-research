@@ -10,10 +10,12 @@ import signal
 import struct
 import subprocess
 import termios
+import contextvars
 import threading
 import time
 from pathlib import Path
 
+from usecase.common import store
 from usecase.setting.record import record as setting
 
 BINARIES = {
@@ -30,7 +32,7 @@ ESCAPE = re.compile(r"\x1b\[[0-9;?<>=]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1
 URL = re.compile(r"https://\S+")
 CODE = re.compile(r"\b[A-Z0-9]{4}-[A-Z0-9]{4,5}\b")
 TOKEN = re.compile(r"sk-ant-oat\d+-[A-Za-z0-9_\-]+")
-PENDING: dict[tuple[str, str], dict] = {}
+PENDING: dict[tuple[str, str, str], dict] = {}
 LOCK = threading.Lock()
 EXPIRES = 900
 
@@ -42,7 +44,7 @@ def status(*, provider: str, method: str) -> dict:
     check(provider=provider, method=method)
     found = signed(provider=provider, method=method)
     with LOCK:
-        pending = PENDING.get((provider, method))
+        pending = PENDING.get((store.user(), provider, method))
         if pending and pending["process"].poll() is not None:
             finish(provider=provider, method=method)
             pending = None
@@ -57,7 +59,7 @@ def status(*, provider: str, method: str) -> dict:
 
 def signed(*, provider: str, method: str) -> dict:
     environment = setting.environment(provider=provider, method=method)
-    if provider == "anthropic" and method != "plan_key" and "CLAUDE_CODE_OAUTH_TOKEN" not in environment:
+    if provider == "anthropic" and "CLAUDE_CODE_OAUTH_TOKEN" not in environment:
         return {"logged_in": False, "detail": ""}
     command = {
         "openai": [binary(provider=provider), "login", "status"],
@@ -114,8 +116,8 @@ def start(*, provider: str, method: str) -> dict:
         "started": time.time(),
     }
     with LOCK:
-        PENDING[(provider, method)] = pending
-    threading.Thread(target=read, kwargs={"provider": provider, "method": method, "pending": pending}, daemon=True).start()
+        PENDING[(store.user(), provider, method)] = pending
+    threading.Thread(target=contextvars.copy_context().run, args=(read,), kwargs={"provider": provider, "method": method, "pending": pending}, daemon=True).start()
     deadline = time.time() + 20
     while time.time() < deadline and not pending["url"] and process.poll() is None:
         time.sleep(0.2)
@@ -128,7 +130,7 @@ def start(*, provider: str, method: str) -> dict:
 
 def submit(*, provider: str, method: str, code: str) -> dict:
     with LOCK:
-        pending = PENDING.get((provider, method))
+        pending = PENDING.get((store.user(), provider, method))
     if not pending or not pending["needs_code"]:
         raise ValueError("진행 중인 로그인이 없습니다.")
     if not code.strip():
@@ -169,7 +171,7 @@ def signout(*, provider: str, method: str) -> dict:
 
 def cancel(*, provider: str, method: str) -> None:
     with LOCK:
-        pending = PENDING.pop((provider, method), None)
+        pending = PENDING.pop((store.user(), provider, method), None)
     if not pending:
         return
     try:
@@ -183,7 +185,7 @@ def cancel(*, provider: str, method: str) -> None:
 
 
 def finish(*, provider: str, method: str) -> None:
-    pending = PENDING.pop((provider, method), None)
+    pending = PENDING.pop((store.user(), provider, method), None)
     if pending:
         try:
             os.close(pending["master"])

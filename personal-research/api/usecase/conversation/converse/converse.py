@@ -5,6 +5,7 @@ import math
 import os
 import re
 import shutil
+import contextvars
 import threading
 from pathlib import Path
 
@@ -128,7 +129,7 @@ def chosen(*, question: dict) -> dict:
 
 def submit(*, domain: str, id: str, message_id: str) -> None:
     record.change(domain=domain, message_id=message_id, status="queued", error=None)
-    threading.Thread(target=run, kwargs={"domain": domain, "id": id, "message_id": message_id}, daemon=True).start()
+    threading.Thread(target=contextvars.copy_context().run, args=(run,), kwargs={"domain": domain, "id": id, "message_id": message_id}, daemon=True).start()
 
 
 def cancel(*, domain: str, message_id: str) -> None:
@@ -209,7 +210,7 @@ def codex(*, conversation: dict, question: dict, request: str, model: str, metho
             "-c", "features.shell_tool=false",
             "-c", "features.unified_exec=false",
             "-c", 'mcp_servers.research.command="python3"',
-            "-c", f"mcp_servers.research.args={json.dumps([str(MCP), API_URL])}",
+            "-c", f"mcp_servers.research.args={json.dumps([str(MCP), API_URL, agent.TOKEN])}",
         ]
         command += ["resume", thread_id] if thread_id else []
         command += ["-"]
@@ -234,7 +235,7 @@ def claude(*, conversation: dict, question: dict, request: str, model: str, meth
         "--json-schema", json.dumps(SCHEMA),
         "--model", model,
         "--strict-mcp-config",
-        "--mcp-config", json.dumps({"mcpServers": {"research": {"command": "python3", "args": [str(MCP), API_URL]}}}),
+        "--mcp-config", json.dumps({"mcpServers": {"research": {"command": "python3", "args": [str(MCP), API_URL, agent.TOKEN]}}}),
         "--allowedTools", "Read", "Grep", "Glob", *TOOLS,
         "--disallowedTools", "Bash", "Edit", "Write", "WebFetch", "WebSearch",
     ]
@@ -371,7 +372,7 @@ def refresh() -> None:
     grok_config = CORPUS / ".grok" / "config.toml"
     grok_config.parent.mkdir(exist_ok=True)
     grok_config.write_text(
-        f"[mcp_servers.research]\ncommand = \"python3\"\nargs = {json.dumps([str(MCP), API_URL])}\nenabled = true\n",
+        f"[mcp_servers.research]\ncommand = \"python3\"\nargs = {json.dumps([str(MCP), API_URL, agent.TOKEN])}\nenabled = true\n",
         encoding="utf-8",
     )
 

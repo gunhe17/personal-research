@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import secrets
 import os
 import signal
 import subprocess
@@ -13,6 +14,7 @@ from usecase.common import store
 
 URL = os.environ.get("AGENT_URL", "").rstrip("/")
 HIDDEN = {"ENCRYPTION_KEY"}
+TOKEN = secrets.token_urlsafe(24)
 WORK = store.API / "data" / "work"
 RUNNING: dict[str, subprocess.Popen] = {}
 

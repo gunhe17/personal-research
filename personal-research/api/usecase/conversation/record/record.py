@@ -19,7 +19,7 @@ ENCODED = ("context", "rich", "sources")
 
 def listed(*, domain: str, space_id: str = "") -> list[dict]:
     assert domain in DOMAINS
-    where, parameters = ("WHERE c.space_id = ?", (space_id,)) if space_id else ("", ())
+    where, parameters = ("WHERE c.user_id = ? AND c.space_id = ?", (store.user(), space_id)) if space_id else ("WHERE c.user_id = ?", (store.user(),))
     with store.session() as connection:
         rows = connection.execute(
             f"""SELECT c.id, c.title, c.collected_id, c.created_at, c.updated_at, COUNT(m.id)
@@ -43,9 +43,9 @@ def find(*, collected_id: str) -> list[dict]:
                FROM space_conversation AS c
                JOIN collected AS root ON root.id = c.collected_id
                JOIN collected AS wanted ON wanted.id = ?
-               WHERE root.id = wanted.id OR wanted.path LIKE root.path || '/%'
+               WHERE c.user_id = ? AND (root.id = wanted.id OR wanted.path LIKE root.path || '/%')
                ORDER BY c.updated_at DESC""",
-            (collected_id,),
+            (collected_id, store.user()),
         ).fetchall()
 
     return [
@@ -60,7 +60,7 @@ def get(*, domain: str, id: str) -> dict | None:
         return None
     with store.session() as connection:
         connection.row_factory = sqlite3.Row
-        row = connection.execute(f"SELECT * FROM {domain}_conversation WHERE id = ?", (id,)).fetchone()
+        row = connection.execute(f"SELECT * FROM {domain}_conversation WHERE id = ? AND user_id = ?", (id, store.user())).fetchone()
         if row is None:
             return None
         messages = connection.execute(
@@ -110,9 +110,9 @@ def notes(*, space_id: str) -> list[str]:
             """SELECT json_extract(m.rich, '$.learning_note')
                FROM space_message AS m
                JOIN space_conversation AS c ON c.id = m.conversation_id
-               WHERE c.space_id = ? AND m.role = 'assistant' AND m.rich IS NOT NULL
+               WHERE c.space_id = ? AND c.user_id = ? AND m.role = 'assistant' AND m.rich IS NOT NULL
                ORDER BY m.created_at DESC LIMIT 12""",
-            (space_id,),
+            (space_id, store.user()),
         ).fetchall()
 
     return [
@@ -140,6 +140,7 @@ def create(*, domain: str, data: dict) -> dict:
         "meta": {},
         "created_at": store.now(),
         "updated_at": store.now(),
+        "user_id": store.user(),
     }
     if domain == "space":
         created["space_id"] = data["space_id"]
@@ -169,8 +170,9 @@ def edit(*, domain: str, id: str, data: dict) -> dict:
 def remove(*, domain: str, id: str) -> bool:
     assert domain in DOMAINS
     with store.session() as connection:
-        connection.execute(f"DELETE FROM {domain}_message WHERE conversation_id = ?", (id,))
-        removed = connection.execute(f"DELETE FROM {domain}_conversation WHERE id = ?", (id,)).rowcount
+        removed = connection.execute(f"DELETE FROM {domain}_conversation WHERE id = ? AND user_id = ?", (id, store.user())).rowcount
+        if removed:
+            connection.execute(f"DELETE FROM {domain}_message WHERE conversation_id = ?", (id,))
 
     return removed > 0
 

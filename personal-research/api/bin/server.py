@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import hmac
 import json
 import os
 import re
 import sys
+from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -20,6 +22,7 @@ from usecase.conversation.record import record
 from usecase.space.record import record as spaces
 from usecase.setting.login import login
 from usecase.setting.record import record as setting
+from usecase.user.account import account
 from usecase.collected.collect import job
 from usecase.collected.read import read
 from usecase.collected.search import search
@@ -27,6 +30,8 @@ from usecase.collected.search import search
 HOST = os.environ.get("HOST") or "127.0.0.1"
 PORT = int(os.environ.get("PORT") or 8765)
 SPACE = re.compile(r"/api/spaces/([a-zA-Z0-9_-]+)")
+PUBLIC = {"/api/health", "/api/auth/login"}
+SHARED = {"/api/search", "/api/file", "/api/tree"}
 MATERIALS = re.compile(r"/api/spaces/([a-zA-Z0-9_-]+)/materials")
 MATERIAL = re.compile(r"/api/materials/([a-zA-Z0-9_-]+)")
 CONVERSATIONS = re.compile(r"/api/(space|agent)/conversations")
@@ -48,6 +53,9 @@ def load_dotenv(*, path: Path) -> None:
 # route
 
 class Handler(BaseHTTPRequestHandler):
+    cookie = ""
+    account: dict = {}
+
     server_version = "ResearchViewer/2.0"
 
     def log_message(self, fmt: str, *args) -> None:
@@ -65,6 +73,14 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path
         query = parse_qs(parsed.query)
+        if not self.identify(path=path, reading=True):
+            return
+        if path == "/api/auth/me":
+            return self.reply(code=200, payload=self.account)
+        if path == "/api/users":
+            if self.account.get("role") != "admin":
+                return self.reply(code=403, payload={"error": "관리자만 볼 수 있습니다."})
+            return self.reply(code=200, payload={"items": account.listed()})
 
         if path == "/api/settings":
             return self.reply(code=200, payload=setting.get())
@@ -156,6 +172,35 @@ class Handler(BaseHTTPRequestHandler):
         body = self.payload()
         if body is None:
             return self.reply(code=400, payload={"error": "invalid json"})
+        if not self.identify(path=parsed.path, reading=False):
+            return
+        if parsed.path == "/api/auth/login":
+            if not self.trusted():
+                return self.reply(code=403, payload={"error": "forbidden"})
+            found = account.verify(email=str(body.get("email") or ""), password=str(body.get("password") or ""))
+            if found is None:
+                return self.reply(code=401, payload={"error": "이메일이나 비밀번호가 맞지 않습니다."})
+            self.cookie = f"session={account.begin(user_id=found['id'])}; Path=/; HttpOnly; SameSite=Lax; Max-Age={account.DAYS * 86400}"
+            return self.reply(code=200, payload=found)
+        if parsed.path == "/api/users":
+            if self.account.get("role") != "admin" or not self.trusted():
+                return self.reply(code=403, payload={"error": "관리자만 사용자를 추가할 수 있습니다."})
+            try:
+                return self.reply(code=200, payload=account.create(email=str(body.get("email") or ""), name=str(body.get("name") or "")))
+            except ValueError as error:
+                return self.reply(code=400, payload={"error": str(error)})
+        if parsed.path == "/api/auth/password":
+            if not self.trusted():
+                return self.reply(code=403, payload={"error": "forbidden"})
+            try:
+                account.change(user_id=self.account["id"], current=str(body.get("current") or ""), password=str(body.get("password") or ""))
+            except ValueError as error:
+                return self.reply(code=400, payload={"error": str(error)})
+            return self.reply(code=200, payload={"ok": True})
+        if parsed.path == "/api/auth/logout":
+            account.end(token=self.token())
+            self.cookie = "session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"
+            return self.reply(code=200, payload={"ok": True})
         if parsed.path == "/api/opened":
             wanted = (body.get("id") or "").strip()
             if not wanted:
@@ -197,6 +242,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_PUT(self) -> None:
         path = urlparse(self.path).path
+        if not self.identify(path=path, reading=False):
+            return
         body = self.payload()
         if body is None:
             return self.reply(code=400, payload={"error": "invalid json"})
@@ -222,6 +269,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_DELETE(self) -> None:
         path = urlparse(self.path).path
+        if not self.identify(path=path, reading=False):
+            return
         if path == "/api/login":
             if not self.trusted():
                 return self.reply(code=403, payload={"error": "forbidden"})
@@ -261,6 +310,11 @@ class Handler(BaseHTTPRequestHandler):
         return started
 
     def act(self, *, domain: str, id: str, action: str, body: dict) -> None:
+        owned = record.get(domain=domain, id=id)
+        if owned is None:
+            return self.reply(code=404, payload={"error": "not found"})
+        if action != "messages" and not any(m["id"] == body.get("message_id") for m in owned["messages"]):
+            return self.reply(code=404, payload={"error": "not found"})
         if not converse.available():
             return self.reply(code=500, payload={"error": "codex CLI 가 없다"})
         if action == "messages":
@@ -302,6 +356,25 @@ class Handler(BaseHTTPRequestHandler):
 
         return origin is None or urlparse(origin).netloc == host
 
+    def identify(self, *, path: str, reading: bool) -> bool:
+        if path in PUBLIC:
+            return True
+        if reading and path in SHARED and hmac.compare_digest(self.headers.get("Authorization") or "", f"Bearer {agent.TOKEN}"):
+            return True
+        found = account.resolve(token=self.token())
+        if found is None:
+            self.reply(code=401, payload={"error": "로그인이 필요합니다."})
+            return False
+        store.CURRENT.set(found["id"])
+        self.account = found
+
+        return True
+
+    def token(self) -> str:
+        jar = SimpleCookie(self.headers.get("Cookie") or "")
+
+        return jar["session"].value if "session" in jar else ""
+
     def cors(self) -> None:
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
@@ -322,6 +395,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(data)))
         if no_store:
             self.send_header("Cache-Control", "no-store, must-revalidate")
+        if self.cookie:
+            self.send_header("Set-Cookie", self.cookie)
         self.cors()
         self.end_headers()
         self.wfile.write(data)

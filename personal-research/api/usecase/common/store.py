@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextvars
 import json
 import os
 import re
@@ -16,6 +17,7 @@ LANGUAGES = ("eng", "kor")
 DOCUMENT_SUFFIX = (".md", ".html")
 DECORATION = re.compile(r"\A(?:> ## Documentation Index\n(?:>.*\n)*|---\n(?s:.*?)\n---\n)\n*")
 USER = "default"
+CURRENT: contextvars.ContextVar[str] = contextvars.ContextVar("user", default=USER)
 MESSAGE = (
     "id", "conversation_id", "role", "kind", "content", "context", "rich", "sources",
     "question_id", "client_id", "status", "error", "created_at",
@@ -64,7 +66,8 @@ CREATE TABLE IF NOT EXISTS space_conversation (
     title        TEXT NOT NULL,
     meta         TEXT NOT NULL DEFAULT '{}',
     created_at   TEXT NOT NULL,
-    updated_at   TEXT NOT NULL
+    updated_at   TEXT NOT NULL,
+    user_id      TEXT NOT NULL DEFAULT 'default'
 );
 CREATE INDEX IF NOT EXISTS space_conversation_space ON space_conversation (space_id);
 
@@ -91,7 +94,8 @@ CREATE TABLE IF NOT EXISTS agent_conversation (
     title        TEXT NOT NULL,
     meta         TEXT NOT NULL DEFAULT '{}',
     created_at   TEXT NOT NULL,
-    updated_at   TEXT NOT NULL
+    updated_at   TEXT NOT NULL,
+    user_id      TEXT NOT NULL DEFAULT 'default'
 );
 
 CREATE TABLE IF NOT EXISTS agent_message (
@@ -114,7 +118,17 @@ CREATE INDEX IF NOT EXISTS agent_message_conversation ON agent_message (conversa
 CREATE TABLE IF NOT EXISTS user (
     id         TEXT PRIMARY KEY,
     name       TEXT NOT NULL,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    password   TEXT NOT NULL DEFAULT '',
+    email      TEXT NOT NULL DEFAULT '',
+    role       TEXT NOT NULL DEFAULT 'user'
+);
+
+CREATE TABLE IF NOT EXISTS user_session (
+    token      TEXT PRIMARY KEY,
+    user_id    TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS user_meta (
@@ -140,7 +154,8 @@ CREATE TABLE IF NOT EXISTS llm (
     exit_code   INTEGER,
     started_at  TEXT NOT NULL,
     finished_at TEXT NOT NULL,
-    auth        TEXT NOT NULL DEFAULT ''
+    auth        TEXT NOT NULL DEFAULT '',
+    user_id     TEXT NOT NULL DEFAULT 'default'
 );
 CREATE INDEX IF NOT EXISTS llm_owner ON llm (owner_id);
 
@@ -360,10 +375,14 @@ def touch(*, id: str) -> str:
     with session() as connection:
         connection.execute(
             "INSERT OR REPLACE INTO user_meta (user_id, kind, collected_id, value, updated_at) VALUES (?, 'opened', ?, '{}', ?)",
-            (USER, id, now()),
+            (user(), id, now()),
         )
 
     return id
+
+
+def user() -> str:
+    return CURRENT.get()
 
 
 
@@ -429,6 +448,10 @@ def upgrade(*, connection) -> None:
         connection.execute("ALTER TABLE llm ADD COLUMN auth TEXT NOT NULL DEFAULT ''")
     if "secret" not in columns(connection=connection, table="user_meta"):
         connection.execute("ALTER TABLE user_meta ADD COLUMN secret TEXT NOT NULL DEFAULT ''")
+    # owner
+    for table, column, fallback in (("user", "password", "''"), ("user", "email", "''"), ("user", "role", "'user'"), ("space_conversation", "user_id", "'default'"), ("agent_conversation", "user_id", "'default'"), ("llm", "user_id", "'default'")):
+        if column not in columns(connection=connection, table=table):
+            connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} TEXT NOT NULL DEFAULT {fallback}")
     # conversation
     paths = dict(connection.execute("SELECT path, id FROM collected").fetchall())
     for table in ("conversations", "agent"):
@@ -499,8 +522,8 @@ def codex(*, thread_id: str | None) -> dict:
 
 
 def conversation(*, connection, domain: str, row: dict, messages: list[dict]) -> None:
-    fields = ["id", "collected_id", "title", "meta", "created_at", "updated_at"] + (["space_id"] if domain == "space" else [])
-    values = {**row, "collected_id": row.get("collected_id") or "", "meta": json.dumps(row.get("meta") or {}, ensure_ascii=False)}
+    fields = ["id", "collected_id", "title", "meta", "created_at", "updated_at", "user_id"] + (["space_id"] if domain == "space" else [])
+    values = {**row, "collected_id": row.get("collected_id") or "", "meta": json.dumps(row.get("meta") or {}, ensure_ascii=False), "user_id": row.get("user_id") or user()}
     connection.execute(
         f"INSERT OR IGNORE INTO {domain}_conversation ({', '.join(fields)}) VALUES ({', '.join('?' * len(fields))})",
         tuple(values[f] for f in fields),
