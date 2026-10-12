@@ -36,8 +36,8 @@ with sync_playwright() as p:
     page.screenshot(path=f"{OUT}/collect.png")
     page.keyboard.press("Escape")
     page.goto(f"{BASE}/collected?agent={jobs[0]['conversation_id']}")
-    page.wait_for_selector("[data-answer-id]")
-    print("4 conversation shows steps:", page.locator("[data-answer-id]", has_text="Detected").count())
+    page.wait_for_selector("text=Detected")
+    print("4 conversation shows steps:", page.locator("text=Detected").count(), "| no open on failure:", page.get_by_role("button", name="Open", exact=True).count() == 0)
     for job in jobs:
         page.evaluate("id => fetch(`/api/agent/conversations/${id}`, { method: 'DELETE' })", job["conversation_id"])
     print("errors:", errors[:5])

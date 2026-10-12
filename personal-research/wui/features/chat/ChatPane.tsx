@@ -10,6 +10,7 @@ import PaneBar from "@/features/workbench/PaneBar";
 import { itemKey, type Group, type Item } from "@/features/workbench/items";
 import { useWorkbench } from "@/features/workbench/WorkbenchProvider";
 import AnnotationLayer, { capture, useAnnotations } from "./Annotations";
+import CollectCard from "./CollectCard";
 import CollectLive from "./CollectLive";
 import Answer from "./Answer";
 import Composer, { commanded } from "./Composer";
@@ -249,12 +250,22 @@ export default function ChatPane({ group }: { group: Group }) {
                   setStatus((error as Error).message);
                 }
               }}>
-                {answers.map((answer) => (
+                {question.kind === "collect" && answers.map((answer) => (
+                  <CollectCard
+                    key={answer.id}
+                    input={question.content}
+                    events={answer.context?.steps || []}
+                    state={answer.sources?.length ? "done" : "failed"}
+                    collected={answer.sources?.[0] || null}
+                    onOpen={(source) => workbench.open({ kind: "doc", id: source.id, path: source.path }, { beside: group.id })}
+                  />
+                ))}
+                {question.kind !== "collect" && answers.map((answer) => (
                   <Answer
                     key={answer.id}
                     message={answer}
                     label={label(question, answer)}
-                    provider={question.kind === "collect" ? null : question.context?.model?.provider || catalog?.default.provider || "openai"}
+                    provider={question.context?.model?.provider || catalog?.default.provider || "openai"}
                     scene={scene}
                     onContext={(c) => {
                       const merged = { ...c, source_answer_id: answer.id };
@@ -273,7 +284,7 @@ export default function ChatPane({ group }: { group: Group }) {
                     onOpen={(source) => workbench.open({ kind: "doc", id: source.id, path: source.path }, { beside: group.id })}
                   />
                 ))}
-                {question.kind === "collect" && !answers.length && chat && <CollectLive conversation={chat.id} onDone={() => refresh(chat.domain, chat.id)} />}
+                {question.kind === "collect" && !answers.length && chat && <CollectLive conversation={chat.id} onDone={() => refresh(chat.domain, chat.id)} onOpen={(source) => workbench.open({ kind: "doc", id: source.id, path: source.path }, { beside: group.id })} />}
               </Exchange>
             ))}
             <AnnotationLayer scope={thread} notes={notes} version={chat} />

@@ -5,8 +5,6 @@ import { chatHtml } from "@/lib/markdown";
 import Button from "@/ui/Button";
 import Icon from "@/ui/Icon";
 import Logo from "@/ui/Logo";
-import Steps from "@/ui/Steps";
-import { stepsOf } from "@/lib/collect";
 import Blocks, { type Scene } from "@/features/blocks/Blocks";
 
 type Props = {
@@ -24,7 +22,6 @@ export default function Answer({ message, label, provider, scene, onContext, onA
   return (
     <article data-answer-id={message.id} className="mb-10">
       <Profile provider={provider} label={label} />
-      {message.context?.steps && <Steps steps={stepsOf(message.context.steps)} className="mb-4" />}
       <div data-article className="article">
         {message.rich ? (
           <Blocks rich={message.rich} id={message.id} onContext={onContext} scene={scene} />

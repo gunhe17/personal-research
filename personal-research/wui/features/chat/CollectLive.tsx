@@ -2,11 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { api, type CollectJob } from "@/lib/api";
-import { progress } from "@/lib/collect";
-import Steps from "@/ui/Steps";
-import { Profile } from "./Answer";
+import CollectCard from "./CollectCard";
 
-export default function CollectLive({ conversation, onDone }: { conversation: string; onDone: () => void }) {
+export default function CollectLive({ conversation, onDone, onOpen }: { conversation: string; onDone: () => void; onOpen: (collected: { id: string; path: string }) => void }) {
   const [job, setJob] = useState<CollectJob | null>(null);
   const done = useRef(onDone);
 
@@ -34,9 +32,12 @@ export default function CollectLive({ conversation, onDone }: { conversation: st
 
   if (!job) return null;
   return (
-    <article className="mb-10">
-      <Profile provider={null} label="수집" />
-      <Steps steps={progress(job).steps} />
-    </article>
+    <CollectCard
+      input={job.input}
+      events={job.events}
+      state={job.state}
+      collected={job.collected_id ? { id: job.collected_id, path: job.path } : null}
+      onOpen={onOpen}
+    />
   );
 }
