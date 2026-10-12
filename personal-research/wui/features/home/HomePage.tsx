@@ -11,6 +11,7 @@ import Steps from "@/ui/Steps";
 import { toast } from "@/ui/Toaster";
 import { useWorkbench } from "@/features/workbench/WorkbenchProvider";
 import HomeBar, { type Mode } from "./HomeBar";
+import type { Choice } from "@/features/chat/ModelPicker";
 
 
 export default function HomePage() {
@@ -33,7 +34,7 @@ export default function HomePage() {
     if (box) box.scrollTop = box.scrollHeight;
   }, [replies]);
 
-  const send = async (text: string, mode: Mode): Promise<boolean> => {
+  const send = async (text: string, mode: Mode, model: Choice | null): Promise<boolean> => {
     if (mode === "ask") {
       try {
         const created = await api.startAgent(text);
@@ -55,7 +56,7 @@ export default function HomePage() {
     setBusy(true);
     let job: CollectJob;
     try {
-      job = await api.collect(text);
+      job = await api.collect(text, model);
     } catch (error) {
       update({ input: text, steps: [], content: `Error: ${(error as Error).message}`, sources: [], streaming: false });
       setBusy(false);

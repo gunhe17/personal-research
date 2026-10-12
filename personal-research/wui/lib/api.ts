@@ -171,7 +171,7 @@ export const api = {
 
   models: () => request<ModelCatalog>("/api/models"),
   skills: () => request<{ items: Skill[] }>("/api/skills"),
-  collect: (input: string) => send<CollectJob>("/api/collect", { input }),
+  collect: (input: string, model: { provider: string; model: string } | null) => send<CollectJob>("/api/collect", { input, model }),
   collects: () => request<{ items: CollectJob[] }>("/api/collect"),
   collectJob: (id: string) => request<CollectJob>(`/api/collect/${encodeURIComponent(id)}`),
   settings: () => request<{ providers: Provider[] }>("/api/settings"),
