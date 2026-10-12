@@ -28,13 +28,7 @@ with sync_playwright() as p:
     page.wait_for_function("document.querySelectorAll('.md-chat').length >= 2 && [...document.querySelectorAll('.md-chat')].every(n => n.textContent.includes('Nothing was collected'))")
     jobs = [j for j in page.evaluate("fetch('/api/collect').then(r => r.json())")["items"] if j["id"] not in before]
     print("2 jobs finished:", sorted(j["state"] for j in jobs))
-    page.get_by_label("Settings").click()
-    dialog = page.get_by_role("dialog")
-    dialog.get_by_role("button", name="Collect", exact=True).click()
-    page.wait_for_timeout(500)
-    print("3 settings cards:", dialog.locator("li", has_text="collect-check").count() >= len(jobs))
     page.screenshot(path=f"{OUT}/collect.png")
-    page.keyboard.press("Escape")
     page.goto(f"{BASE}/collected?agent={jobs[0]['conversation_id']}")
     page.wait_for_selector("text=Detected")
     print("4 conversation shows steps:", page.locator("text=Detected").count(), "| no open on failure:", page.get_by_role("button", name="Open", exact=True).count() == 0)

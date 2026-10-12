@@ -1,15 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { api, type CollectJob, type Login, type Method, type Provider } from "@/lib/api";
-import { emit, listen } from "@/lib/events";
-import { useWorkbench } from "@/features/workbench/WorkbenchProvider";
+import { api, type Login, type Method, type Provider } from "@/lib/api";
+import { emit } from "@/lib/events";
 import Dot from "@/ui/Dot";
 import Icon from "@/ui/Icon";
 import IconButton from "@/ui/IconButton";
 import Modal from "@/ui/Modal";
 import TreeRow from "@/ui/TreeRow";
-import CollectPane from "./CollectPane";
 import FunctionPane from "./FunctionPane";
 import FontPane from "./FontPane";
 import LoginSheet from "./LoginSheet";
@@ -23,25 +21,6 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
   const [statuses, setStatuses] = useState<Record<string, Login | undefined>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [sheet, setSheet] = useState<Sheet | null>(null);
-  const [jobs, setJobs] = useState<CollectJob[]>([]);
-  const workbench = useWorkbench();
-
-  const refreshJobs = useCallback(() => {
-    api.collects().then((data) => setJobs(data.items), () => {});
-  }, []);
-  const collecting = jobs.some((job) => job.state === "queued" || job.state === "running");
-
-  useEffect(() => {
-    if (!open) return;
-    refreshJobs();
-    return listen("collect", refreshJobs);
-  }, [open, refreshJobs]);
-
-  useEffect(() => {
-    if (!open || !collecting) return;
-    const timer = setInterval(refreshJobs, 2000);
-    return () => clearInterval(timer);
-  }, [open, collecting, refreshJobs]);
 
   const check = useCallback((list: Provider[]) => {
     for (const provider of list) {
@@ -125,7 +104,6 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
         </Group>
         <Group icon="agent" label="Agent">
           <TreeRow variant="nav" label="Function" active={tab === "function"} onClick={() => setTab("function")} />
-          {jobs.length > 0 && <TreeRow variant="nav" label="Collect" active={tab === "collect"} trailing={<Dot on={collecting} />} onClick={() => setTab("collect")} />}
         </Group>
       </nav>
       <div className="min-w-0 flex-1 overflow-y-auto p-6">
@@ -139,14 +117,6 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
             onSave={(values) => save(current, values)}
             onLogin={(method) => setSheet({ provider: current, method })}
             onLogout={(method) => logout(current, method)}
-          />
-        ) : tab === "collect" ? (
-          <CollectPane
-            jobs={jobs}
-            onOpen={(id, path) => {
-              workbench.open({ kind: "doc", id, path });
-              close();
-            }}
           />
         ) : tab === "function" ? (
           <FunctionPane />

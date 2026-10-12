@@ -62,7 +62,6 @@ export default function HomePage() {
       return true;
     }
     setBusy(false);
-    emit("collect");
     follow(job, update);
     return true;
   };
@@ -76,7 +75,6 @@ export default function HomePage() {
       job = await api.collectJob(job.id).catch(() => job);
     }
     emit("spaces");
-    emit("collect");
     emit("agents");
   };
 
