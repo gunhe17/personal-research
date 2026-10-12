@@ -6,7 +6,6 @@ import InputBar from "@/ui/InputBar";
 import { MenuItem } from "@/ui/Menu";
 import MenuButton from "@/ui/MenuButton";
 import SendButton from "@/ui/SendButton";
-import ModelPicker, { useModel, type Choice } from "@/features/chat/ModelPicker";
 
 export type Mode = "ask" | "collect";
 
@@ -15,11 +14,10 @@ const MODES: { value: Mode; title: string; hint: string }[] = [
   { value: "collect", title: "collect", hint: "Fetch a URL and translate it" },
 ];
 
-export default function HomeBar({ busy, onSend }: { busy: boolean; onSend: (text: string, mode: Mode, model: Choice | null) => Promise<boolean> }) {
+export default function HomeBar({ busy, onSend }: { busy: boolean; onSend: (text: string, mode: Mode) => Promise<boolean> }) {
   const [mode, setMode] = useState<Mode>("ask");
   const [text, setText] = useState("");
   const [menu, setMenu] = useState(false);
-  const [catalog, choice, choose] = useModel();
   const input = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -44,7 +42,7 @@ export default function HomeBar({ busy, onSend }: { busy: boolean; onSend: (text
   const send = async () => {
     const value = text.trim();
     if (!value || busy) return;
-    if (await onSend(value, mode, choice)) setText("");
+    if (await onSend(value, mode)) setText("");
   };
 
   return (
@@ -69,7 +67,6 @@ export default function HomeBar({ busy, onSend }: { busy: boolean; onSend: (text
       <MenuButton label={mode} name="Mode" open={menu} onToggle={() => setMenu(!menu)} onClose={() => setMenu(false)}>
         {MODES.map((m) => <MenuItem key={m.value} title={m.title} hint={m.hint} selected={m.value === mode} onPick={() => pick(m.value)} />)}
       </MenuButton>
-      {mode === "collect" && catalog && choice && <ModelPicker catalog={catalog} choice={choice} onPick={choose} />}
       <SendButton disabled={busy} onClick={send} />
     </InputBar>
   );

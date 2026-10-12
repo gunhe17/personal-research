@@ -21,7 +21,7 @@ KIND_LABEL = {
 # #
 # run
 
-def run(*, input: str, send: Callable[[dict], None], model: dict | None = None) -> None:
+def run(*, input: str, send: Callable[[dict], None]) -> None:
     report = stepper(send=send)
 
     report(key="detect", text="Reading the input", state="running")
@@ -60,14 +60,14 @@ def run(*, input: str, send: Callable[[dict], None], model: dict | None = None) 
         report(key="translate", text="Korean translation is already up to date", state="skip")
         finish(send=send, path=path, id=id, report=report)
         return
-    if not translate.available(model=model):
-        report(key="translate", text="Skipped, the model CLI was not found", state="skip")
+    if not translate.available():
+        report(key="translate", text="Skipped, claude CLI not found", state="skip")
         finish(send=send, path=path, id=id, report=report)
         return
 
-    report(key="translate", text=f"Translating to Korean with {(model or {}).get('model') or 'Claude'}", state="running")
+    report(key="translate", text="Translating to Korean", state="running")
     try:
-        translate.korean(id=id, model=model)
+        translate.korean(id=id)
     except Exception as error:
         report(key="translate", text=f"Translation failed: {error}", state="error")
         finish(send=send, path=path, id=id, report=report)
