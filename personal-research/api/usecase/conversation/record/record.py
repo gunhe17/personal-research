@@ -152,19 +152,18 @@ def create(*, domain: str, data: dict) -> dict:
 
 def edit(*, domain: str, id: str, data: dict) -> dict:
     assert domain in DOMAINS
+    if get(domain=domain, id=id) is None:
+        raise ValueError("대화를 찾을 수 없습니다.")
     with store.session() as connection:
         if isinstance(data.get("title"), str):
-            connection.execute(f"UPDATE {domain}_conversation SET title = ? WHERE id = ?", (data["title"], id))
+            connection.execute(f"UPDATE {domain}_conversation SET title = ? WHERE id = ? AND user_id = ?", (data["title"], id, store.user()))
         if isinstance(data.get("collected_id"), str):
             connection.execute(
-                f"UPDATE {domain}_conversation SET collected_id = ? WHERE id = ?",
-                (root(collected_id=data["collected_id"]), id),
+                f"UPDATE {domain}_conversation SET collected_id = ? WHERE id = ? AND user_id = ?",
+                (root(collected_id=data["collected_id"]), id, store.user()),
             )
-    edited = get(domain=domain, id=id)
-    if edited is None:
-        raise ValueError("대화를 찾을 수 없습니다.")
 
-    return edited
+    return get(domain=domain, id=id)
 
 
 def remove(*, domain: str, id: str) -> bool:
