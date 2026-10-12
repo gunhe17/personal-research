@@ -1,3 +1,5 @@
+import { emit } from "./events";
+
 export class ApiError extends Error {}
 
 export type TreeNode =
@@ -131,6 +133,10 @@ export type Meta = { url?: string; path?: string };
 
 export type Skill = { name: string; description: string };
 
+export type Account = { id: string; name: string; email: string; role: "admin" | "user" };
+
+export type Member = Account & { created_at: string };
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try {
@@ -139,6 +145,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
     throw new ApiError("서버에 연결하지 못했습니다.");
   }
   const body = await response.json().catch(() => ({}));
+  if (response.status === 401) emit("auth");
   if (!response.ok) throw new ApiError(body.error || "요청을 처리하지 못했습니다.");
   return body as T;
 }
@@ -170,6 +177,12 @@ export const api = {
   act: (domain: Domain, id: string, action: "retry" | "cancel", message: string) =>
     send<unknown>(`/api/${domain}/conversations/${encodeURIComponent(id)}/${action}`, { message_id: message }),
 
+  me: () => request<Account>("/api/auth/me"),
+  signIn: (email: string, password: string) => send<Account>("/api/auth/login", { email, password }),
+  signOut: () => send<{ ok: boolean }>("/api/auth/logout", {}),
+  changePassword: (current: string, password: string) => send<{ ok: boolean }>("/api/auth/password", { current, password }),
+  users: () => request<{ items: Member[] }>("/api/users"),
+  addUser: (name: string, email: string) => send<Account & { password: string }>("/api/users", { name, email }),
   models: () => request<ModelCatalog>("/api/models"),
   skills: () => request<{ items: Skill[] }>("/api/skills"),
   collect: (input: string) => send<CollectJob>("/api/collect", { input }),

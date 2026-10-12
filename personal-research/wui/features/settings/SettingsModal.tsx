@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { api, type Login, type Method, type Provider } from "@/lib/api";
+import { api, type Account, type Login, type Method, type Provider } from "@/lib/api";
 import { emit } from "@/lib/events";
 import { load, save as keep } from "@/lib/storage";
 import Dot from "@/ui/Dot";
@@ -9,7 +9,9 @@ import Icon from "@/ui/Icon";
 import IconButton from "@/ui/IconButton";
 import Modal from "@/ui/Modal";
 import TreeRow from "@/ui/TreeRow";
+import AccountPane from "./AccountPane";
 import FunctionPane from "./FunctionPane";
+import UsersPane from "./UsersPane";
 import FontPane from "./FontPane";
 import LoginSheet from "./LoginSheet";
 import ProviderPane, { usable } from "./ProviderPane";
@@ -22,6 +24,7 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
   const [statuses, setStatuses] = useState<Record<string, Login | undefined>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [sheet, setSheet] = useState<Sheet | null>(null);
+  const [account, setAccount] = useState<Account | null>(null);
 
   const check = useCallback((list: Provider[]) => {
     for (const provider of list) {
@@ -39,7 +42,9 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
   }, [check]);
 
   useEffect(() => {
-    if (open) reload();
+    if (!open) return;
+    reload();
+    api.me().then(setAccount, () => {});
   }, [open, reload]);
 
   useEffect(() => keep("settingsTab", tab, true), [tab]);
@@ -99,6 +104,8 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
         <div className="mb-2 px-2 text-sm font-semibold text-slate-900">Settings</div>
         <Group icon="gear" label="General">
           <TreeRow variant="nav" label="Font" active={tab === "font"} onClick={() => setTab("font")} />
+          <TreeRow variant="nav" label="Account" active={tab === "account"} onClick={() => setTab("account")} />
+          {account?.role === "admin" && <TreeRow variant="nav" label="Users" active={tab === "users"} onClick={() => setTab("users")} />}
         </Group>
         <Group icon="chip" label="Models">
           {providers.map((provider) => (
@@ -121,6 +128,10 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
             onLogin={(method) => setSheet({ provider: current, method })}
             onLogout={(method) => logout(current, method)}
           />
+        ) : tab === "account" ? (
+          <AccountPane account={account} />
+        ) : tab === "users" && account?.role === "admin" ? (
+          <UsersPane />
         ) : tab === "function" ? (
           <FunctionPane />
         ) : (

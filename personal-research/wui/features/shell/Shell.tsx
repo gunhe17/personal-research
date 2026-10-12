@@ -2,10 +2,13 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cx } from "@/lib/cx";
+import { api, type Account } from "@/lib/api";
+import { listen } from "@/lib/events";
 import { load, save } from "@/lib/storage";
 import SettingsModal from "@/features/settings/SettingsModal";
 import { applyZoom, readZoom } from "@/features/settings/zoom";
 import Header from "./Header";
+import LoginScreen from "./LoginScreen";
 import Sidebar from "./Sidebar";
 
 const clampWidth = (px: number) => Math.min(480, Math.max(200, Math.round(px)));
@@ -16,6 +19,12 @@ export default function Shell({ children }: { children: ReactNode }) {
   const [resizing, setResizing] = useState(false);
   const [settings, setSettings] = useState(false);
   const pane = useRef<HTMLDivElement>(null);
+  const [account, setAccount] = useState<Account | null | undefined>(undefined);
+
+  useEffect(() => {
+    api.me().then(setAccount, () => setAccount(null));
+    return listen("auth", () => setAccount(null));
+  }, []);
 
   const showSidebar = (next: boolean) => {
     setSidebar(next);
@@ -78,6 +87,8 @@ export default function Shell({ children }: { children: ReactNode }) {
     };
   }, [resizing, width]);
 
+  if (account === null) return <LoginScreen />;
+  if (account === undefined) return null;
   return (
     <div className={cx("flex h-full flex-col", resizing && "cursor-col-resize select-none")}>
       <Header sidebar={sidebar} settings={settings} onSidebar={() => showSidebar(!sidebar)} onSettings={() => showSettings(true)} />
