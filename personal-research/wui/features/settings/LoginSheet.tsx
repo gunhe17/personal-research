@@ -4,7 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api, type Login } from "@/lib/api";
 import { cx } from "@/lib/cx";
 import Button from "@/ui/Button";
+import TextInput from "@/ui/TextInput";
 import { toast } from "@/ui/Toaster";
+import useEscape from "@/ui/useEscape";
 
 type Props = { provider: string; method: string; title: string; initial?: Login; onClose: (cancelled: boolean) => void };
 
@@ -47,15 +49,8 @@ export default function LoginSheet({ provider, method, title, initial, onClose }
     return () => clearTimeout(timer);
   }, [login, provider, method, finish]);
 
-  useEffect(() => {
-    const escape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      onClose(true);
-    };
-    window.addEventListener("keydown", escape, true);
-    return () => window.removeEventListener("keydown", escape, true);
-  }, [onClose]);
+  const cancel = useCallback(() => onClose(true), [onClose]);
+  useEscape(cancel, { capture: true });
 
   const submit = async () => {
     if (!code.trim() || checking) return;
@@ -111,14 +106,14 @@ export default function LoginSheet({ provider, method, title, initial, onClose }
               )}
               {pending?.needs_code && (
                 <div className="mt-2 flex gap-2">
-                  <input
+                  <TextInput
+                    size="md"
                     value={code}
                     onChange={(event) => setCode(event.target.value)}
                     onKeyDown={(event) => event.key === "Enter" && submit()}
                     autoComplete="off"
                     spellCheck={false}
                     placeholder="Paste the code"
-                    className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-[13px] text-slate-900 placeholder:text-slate-400 focus:border-apple focus:bg-white focus:outline-none"
                   />
                   <Button tone="fill" size="sm" disabled={checking} onClick={submit}>Submit</Button>
                 </div>

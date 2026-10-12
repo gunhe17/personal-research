@@ -7,7 +7,8 @@ import { load, save } from "@/lib/storage";
 import Button from "@/ui/Button";
 import Segmented from "@/ui/Segmented";
 import { toast } from "@/ui/Toaster";
-import PaneBar from "@/features/workbench/PaneBar";
+import Body from "@/features/workbench/Body";
+import Pane from "@/features/workbench/Pane";
 import type { Group } from "@/lib/items";
 import { useWorkbench } from "@/features/workbench/WorkbenchProvider";
 import Download from "./Download";
@@ -113,13 +114,12 @@ export default function DocPane({ group, id }: { group: Group; id: string }) {
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-slate-50">
-      <PaneBar
-        group={group}
-        name={file?.name || group.item.title || ""}
-        title={file?.path}
-        actions={file && <Download id={id} path={file.path} paired={paired} html={html} lang={shown} texts={texts} content={content} onLang={choose} />}
-      />
+    <Pane
+      group={group}
+      name={file?.name || group.item.title || ""}
+      title={file?.path}
+      actions={file && <Download id={id} path={file.path} paired={paired} html={html} lang={shown} texts={texts} content={content} onLang={choose} />}
+    >
       <main
         ref={scroller}
         onScroll={(event) => file && save(`docScroll:${file.path}`, Math.round(event.currentTarget.scrollTop), true)}
@@ -132,16 +132,16 @@ export default function DocPane({ group, id }: { group: Group; id: string }) {
             </div>
           </div>
         )}
-        <article ref={content} className="mx-auto max-w-3xl px-6 py-8 pb-16 sm:px-10">
+        <Body ref={content}>
           {meta?.url && (
             <p className="enter-fade mb-4 text-[12px] break-all text-slate-500">
               Source <a href={meta.url} target="_blank" rel="noopener" className="text-apple-link hover:underline">{meta.url}</a>
             </p>
           )}
           {body()}
-        </article>
+        </Body>
         <SelectionBar scope={content} onQuote={(text) => file && workbench.sendQuote({ text, path: file.path, id })} />
       </main>
-    </div>
+    </Pane>
   );
 }

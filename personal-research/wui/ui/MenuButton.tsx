@@ -1,21 +1,17 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import { cx } from "@/lib/cx";
 import Icon from "./Icon";
 import Menu from "./Menu";
+import useOutside from "./useOutside";
 
 type Props = { label: string; name: string; open: boolean; onToggle: () => void; onClose: () => void; up?: boolean; children: ReactNode };
 
 export default function MenuButton({ label, name, open, onToggle, onClose, up, children }: Props) {
   const box = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    const close = (event: PointerEvent) => !box.current?.contains(event.target as Node) && onClose();
-    document.addEventListener("pointerdown", close);
-    return () => document.removeEventListener("pointerdown", close);
-  }, [open, onClose]);
+  useOutside(box, onClose, open);
 
   return (
     <div ref={box} className="relative shrink-0 self-center">

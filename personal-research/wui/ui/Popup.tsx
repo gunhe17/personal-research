@@ -1,17 +1,10 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import type { ReactNode } from "react";
+import useEscape from "./useEscape";
 
 export default function Popup({ label, title, children, actions, onClose }: { label: string; title: string; children: ReactNode; actions: ReactNode; onClose: () => void }) {
-  useEffect(() => {
-    const escape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      onClose();
-    };
-    window.addEventListener("keydown", escape, true);
-    return () => window.removeEventListener("keydown", escape, true);
-  }, [onClose]);
+  useEscape(onClose, { capture: true });
 
   return (
     <div className="fixed inset-0 z-[60] grid place-items-center bg-slate-900/30 px-6" role="dialog" aria-label={label}>

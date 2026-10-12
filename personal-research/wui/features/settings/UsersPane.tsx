@@ -7,7 +7,8 @@ import IconButton from "@/ui/IconButton";
 import KeyValue from "@/ui/KeyValue";
 import Popup from "@/ui/Popup";
 import SectionHeader from "@/ui/SectionHeader";
-import SettingsPage, { field } from "./SettingsPage";
+import TextInput from "@/ui/TextInput";
+import SettingsPage from "./SettingsPage";
 
 export default function UsersPane({ me }: { me: string }) {
   const [members, setMembers] = useState<Member[]>([]);
@@ -69,10 +70,10 @@ export default function UsersPane({ me }: { me: string }) {
           <div className="overflow-hidden rounded-xl border border-dashed border-slate-300 bg-white">
             <div className="px-4 py-2">
               <KeyValue label="Name">
-                <input aria-label="New user name" placeholder="Name" value={name} onChange={(event) => setName(event.target.value)} className={field} />
+                <TextInput aria-label="New user name" placeholder="Name" value={name} onChange={(event) => setName(event.target.value)} />
               </KeyValue>
               <KeyValue label="Email">
-                <input type="email" aria-label="New user email" placeholder="Email" value={email} onChange={(event) => setEmail(event.target.value)} onKeyDown={(event) => event.key === "Enter" && add()} className={field} />
+                <TextInput type="email" aria-label="New user email" placeholder="Email" value={email} onChange={(event) => setEmail(event.target.value)} onKeyDown={(event) => event.key === "Enter" && add()} />
               </KeyValue>
               <KeyValue label="Role">User</KeyValue>
             </div>

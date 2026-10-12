@@ -11,6 +11,7 @@ import Fold from "@/ui/Fold";
 import Icon from "@/ui/Icon";
 import KeyValue from "@/ui/KeyValue";
 import Switch from "@/ui/Switch";
+import TextInput from "@/ui/TextInput";
 
 type Props = {
   provider: Provider;
@@ -128,7 +129,7 @@ function KeyDetail({ method, label, onSave }: { method: Method; label: string; o
       <KeyValue label="Key">
         {!method.secret || editing ? (
           <>
-            <input
+            <TextInput
               type="password"
               autoFocus={editing}
               value={key}
@@ -137,7 +138,6 @@ function KeyDetail({ method, label, onSave }: { method: Method; label: string; o
               autoComplete="off"
               spellCheck={false}
               placeholder={method.secret ? "New key" : `${label} API key`}
-              className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[13px] text-slate-900 placeholder:text-slate-400 focus:border-apple focus:bg-white focus:outline-none"
             />
             <Button tone="fill" size="sm" onClick={store}>Save</Button>
             {method.secret && <Button tone="quiet" size="sm" onClick={() => setEditing(false)}>Cancel</Button>}

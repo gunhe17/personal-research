@@ -5,7 +5,7 @@ import { api, type Message, type MessageContext } from "@/lib/api";
 import { emit } from "@/lib/events";
 import Button from "@/ui/Button";
 import type { Scene } from "@/features/blocks/Blocks";
-import PaneBar from "@/features/workbench/PaneBar";
+import Pane from "@/features/workbench/Pane";
 import type { Group } from "@/lib/items";
 import { useWorkbench } from "@/features/workbench/WorkbenchProvider";
 import AnnotationLayer, { capture, useAnnotations } from "./AnnotationLayer";
@@ -112,8 +112,7 @@ export default function ChatPane({ group }: { group: Group }) {
 
   const exchanges = threads(chat?.messages || []);
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-slate-50">
-      <PaneBar group={group} name={chat?.title || "새 대화"} />
+    <Pane group={group} name={chat?.title || "새 대화"}>
       <div className="relative flex min-h-0 flex-1 flex-col">
         <div ref={scroller} onScroll={onScroll} className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
           {banner && <div role="alert" className="mx-4 mt-3 rounded-lg border border-slate-200 bg-ice px-3.5 py-2.5 text-[13px]">{banner}</div>}
@@ -203,7 +202,7 @@ export default function ChatPane({ group }: { group: Group }) {
           </div>
         </div>
       </div>
-    </div>
+    </Pane>
   );
 }
 

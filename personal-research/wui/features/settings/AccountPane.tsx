@@ -6,7 +6,8 @@ import { save } from "@/lib/storage";
 import Button from "@/ui/Button";
 import KeyValue from "@/ui/KeyValue";
 import SectionHeader from "@/ui/SectionHeader";
-import SettingsPage, { field } from "./SettingsPage";
+import TextInput from "@/ui/TextInput";
+import SettingsPage from "./SettingsPage";
 
 export default function AccountPane({ account }: { account: Account | null }) {
   const [next, setNext] = useState("");
@@ -41,7 +42,7 @@ export default function AccountPane({ account }: { account: Account | null }) {
         </KeyValue>
         <KeyValue label="Role">{account?.role === "admin" ? "Admin" : "User"}</KeyValue>
         <KeyValue label="Password">
-          <input
+          <TextInput
             type="password"
             autoComplete="new-password"
             aria-label="New password"
@@ -49,7 +50,6 @@ export default function AccountPane({ account }: { account: Account | null }) {
             value={next}
             onChange={(event) => setNext(event.target.value)}
             onKeyDown={(event) => event.key === "Enter" && change()}
-            className={field}
           />
           <Button size="sm" disabled={next.length < 8} onClick={change}>Change</Button>
         </KeyValue>

@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useState, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import Icon from "@/ui/Icon";
 import { toast } from "@/ui/Toaster";
+import useEscape from "@/ui/useEscape";
+import useOutside from "@/ui/useOutside";
 
 type Picked = { text: string; range: Range; left: number; top: number };
 
 export default function SelectionBar({ scope, onQuote }: { scope: RefObject<HTMLElement | null>; onQuote: (text: string) => void }) {
   const [picked, setPicked] = useState<Picked | null>(null);
+  const bar = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const root = scope.current;
@@ -20,21 +23,19 @@ export default function SelectionBar({ scope, onQuote }: { scope: RefObject<HTML
       const rect = range.getClientRects()[0] || range.getBoundingClientRect();
       setPicked({ text, range, left: Math.min(Math.max(8, rect.left), window.innerWidth - 90), top: Math.max(8, rect.top - 36) });
     };
-    const down = (event: MouseEvent) => !(event.target as Element).closest("[data-selection-bar]") && setPicked(null);
-    const escape = (event: KeyboardEvent) => event.key === "Escape" && setPicked(null);
     root.addEventListener("mouseup", up);
-    document.addEventListener("mousedown", down);
-    document.addEventListener("keydown", escape);
     const hide = () => setPicked(null);
     const scroller = root.parentElement;
     scroller?.addEventListener("scroll", hide, { passive: true });
     return () => {
       scroller?.removeEventListener("scroll", hide);
       root.removeEventListener("mouseup", up);
-      document.removeEventListener("mousedown", down);
-      document.removeEventListener("keydown", escape);
     };
   }, [scope]);
+
+  const close = useCallback(() => setPicked(null), []);
+  useOutside(bar, close, Boolean(picked));
+  useEscape(close, { when: Boolean(picked) });
 
   if (!picked) return null;
   const quote = () => {
@@ -51,7 +52,7 @@ export default function SelectionBar({ scope, onQuote }: { scope: RefObject<HTML
   };
   const button = "inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 hover:text-slate-900";
   return (
-    <div data-selection-bar onMouseDown={(event) => event.preventDefault()} className="enter-pop fixed z-[55] flex items-center gap-0.5 rounded-full border border-slate-200 bg-white p-0.5" style={{ left: picked.left, top: picked.top }}>
+    <div ref={bar} onMouseDown={(event) => event.preventDefault()} className="enter-pop fixed z-[55] flex items-center gap-0.5 rounded-full border border-slate-200 bg-white p-0.5" style={{ left: picked.left, top: picked.top }}>
       <button type="button" title="Quote in chat" aria-label="Quote in chat" className={button} onClick={quote}><Icon name="chat" className="h-4 w-4" /></button>
       <button type="button" title="Copy" aria-label="Copy" className={button} onClick={copy}><Icon name="copy" className="h-4 w-4" /></button>
     </div>

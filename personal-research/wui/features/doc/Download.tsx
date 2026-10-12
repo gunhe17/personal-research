@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { api } from "@/lib/api";
 import { bilingualMarkdown } from "@/lib/markdown";
 import { load, save } from "@/lib/storage";
@@ -10,6 +10,8 @@ import Menu from "@/ui/Menu";
 import SectionHeader from "@/ui/SectionHeader";
 import Segmented from "@/ui/Segmented";
 import { toast } from "@/ui/Toaster";
+import useEscape from "@/ui/useEscape";
+import useOutside from "@/ui/useOutside";
 import type { Lang } from "./DocPane";
 
 type Props = {
@@ -32,17 +34,12 @@ export default function Download({ id, path, paired, html, lang, texts, content,
   useEffect(() => setFormat(load<"md" | "pdf">("dlFmt", "md")), []);
 
   useEffect(() => {
-    if (!open) return;
-    setChoice(paired ? lang : "orig");
-    const outside = (event: MouseEvent) => !box.current?.contains(event.target as Node) && setOpen(false);
-    const escape = (event: KeyboardEvent) => event.key === "Escape" && setOpen(false);
-    document.addEventListener("mousedown", outside);
-    document.addEventListener("keydown", escape);
-    return () => {
-      document.removeEventListener("mousedown", outside);
-      document.removeEventListener("keydown", escape);
-    };
+    if (open) setChoice(paired ? lang : "orig");
   }, [open, paired, lang]);
+
+  const close = useCallback(() => setOpen(false), []);
+  useOutside(box, close, open);
+  useEscape(close, { when: open });
 
   const name = path.split("/").pop() || "document";
   const base = name.replace(/\.[^.]+$/, "");
