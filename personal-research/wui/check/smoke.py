@@ -3,6 +3,8 @@ import sys
 
 from playwright.sync_api import sync_playwright
 
+from account import sign_in
+
 BASE = os.environ.get("WUI_URL", "http://localhost:3000")
 OUT = sys.argv[1] if len(sys.argv) > 1 else "/tmp"
 
@@ -14,6 +16,7 @@ with sync_playwright() as p:
     page.on("console", lambda m: m.type == "error" and errors.append(m.text))
     page.set_default_timeout(15000)
 
+    sign_in(page, BASE)
     page.goto(BASE + "/")
     page.wait_for_selector("text=오늘의 research는 무엇인가요?")
     page.screenshot(path=f"{OUT}/home.png")

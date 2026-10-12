@@ -3,6 +3,8 @@ import sys
 
 from playwright.sync_api import sync_playwright
 
+from account import sign_in
+
 BASE = os.environ.get("WUI_URL", "http://localhost:3000")
 OUT = sys.argv[1] if len(sys.argv) > 1 else "/tmp"
 URLS = ["https://collect-check-one.invalid/a.md", "https://collect-check-two.invalid/b.md"]
@@ -14,6 +16,7 @@ with sync_playwright() as p:
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.on("console", lambda m: m.type == "error" and errors.append(m.text))
     page.set_default_timeout(15000)
+    sign_in(page, BASE)
     page.goto(BASE + "/")
     page.evaluate("localStorage.setItem('homeMode', JSON.stringify('collect'))")
     page.reload()

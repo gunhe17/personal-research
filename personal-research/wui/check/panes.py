@@ -4,6 +4,8 @@ import sys
 
 from playwright.sync_api import sync_playwright
 
+from account import sign_in
+
 BASE = os.environ.get("WUI_URL", "http://localhost:3000")
 OUT = sys.argv[1] if len(sys.argv) > 1 else "/tmp"
 LESSON = {
@@ -26,6 +28,7 @@ with sync_playwright() as p:
     page.on("response", lambda r: r.status == 404 and errors.append("404 " + r.url))
     page.on("response", lambda r: r.status == 404 and errors.append("404 " + r.url))
     page.set_default_timeout(15000)
+    sign_in(page, BASE)
     page.goto(BASE + "/")
     page.evaluate("localStorage.clear()")
     spaces = page.evaluate("fetch('/api/spaces').then(r => r.json())")["items"]

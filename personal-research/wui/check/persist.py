@@ -2,6 +2,8 @@ import os
 
 from playwright.sync_api import sync_playwright
 
+from account import sign_in
+
 BASE = os.environ.get("WUI_URL", "http://localhost:3000")
 
 with sync_playwright() as p:
@@ -9,6 +11,7 @@ with sync_playwright() as p:
     page = b.new_page(viewport={"width": 1200, "height": 420})
     errors = []
     page.on("pageerror", lambda e: errors.append(str(e)))
+    sign_in(page, BASE)
     page.goto(BASE + "/")
     page.evaluate("localStorage.clear(); sessionStorage.clear()")
     agent = page.evaluate("fetch('/api/agent/conversations').then(r => r.json())")["items"][0]["id"]

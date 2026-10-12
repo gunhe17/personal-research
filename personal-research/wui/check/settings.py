@@ -3,6 +3,8 @@ import sys
 
 from playwright.sync_api import sync_playwright
 
+from account import sign_in
+
 BASE = os.environ.get("WUI_URL", "http://localhost:3000")
 OUT = sys.argv[1] if len(sys.argv) > 1 else "/tmp"
 FAKE = "sk-ant-check-0000000000000000"
@@ -15,6 +17,7 @@ with sync_playwright() as p:
     page.on("console", lambda m: m.type == "error" and errors.append(m.text))
     page.on("dialog", lambda d: d.accept())
     page.set_default_timeout(15000)
+    sign_in(page, BASE)
     page.goto(BASE + "/")
     page.evaluate("localStorage.clear()")
     page.reload()
