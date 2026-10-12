@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api, type CollectEvent } from "@/lib/api";
+import { api, type CollectEvent, type CollectJob, type Source } from "@/lib/api";
 import { stepsOf, type Step } from "@/lib/collect";
 import { cx } from "@/lib/cx";
 import Button from "@/ui/Button";
 import Segmented from "@/ui/Segmented";
 import { Profile } from "./Answer";
 
-type State = "queued" | "running" | "done" | "failed";
 type View = "both" | "eng" | "kor";
 
 const STAGES: [string, string][] = [["detect", "판별"], ["fetch", "원문"], ["translate", "번역"], ["check", "검사"]];
@@ -17,9 +16,9 @@ const MARKS: Record<string, string> = { done: "M4 12.5l5 5L20 6.5", error: "M6 6
 type Props = {
   input: string;
   events: CollectEvent[];
-  state: State;
-  collected: { id: string; path: string } | null;
-  onOpen: (collected: { id: string; path: string }) => void;
+  state: CollectJob["state"];
+  collected: Source | null;
+  onOpen: (collected: Source) => void;
 };
 
 export default function CollectCard({ input, events, state, collected, onOpen }: Props) {

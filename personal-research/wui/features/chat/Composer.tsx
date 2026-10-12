@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState, type RefObject } from "react";
-import type { ModelCatalog } from "@/lib/api";
+import type { ModelCatalog, ModelChoice } from "@/lib/api";
 import InputBar from "@/ui/InputBar";
 import Menu, { MenuItem } from "@/ui/Menu";
 import SendButton from "@/ui/SendButton";
-import ModelPicker, { type Choice } from "./ModelPicker";
+import ModelPicker from "./ModelPicker";
 
 export const COMMANDS = [
   { name: "/next", hint: "다음 학습 단계로 넘어갑니다", kind: "next" },
@@ -20,9 +20,9 @@ type Props = {
   value: string;
   sending: boolean;
   catalog: ModelCatalog | null;
-  choice: Choice | null;
+  choice: ModelChoice | null;
   input: RefObject<HTMLTextAreaElement | null>;
-  onPick: (choice: Choice) => void;
+  onPick: (choice: ModelChoice) => void;
   onChange: (value: string) => void;
   onSend: () => void;
 };

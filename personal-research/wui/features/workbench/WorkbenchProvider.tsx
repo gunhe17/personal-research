@@ -2,11 +2,11 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import type { Source } from "@/lib/api";
 import { load, save } from "@/lib/storage";
 import { toast } from "@/ui/Toaster";
 import { itemKey, legacy, LIMIT, type Group, type Item, type Side } from "@/lib/items";
 
-type Doc = { id: string; path: string };
 type Quote = { target: string; text: string; path: string; id: string; nonce: number };
 
 type Value = {
@@ -19,8 +19,8 @@ type Value = {
   move: (from: string, to: string, side: Side) => void;
   focusGroup: (group: string) => void;
   replace: (group: string, item: Item) => void;
-  doc: Doc | null;
-  viewDoc: (doc: Doc) => void;
+  doc: Source | null;
+  viewDoc: (doc: Source) => void;
   quote: Quote | null;
   sendQuote: (quote: Omit<Quote, "target" | "nonce">) => void;
   clearQuote: () => void;
@@ -44,7 +44,7 @@ export default function WorkbenchProvider({ children }: { children: ReactNode })
   const [groups, setGroups] = useState<Group[]>([]);
   const [focus, setFocus] = useState(0);
   const [ready, setReady] = useState(false);
-  const [doc, setDoc] = useState<Doc | null>(null);
+  const [doc, setDoc] = useState<Source | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null);
   const lastChat = useRef<string | null>(null);
 

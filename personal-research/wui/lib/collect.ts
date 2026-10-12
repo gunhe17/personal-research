@@ -1,7 +1,7 @@
-import type { CollectEvent, CollectJob } from "./api";
+import type { CollectEvent, CollectJob, Source } from "./api";
 
 export type Step = { key: string; text: string; state: string; at: number; took: number | null };
-export type Progress = { input: string; steps: Step[]; content: string; sources: { id: string; path: string }[]; streaming: boolean };
+export type Progress = { input: string; steps: Step[]; content: string; sources: Source[]; streaming: boolean };
 
 export function stepsOf(events: CollectEvent[]): Step[] {
   return events.reduce(apply, { input: "", steps: [], content: "", sources: [], streaming: false }).steps;

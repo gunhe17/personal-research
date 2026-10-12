@@ -1,22 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api, type ModelCatalog } from "@/lib/api";
+import { api, type ModelCatalog, type ModelChoice } from "@/lib/api";
 import { listen } from "@/lib/events";
 import { load, save } from "@/lib/storage";
 import { MenuItem } from "@/ui/Menu";
 import MenuButton from "@/ui/MenuButton";
 
-export type Choice = { provider: string; model: string };
-
-export function useModel(): [ModelCatalog | null, Choice | null, (next: Choice) => void] {
+export function useModel(): [ModelCatalog | null, ModelChoice | null, (next: ModelChoice) => void] {
   const [catalog, setCatalog] = useState<ModelCatalog | null>(null);
-  const [choice, setChoice] = useState<Choice | null>(null);
+  const [choice, setChoice] = useState<ModelChoice | null>(null);
 
   useEffect(() => {
     const fetchCatalog = () => api.models().then((data) => {
       setCatalog(data);
-      const saved = load<Choice | null>("model", null);
+      const saved = load<ModelChoice | null>("model", null);
       const provider = data.providers.find((p) => p.id === saved?.provider);
       setChoice(provider?.models.some((m) => m.id === saved?.model) ? saved : data.default);
     }, () => {});
@@ -24,18 +22,18 @@ export function useModel(): [ModelCatalog | null, Choice | null, (next: Choice) 
     return listen("settings", fetchCatalog);
   }, []);
 
-  const pick = (next: Choice) => {
+  const pick = (next: ModelChoice) => {
     setChoice(next);
     save("model", next);
   };
   return [catalog, choice, pick];
 }
 
-export default function ModelPicker({ catalog, choice, onPick }: { catalog: ModelCatalog; choice: Choice; onPick: (next: Choice) => void }) {
+export default function ModelPicker({ catalog, choice, onPick }: { catalog: ModelCatalog; choice: ModelChoice; onPick: (next: ModelChoice) => void }) {
   const [open, setOpen] = useState<"provider" | "model" | null>(null);
   const provider = catalog.providers.find((p) => p.id === choice.provider) || catalog.providers[0];
 
-  const pick = (next: Choice) => {
+  const pick = (next: ModelChoice) => {
     onPick(next);
     setOpen(null);
   };

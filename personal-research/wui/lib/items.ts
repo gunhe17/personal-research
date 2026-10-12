@@ -2,7 +2,7 @@ export type Item =
   | { kind: "chat"; space: string; conversation: string | null; title?: string }
   | { kind: "agent"; agent: string; title?: string }
   | { kind: "doc"; id: string; title?: string; path?: string }
-  | { kind: "material"; id: string; title?: string; material?: string };
+  | { kind: "material"; id: string; title?: string };
 
 export type Group = { id: string; item: Item };
 

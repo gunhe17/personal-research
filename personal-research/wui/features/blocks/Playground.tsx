@@ -11,11 +11,6 @@ type Props = { id: string; config: PlaygroundConfig; onContext?: (context: Messa
 
 const MODE_NAME = { loss: "손실", rate: "변화율", derivative: "미분", descent: "학습률" };
 
-export function format(n: number, digits = 4): string {
-  const value = Math.abs(n) < 1e-10 ? 0 : n;
-  return Number(value.toFixed(digits)).toLocaleString("en-US", { maximumFractionDigits: digits }).replace("-", "−");
-}
-
 export default function Playground({ id, config, onContext, scene, children }: Props) {
   const mode = config.mode || "derivative";
   const x = config.x ?? 2;

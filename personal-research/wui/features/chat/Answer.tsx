@@ -1,6 +1,6 @@
 "use client";
 
-import type { Message, MessageContext } from "@/lib/api";
+import type { Message, MessageContext, Source } from "@/lib/api";
 import { chatHtml } from "@/lib/markdown";
 import Button from "@/ui/Button";
 import Icon from "@/ui/Icon";
@@ -15,7 +15,7 @@ type Props = {
   onContext: (context: MessageContext) => void;
   onAsk: () => void;
   onCopy: () => void;
-  onOpen: (source: { id: string; path: string }) => void;
+  onOpen: (source: Source) => void;
 };
 
 export default function Answer({ message, label, provider, scene, onContext, onAsk, onCopy, onOpen }: Props) {

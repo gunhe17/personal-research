@@ -275,7 +275,7 @@ function sections(space: Space): [string, string, Row[]][] {
     d.path.split("/")[0],
     d.path.split("/").slice(2).join("/") || d.path,
   ]));
-  const materials = space.materials.map((m): Row => [{ kind: "material", id: m.id, title: m.title, material: m.kind }, m.kind, m.title]);
+  const materials = space.materials.map((m): Row => [{ kind: "material", id: m.id, title: m.title }, m.kind, m.title]);
 
   return [
     ["conversations", "Conversations", conversations],

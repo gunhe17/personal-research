@@ -2,6 +2,16 @@ import { emit } from "./events";
 
 export class ApiError extends Error {}
 
+export type Source = { id: string; path: string };
+
+export type ModelChoice = { provider: string; model: string };
+
+export type Model = { id: string; label: string };
+
+export type List<T> = { items: T[] };
+
+export type Ok = { ok: boolean };
+
 export type TreeNode =
   | { type: "dir"; name: string; path: string; children: TreeNode[] }
   | { type: "file"; id: string; name: string; path: string; ext: string; languages: string[]; published: string | null };
@@ -63,7 +73,7 @@ export type Material = { id: string; space_id: string; kind: string; title: stri
 export type Annotation = { id: string; source_id: string; start: number; end: number; text: string; comment: string };
 
 export type MessageContext = {
-  model?: { provider: string; model: string };
+  model?: ModelChoice;
   selected_text?: string;
   source_path?: string;
   source_answer_id?: string;
@@ -87,7 +97,7 @@ export type Message = {
   content: string;
   context: MessageContext | null;
   rich: Rich | null;
-  sources: { id: string; path: string }[] | null;
+  sources: Source[] | null;
   question_id: string | null;
   status: "queued" | "running" | "completed" | "failed" | "cancelled" | null;
   error: string | null;
@@ -107,8 +117,8 @@ export type Conversation = {
 };
 
 export type ModelCatalog = {
-  default: { provider: string; model: string };
-  providers: { id: string; label: string; model: string; models: { id: string; label: string }[] }[];
+  default: ModelChoice;
+  providers: { id: string; label: string; model: string; models: Model[] }[];
 };
 
 export type Method = {
@@ -121,7 +131,7 @@ export type Method = {
   usage: { month: number; last: string };
 };
 
-export type Provider = { id: string; label: string; cli: string; methods: Method[]; models: { id: string; label: string }[] };
+export type Provider = { id: string; label: string; cli: string; methods: Method[]; models: Model[] };
 
 export type Login = {
   logged_in: boolean;
@@ -136,6 +146,25 @@ export type Skill = { name: string; description: string };
 export type Account = { id: string; name: string; email: string; role: "admin" | "user" };
 
 export type Member = Account & { created_at: string };
+
+export type CollectEvent = { at: number } & (
+  | { type: "step"; key: string; text: string; state?: string }
+  | { type: "collected"; id: string; path: string }
+  | { type: "done"; text?: string; id?: string }
+  | { type: "error"; error: string }
+);
+
+export type CollectJob = {
+  id: string;
+  input: string;
+  state: "queued" | "running" | "done" | "failed";
+  events: CollectEvent[];
+  path: string;
+  collected_id: string;
+  conversation_id: string;
+  created_at: string;
+  finished_at: string;
+};
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   let response: Response;
@@ -163,7 +192,7 @@ export const api = {
   rawUrl: (id: string, language: string) => `/api/raw?${query({ id, language })}`,
   markOpened: (id: string) => send<{ id: string }>("/api/opened", { id }),
 
-  spaces: () => request<{ items: SpaceItem[] }>("/api/spaces"),
+  spaces: () => request<List<SpaceItem>>("/api/spaces"),
   space: (id: string) => request<Space>(`/api/spaces/${encodeURIComponent(id)}`),
   createSpace: (title: string, purpose: string) => send<{ id: string }>("/api/spaces", { title, purpose }),
 
@@ -179,11 +208,11 @@ export const api = {
 
   me: () => request<Account>("/api/auth/me"),
   signIn: (email: string, password: string) => send<Account>("/api/auth/login", { email, password }),
-  signOut: () => send<{ ok: boolean }>("/api/auth/logout", {}),
-  changePassword: (password: string) => send<{ ok: boolean }>("/api/auth/password", { password }),
-  users: () => request<{ items: Member[] }>("/api/users"),
+  signOut: () => send<Ok>("/api/auth/logout", {}),
+  changePassword: (password: string) => send<Ok>("/api/auth/password", { password }),
+  users: () => request<List<Member>>("/api/users"),
   addUser: (name: string, email: string) => send<Account & { password: string }>("/api/users", { name, email }),
-  removeUser: (id: string) => request<{ ok: boolean }>(`/api/users/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  removeUser: (id: string) => request<Ok>(`/api/users/${encodeURIComponent(id)}`, { method: "DELETE" }),
   models: () => request<ModelCatalog>("/api/models"),
   skills: () => request<List<Skill>>("/api/skills"),
   startCollect: (input: string) => send<CollectJob>("/api/collect", { input }),

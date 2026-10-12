@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { api, type CollectJob } from "@/lib/api";
+import { api, type CollectJob, type Source } from "@/lib/api";
 import CollectCard from "./CollectCard";
 
-export default function CollectLive({ conversation, onDone, onOpen }: { conversation: string; onDone: () => void; onOpen: (collected: { id: string; path: string }) => void }) {
+export default function CollectLive({ conversation, onDone, onOpen }: { conversation: string; onDone: () => void; onOpen: (collected: Source) => void }) {
   const [job, setJob] = useState<CollectJob | null>(null);
   const done = useRef(onDone);
 

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { api, type CollectJob } from "@/lib/api";
+import { api, type CollectJob, type Source } from "@/lib/api";
 import { progress, type Progress } from "@/lib/collect";
 import { cx } from "@/lib/cx";
 import { emit } from "@/lib/events";
@@ -105,7 +105,7 @@ export default function HomePage() {
   );
 }
 
-function Answer({ reply, onOpen }: { reply: Progress; onOpen: (source: { id: string; path: string }) => void }) {
+function Answer({ reply, onOpen }: { reply: Progress; onOpen: (source: Source) => void }) {
   const empty = !reply.content.trim();
   return (
     <div className="mr-2 max-w-full min-w-0 overflow-hidden rounded-2xl rounded-bl-md bg-white px-3.5 py-2.5 text-slate-900">
