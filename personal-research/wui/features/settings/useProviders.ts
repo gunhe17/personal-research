@@ -54,12 +54,12 @@ export default function useProviders(open: boolean) {
 
   const prune = async () => {
     for (const provider of providers) {
-      let left = provider.methods.length;
+      let enabled = provider.methods.filter((method) => method.enabled).length;
       for (const method of provider.methods) {
         const status = statuses[statusKey(provider, method)];
-        if (method.type !== "plan_key" || method.secret || !status || status.logged_in || status.pending || left <= 1) continue;
+        if (method.type !== "plan_key" || method.secret || !status || status.logged_in || status.pending || (method.enabled && enabled <= 1)) continue;
         await api.editProvider(provider.id, { remove: method.id }).catch(() => null);
-        left -= 1;
+        if (method.enabled) enabled -= 1;
       }
     }
     emit("settings");
