@@ -84,6 +84,8 @@ def collecting(*, job: dict) -> None:
         record.add(domain="agent", id=started["id"], message={
             "id": str(uuid.uuid4()),
             "role": "assistant",
+            "kind": "collect",
+            "context": {"steps": job["events"]},
             "question_id": question["id"],
             "content": outcome.get("text") or outcome.get("error") or "수집을 마치지 못했습니다.",
             "sources": [{"id": outcome["id"], "path": store.path_of(id=outcome["id"])}] if outcome.get("id") else None,
