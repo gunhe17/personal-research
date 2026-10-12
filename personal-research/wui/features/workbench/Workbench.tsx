@@ -43,7 +43,6 @@ export default function Workbench() {
           onPointerDownCapture={() => workbench.focusGroup(group.id)}
           className={cx("relative flex min-h-0 min-w-0 flex-col bg-white", index !== workbench.focus && "max-md:hidden")}
         >
-          {count > 1 && index === workbench.focus && <span className="pointer-events-none absolute inset-x-0 top-0 z-[7] h-0.5 bg-apple" />}
           <Drop
             className="relative flex min-h-0 flex-1 flex-col"
             full={count >= LIMIT}
