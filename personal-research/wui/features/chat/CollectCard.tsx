@@ -81,7 +81,7 @@ function Row({ label, step, now }: { label: string; step?: Step; now: number }) 
         {step?.text || ""}
       </span>
       {step && step.at === 0 ? (
-        <span className="block h-2 w-8 shrink-0 rounded-full bg-slate-100" aria-label="시간 기록 없음" />
+        <span className="shrink-0 font-mono text-[10px] text-slate-300" aria-label="시간 기록 없음">s</span>
       ) : (
         <span className={cx("shrink-0 font-mono text-[10px] tabular-nums", state === "running" ? "text-apple-link" : "text-slate-300")}>{time}</span>
       )}
