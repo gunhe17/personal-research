@@ -28,19 +28,20 @@ export default function Shell({ children }: { children: ReactNode }) {
     return listen("auth", () => setAccount(null));
   }, []);
 
-  useEffect(
-    () =>
-      listen("sidebar", () => {
-        if (!window.matchMedia(OVERLAY).matches) return;
-        setSidebar(false);
-        save("sidebarOpen", false);
-      }),
-    [],
-  );
+  useEffect(() => {
+    const overlay = window.matchMedia(OVERLAY);
+    const crossed = () => setSidebar(overlay.matches ? false : load("sidebarOpen", false));
+    overlay.addEventListener("change", crossed);
+    const picked = listen("sidebar", () => overlay.matches && setSidebar(false));
+    return () => {
+      overlay.removeEventListener("change", crossed);
+      picked();
+    };
+  }, []);
 
   const showSidebar = (next: boolean) => {
     setSidebar(next);
-    save("sidebarOpen", next);
+    if (!window.matchMedia(OVERLAY).matches) save("sidebarOpen", next);
   };
   const showSettings = (next: boolean) => {
     setSettings(next);
@@ -49,7 +50,7 @@ export default function Shell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setWidth(clampWidth(Number(load("sidebarWidth", 288)) || 288));
-    setSidebar(load("sidebarOpen", false));
+    setSidebar(!window.matchMedia(OVERLAY).matches && load("sidebarOpen", false));
     setSettings(load("settingsOpen", false, true));
     applyZoom("docZoom", readZoom("docZoom"));
     applyZoom("chatZoom", readZoom("chatZoom"));
