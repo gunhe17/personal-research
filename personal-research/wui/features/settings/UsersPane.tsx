@@ -65,7 +65,7 @@ export default function UsersPane({ me }: { me: string }) {
                 <KeyValue label="Role">{member.role === "admin" ? "Admin" : "User"}</KeyValue>
               </div>
               {member.id !== me && (
-                <div className="flex justify-end border-t border-slate-100 bg-slate-50 px-4 py-2.5">
+                <div className="flex justify-end px-4 pb-3">
                   <Button tone="quiet" size="sm" onClick={() => remove(member)}>Delete</Button>
                 </div>
               )}
@@ -81,7 +81,7 @@ export default function UsersPane({ me }: { me: string }) {
               </KeyValue>
               <KeyValue label="Role">User</KeyValue>
             </div>
-            <div className="flex justify-end border-t border-slate-100 bg-slate-50 px-4 py-2.5">
+            <div className="flex justify-end px-4 pb-3">
               <Button tone="fill" size="sm" disabled={!email.trim()} onClick={add}>Add</Button>
             </div>
           </div>
