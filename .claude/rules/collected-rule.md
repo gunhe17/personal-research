@@ -23,6 +23,8 @@ paths:
 | `llm` | 모델 CLI 호출 원본 | `id` |
 | `log` | 서버가 남긴 기록. `collect.py log` 로 본다 | `id` |
 
+SQL 은 `usecase/common/store.py`(스키마, 세션, 여러 영역이 함께 쓰는 도우미)와 `usecase/common/migrate.py`(옛 구조 옮기기)와 영역마다의 `usecase/*/record/record.py` 에만 둔다. `usecase/user/account`, `usecase/common/log`, `usecase/common/llm` 은 제 표를 직접 다룬다.
+
 신원은 uuid 다. 원문 주소는 유일하지 않기 때문이다. Protégé 논문 한 편이 8절로 쪼개져 같은 주소를 공유하고, 저장소 카드와 그 README 도 주소가 같다. 주소로 묶으면 이것들이 한 문서가 되어 버린다.
 
 `collected.path` 는 수집할 때 정한 보관 경로다. `document/anthropic/docs/en/intro.md` 처럼 `{종류}/{공급자}/...` 로 시작한다. 신원이 아니라 사람이 읽는 이름이자 뷰어가 트리를 그리는 근거이며, 그래서 유일해야 한다. 경로를 정하는 논리는 유형 모듈과 `usecase/collected/collect/type/web.py` 의 `provider()` 에 있다.
@@ -45,15 +47,13 @@ DB 를 직접 열어 `UPDATE` 하지 않는다. `sqlite3` 셸로 고치는 것�
 
 DB 는 git 이 읽지 못하고 grep 도 되지 않는다. 그래서 `collect.py export` 가 `data/collected/` 아래에 `eng/` `kor/` `meta/` 파일 트리를 풀어 준다. 그 폴더는 git 이 무시하는 일회용이다. 고쳐도 DB 로 돌아가지 않으므로 고치지 않고, 다 보고 나면 지운다.
 
-반대 방향은 `collect.py migrate` 다. 파일 트리를 DB 로 적재하며, 전환할 때 한 번 쓴 명령이다.
-
 ## 요약을 두지 않는다
 
 미러 옆에 주제별 요약이나 해설 문서를 만들지 않는다. 원본이 이미 DB 안에 있으므로 요약은 같은 내용을 두 번 두는 일이고, 상류가 갱신되면 요약만 옛 값을 자신 있게 말하게 된다. 그 어긋남은 기계가 잡지 못한다.
 
 ## 공급자
 
-`path` 는 `{종류}/{공급자}/...` 로 시작한다. 종류는 `document/` `paper/` `repository/` `video/` 넷이다. 예전 이름 `docs/` `papers/` `repos/` `videos/` 는 DB 를 열 때 새 이름으로 옮기고, `store.locate` 가 옛 경로도 받는다. 네 폴더는 문서가 없어도 트리(`/api/tree`)에 늘 있다.
+`path` 는 `{종류}/{공급자}/...` 로 시작한다. 종류는 `document/` `paper/` `repository/` `video/` 넷이다. 예전 이름 `docs/` `papers/` `repos/` `videos/` 는 DB 를 열 때 새 이름으로 옮기고, `usecase/collected/record/record.py` 의 `locate` 가 옛 경로도 받는다. 네 폴더는 문서가 없어도 트리(`/api/tree`)에 늘 있다.
 
 | 접두 | 출처 | 문서 | 수집 방법 | 갱신 |
 |---|---|---|---|---|
@@ -77,7 +77,7 @@ sync 전량인 접두는 매 실행마다 목록을 새로 읽어 다시 받으�
 
 ## 원문과 변환본
 
-미러는 원문과 문자 단위로 일치해야 한다. 상류가 본문 앞에 붙인 장식(llms.txt 안내, CMS frontmatter)은 떼어 `collected_content.decoration` 에 두므로, `decoration` 과 본문을 이으면 상류 바이트가 된다. 장식의 형태는 `common/store.py` 의 `DECORATION` 한 곳이 정한다.
+미러는 원문과 문자 단위로 일치해야 한다. 상류가 본문 앞에 붙인 장식(llms.txt 안내, CMS frontmatter)은 떼어 `collected_content.decoration` 에 두므로, `decoration` 과 본문을 이으면 상류 바이트가 된다. 장식의 형태는 `usecase/collected/record/record.py` 의 `DECORATION` 한 곳이 정한다.
 
 마크다운 엔드포인트가 있으면 그것을 쓰고, 없을 때만 HTML 을 변환한다. 같은 문서를 원문과 변환본 양쪽으로 받을 수 있으면 원문만 남긴다. 상류가 리다이렉트를 걸어 두 경로가 같은 문서를 가리키게 되는 일이 실제로 있다.
 

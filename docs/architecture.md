@@ -12,6 +12,7 @@ personal-research/
 │   ├── bin/              진입점. server.py, collect.py, sync.sh
 │   ├── usecase/          도메인 아래 동작 하나에 폴더 하나
 │   │   ├── collected/
+│   │   │   ├── record/     문서와 판의 저장, 찾기, 내보내기
 │   │   │   ├── collect/    수집. 유형별 type/
 │   │   │   ├── translate/  번역 반출입
 │   │   │   ├── read/       뷰어에 트리와 본문을 준다
@@ -19,11 +20,16 @@ personal-research/
 │   │   │   ├── list/       수집 목록을 표준 출력에
 │   │   │   └── search/     수집물 전문 검색
 │   │   ├── space/
-│   │   │   └── record/     space 의 목적을 남긴다
-│   │   └── conversation/
-│   │       ├── converse/   Codex 튜터가 수집물을 조사하고 블록 답변을 만든다
-│   │       └── record/     space 와 agent 의 대화와 메시지를 남긴다
-│   ├── common/           store.py, log.py, llm.py
+│   │   │   └── record/     space 의 목적과 자료를 남긴다
+│   │   ├── conversation/
+│   │   │   ├── converse/   Codex 튜터가 수집물을 조사하고 블록 답변을 만든다
+│   │   │   └── record/     space 와 agent 의 대화와 메시지를 남긴다
+│   │   ├── setting/
+│   │   │   ├── record/     제공사 설정과 암호화한 키
+│   │   │   └── login/      요금제 로그인
+│   │   ├── user/
+│   │   │   └── account/    계정과 로그인 세션
+│   │   └── common/         store.py, migrate.py, agent.py, llm.py, log.py
 │   └── database/         research.db 한 파일. git 밖
 └── wui/                  Next.js 화면. 규칙은 .claude/rules/frontend-rule.md
     ├── app/              라우트(/ /collected)와 전역 스타일
@@ -36,7 +42,7 @@ personal-research/
 
 수집물과 대화와 서버 로그가 `personal-research/api/database/research.db` 한 파일에 있다. `collected` 가 문서의 신원(uuid)과 원문 주소와 보관 경로를, `collected_content` 가 원문과 번역본의 본문을 판(version)별로 담는다. 같은 문서의 번역본은 그 문서의 `language = 'kor'` 행이고, 판 번호가 원문보다 낮으면 낡은 번역이다. git 은 바이너리를 diff 하지 못하고 grep 도 되지 않는다. 내용을 파일로 봐야 하면 `collect.py export` 가 `data/collected/` 에 트리를 풀어 준다. 그 폴더는 git 이 무시하는 일회용이다.
 
-표는 열한 개다. JSON 이라고 적은 열은 JSON 텍스트다.
+표는 열세 개다. JSON 이라고 적은 열은 JSON 텍스트다.
 
 | 표 | 무엇 |
 |------|------|
@@ -48,8 +54,9 @@ personal-research/
 | `space_message` | space 대화의 메시지 한 건. 질문과 답변이 각각 한 행 |
 | `agent_conversation` | 홈에서 시작한 대화. ask 와 collect 가 쌓인다 |
 | `agent_message` | 홈 대화의 메시지 한 건 |
-| `user` | 사용자. 로그인이 없어 기본 사용자 한 명이다 |
-| `user_meta` | 사용자 부가 정보. 지금은 문서를 연 기록(`kind = 'opened'`) |
+| `user` | 사용자. 이메일, scrypt 비밀번호 해시, 역할(`admin` `user`) |
+| `user_session` | 로그인 세션. 토큰의 해시와 만료 시각 |
+| `user_meta` | 사용자 부가 정보. 문서를 연 기록(`kind = 'opened'`), 제공사 설정, 암호화한 API 키와 토큰 |
 | `llm` | 모델 CLI 호출 원본. 명령, 프롬프트, 출력 전체, 종료 코드, 시각 |
 | `log` | 서버 기록 |
 
@@ -62,7 +69,7 @@ personal-research/
 - 모델 CLI(답변과 번역)는 `agent` 컨테이너에서 돈다. api 는 `AGENT_URL` 로 실행을 넘기고, 취소도 그쪽으로 보낸다. agent 는 codex, claude, grok 만 실행하고 작업 폴더는 `api/data/` 아래만 받는다. agent 컨테이너에는 `data/corpus`(읽기 전용), `data/cli`(CLI 인증), `data/work`(임시 파일)만 api 와 같은 경로로 연결되고, DB 와 `ENCRYPTION_KEY` 와 env 파일은 들어가지 않는다. 수집물은 웹에서 온 신뢰할 수 없는 글이라, 그 안의 지시를 따르더라도 닿을 수 있는 것을 이렇게 줄인다. `AGENT_URL` 이 없으면(컨테이너 없는 로컬) api 가 CLI 를 직접 띄우며 격리되지 않는다. 이때 grok 은 MCP 를 붙이지 못한다.
 - 홈의 collect 모드는 수집(원문 받기, 번역, 정합 검사)을 api 의 백그라운드 작업으로 돌린다. `POST /api/collect` 가 작업을 만들고 바로 돌려주며, 작업은 한 번에 하나씩 차례로 돈다. 현황은 `GET /api/collect`(목록)와 `GET /api/collect/{id}` 로 보고, 홈 화면과 대화의 수집 카드가 이것을 조회한다. 작업 목록은 api 프로세스 메모리에 있어 재시작하면 사라진다(결과는 DB 와 홈 대화 기록에 남는다). agent 의 function 으로는 수집을 열지 않는다.
 - 모델을 부를 때마다(답변은 Codex, 수집할 때의 번역은 claude) `llm` 에 한 행이 남는다. `owner_id` 는 질문 메시지 id 나 번역한 문서 id 다.
-- DB 를 처음 열 때 `common/store.py` 의 `upgrade` 가 예전 구조(`extra` `body` 열, `opened` `conversations` `agent` `asked` 표, 대화를 JSON 으로 담던 `space`, `space` 의 `purpose` `log` 열, 대화 첫머리에 끼워 둔 수업)를 지금 구조로 옮긴다.
+- DB 를 처음 열 때 `usecase/common/migrate.py` 의 `upgrade` 가 예전 구조(`extra` `body` 열, `opened` `conversations` `agent` `asked` 표, 대화를 JSON 으로 담던 `space`, `space` 의 `purpose` `log` 열, 대화 첫머리에 끼워 둔 수업)를 지금 구조로 옮긴다.
 
 왼쪽 사이드바는 Home, Agent, Collected, Space 순이다. Collected 는 모두가 함께 보는 수집 문서 전체를 `/api/tree` 의 폴더 구조 그대로 보여 주고, 검색창은 경로로 거른다. 처음에는 접혀 있다. Space, space 이름, 그 아래 Conversations·Collected·Materials 폴더는 모두 펼치고 접는 폴더이고, 실제로 여는 것은 대화, 수집물, 자료 항목뿐이다. Agent 는 홈에서 시작한 대화(ask 와 collect 기록)를 폴더 없이 대화 하나에 한 줄로 나열한다.
 
@@ -90,11 +97,27 @@ docker compose --env-file .env/.env.production -f .docker/docker-compose.product
 
 답변은 세 제공사 모두 만든다. OpenAI 는 codex, Anthropic 은 claude, xAI 는 grok 이 수집물 사본을 읽기 전용으로 조사해 맡고, 입력창의 제공사와 모델 드롭다운으로 메시지마다 고른다. 기본값은 OpenAI 의 `CODEX_MODEL` 이다. 입력창에 `/` 를 치면 `/next` `/retrieval` 명령 목록이 뜬다.
 
-설정의 제공사 화면은 인증 수단(요금제 로그인, API 키)을 시도할 순서대로 나열한다. 목록 끝의 `+ Plan login` `+ API key` 로 같은 종류를 여러 개 더할 수 있다(`plan_key_2`, `api_key_2` …). 계정이 여럿이면 한도에 걸린 계정 다음 계정으로 넘어간다. 수단마다 켜고 끌 수 있고, 켠 수단은 언제나 끈 수단보다 앞에 온다. 답변은 앞 수단부터 시도하고, 사용 한도나 로그아웃이나 실행 실패로 CLI 가 답하지 못하면 같은 요청을 다음 수단으로 한 번 다시 보낸다. 대화에 저장된 세션을 찾지 못하면 새 세션으로 한 번 더 시도한다. 어느 수단으로 답했는지는 `llm.auth` 와 답변의 `via` 에 남고, 설정 화면은 이 기록으로 수단별 이번 달 사용 횟수와 마지막 사용 시각을 보여 준다. 모델 목록은 `usecase/setting/record/record.py` 의 `PROVIDERS` 에 있다. 선택은 `user_meta` 에 행으로 남는다. `kind` 가 `{제공사}` 인 행의 `value` 에 수단 목록(순서와 켜짐)을, `{제공사}_{수단}` 행(`openai_plan_key_2` 처럼)의 `secret` 에 API 키나 로그인 정보를 Fernet 으로 암호화해 둔다. codex 와 grok 은 플랜마다 홈이 따로다(`api/data/cli/codex/plan_key_2`). 값이 없으면 그 행이 없다. 암호화 키는 `ENCRYPTION_KEY` 환경 변수이고, 없으면 처음 저장할 때 `api/database/encryption.key` 를 권한 600 으로 만든다. 그 파일은 DB 와 같은 폴더라서, 서버에서는 `python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` 로 만든 값을 `.env/.env.{환경}` 의 `ENCRYPTION_KEY` 에 넣는다. 이 파일을 잃으면 저장한 API 키를 다시 입력해야 한다. 화면에는 키의 끝 네 자리만 보인다. API 키를 고르면 그 제공사 CLI 에 `CODEX_API_KEY` `ANTHROPIC_API_KEY` `XAI_API_KEY` 로 넘겨 API 과금으로 바뀐다. 요금제 로그인을 고르면 환경 변수에 키가 있어도 지우고 CLI 로그인을 쓴다. 번역의 claude 도 같은 설정을 따른다. 설정과 로그인 API 는 다른 출처의 요청을 거부하지만, 서버의 채팅 API 에는 인증이 없으므로, 외부 서버에 둘 때도 포트는 `127.0.0.1` 에만 열고 Tailscale 이나 SSH 터널로 접속한다.
+설정의 제공사 화면은 인증 수단(요금제 로그인, API 키)을 시도할 순서대로 나열한다. 목록 끝의 `+ Plan login` `+ API key` 로 같은 종류를 여러 개 더할 수 있다(`plan_key_2`, `api_key_2` …). 계정이 여럿이면 한도에 걸린 계정 다음 계정으로 넘어간다. 수단마다 켜고 끌 수 있고, 켠 수단은 언제나 끈 수단보다 앞에 온다. 답변은 앞 수단부터 시도하고, 사용 한도나 로그아웃이나 실행 실패로 CLI 가 답하지 못하면 같은 요청을 다음 수단으로 한 번 다시 보낸다. 대화에 저장된 세션을 찾지 못하면 새 세션으로 한 번 더 시도한다. 어느 수단으로 답했는지는 `llm.auth` 와 답변의 `via` 에 남고, 설정 화면은 이 기록으로 수단별 이번 달 사용 횟수와 마지막 사용 시각을 보여 준다. 모델 목록은 `usecase/setting/record/record.py` 의 `PROVIDERS` 에 있다. 선택은 `user_meta` 에 행으로 남는다. `kind` 가 `{제공사}` 인 행의 `value` 에 수단 목록(순서와 켜짐)을, `{제공사}_{수단}` 행(`openai_plan_key_2` 처럼)의 `secret` 에 API 키나 로그인 정보를 Fernet 으로 암호화해 둔다. codex 와 grok 은 플랜마다 홈이 따로다(`api/data/cli/codex/plan_key_2`). 값이 없으면 그 행이 없다. 암호화 키는 `ENCRYPTION_KEY` 환경 변수이고, 없으면 처음 저장할 때 `api/database/encryption.key` 를 권한 600 으로 만든다. 그 파일은 DB 와 같은 폴더라서, 서버에서는 `python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` 로 만든 값을 `.env/.env.{환경}` 의 `ENCRYPTION_KEY` 에 넣는다. 이 파일을 잃으면 저장한 API 키를 다시 입력해야 한다. 화면에는 키의 끝 네 자리만 보인다. API 키를 고르면 그 제공사 CLI 에 `CODEX_API_KEY` `ANTHROPIC_API_KEY` `XAI_API_KEY` 로 넘겨 API 과금으로 바뀐다. 요금제 로그인을 고르면 환경 변수에 키가 있어도 지우고 CLI 로그인을 쓴다. 번역의 claude 도 같은 설정을 따른다. 모든 `/api/*` 는 세션이 필요하고, 쓰기 요청(GET 이 아닌 것)은 모두 Origin 이 서버 호스트와 같아야 한다. 그래도 외부 서버에 둘 때는 포트를 `127.0.0.1` 에만 열고 Tailscale 이나 SSH 터널로 접속한다.
 
 뷰어를 열면 홈이 먼저 나온다. 입력창 왼쪽 배지로 `ask` 와 `collect` 를 고른다. `ask` 는 질문으로 새 agent 대화를 열고, `collect` 는 주소를 받아 원문을 받고 한국어판까지 만든다.
 
 무엇이 수집돼 있는지는 `python3 personal-research/api/bin/collect.py list` 로 본다.
+
+## API 모양
+
+`api/bin/server.py` 는 라우트 표 `ROUTES` 하나로 요청을 받는다. 항목마다 메서드, 경로 정규식, guard, 처리 함수가 있다. `answer()` 가 경로를 맞추고(없으면 404), guard 를 검사하고(세션 없으면 401, 권한이나 Origin 이 맞지 않으면 403), GET 이 아니면 본문을 읽고(JSON 이 아니면 400), 처리 함수를 부른 뒤 예외를 상태 코드로 바꾼다. guard 는 다섯 가지다.
+
+| guard | 뜻 |
+|---|---|
+| `public` | 세션 없이 된다. `/api/health`, `POST /api/auth/login` |
+| `shared` | 세션 또는 agent 토큰(`Authorization: Bearer`). GET 만. `/api/tree` `/api/file` `/api/search` |
+| `user` | 세션 |
+| `trusted` | 세션 + Origin 이 서버 호스트와 같음. GET 이 아닌 모든 요청은 guard 와 상관없이 이 검사를 받는다 |
+| `admin` | 세션 + `role = admin` + Origin |
+
+처리 함수가 던진 예외는 이렇게 바뀐다. `NotFound`(`usecase/common/error.py`) 는 404, `ValueError` `RuntimeError` `KeyError` `StopIteration` 은 400, 그 밖의 예외는 로그에 남기고 500 이다. 처리 함수가 `None` 을 돌려주면 404 다. 오류 응답은 모두 `{"error": "…"}` 이고 문장은 합니다체 한국어다. 화면은 상태 코드가 아니라 이 문장을 보여 준다.
+
+usecase 는 `<도메인>/<동작>/<동작>.py` 다. 저장은 `<도메인>/record/record.py` 가 맡고, SQL 은 `common/store.py`(세션, 스키마), `common/migrate.py`(판 올리기), 각 `record.py` 에만 있다. 목록은 `listed`, 하나는 `get`, 만들기는 `create`, 고치기는 `edit`, 지우기는 `remove` 로 이름을 맞춘다. 모듈을 가져올 때는 `conversations` `spaces` `settings` `documents` 처럼 복수형 도메인 이름을 쓴다. 자가 점검은 `python3 -m usecase.<경로>` 로 돌리고, 서버 라우팅은 `python3 bin/server.py check` 다.
 
 ## 사용자와 권한
 
