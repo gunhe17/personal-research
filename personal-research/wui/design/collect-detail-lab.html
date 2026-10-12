@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ko" class="h-full">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Collect Detail Lab</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: { extend: {
+      fontFamily: {
+        sans: ['"SF Pro Text"', "-apple-system", "BlinkMacSystemFont", "Inter", "Pretendard", "system-ui", "sans-serif"],
+        mono: ['"SF Mono"', "ui-monospace", "monospace"],
+      },
+      colors: {
+        slate: { 50: "#f5f5f7", 100: "#e8e8ed", 200: "#d2d2d7", 300: "#b4b4b9", 400: "#858585",
+                 500: "#707070", 600: "#474747", 700: "#333333", 800: "#1d1d1f", 900: "#1d1d1f" },
+        apple: { DEFAULT: "#0071e3", hover: "#0077ed", link: "#0066cc" },
+        ice: "#f4f8fb",
+        ok: "#34c759",
+      },
+    } },
+  };
+</script>
+<style type="text/tailwindcss">
+  body { letter-spacing: -0.016em; }
+  .seg { @apply inline-flex rounded-lg bg-slate-100 p-0.5 text-[12px]; }
+  .seg button { @apply rounded-md px-2.5 py-1 text-slate-600; }
+  .seg button[aria-pressed=true] { @apply bg-white text-slate-900; }
+  .pill { @apply inline-flex shrink-0 items-center gap-1 rounded-full border border-apple-link px-3 py-1 text-[12px] text-apple-link transition hover:bg-white; }
+  .fill { @apply inline-flex shrink-0 items-center gap-1 rounded-full bg-apple px-3 py-1 text-[12px] text-white transition hover:bg-apple-hover; }
+  .quiet { @apply inline-flex shrink-0 items-center rounded-full bg-slate-100 px-3 py-1 text-[12px] text-slate-700 hover:bg-slate-200; }
+  .profile { @apply grid h-5 w-5 place-items-center rounded-full border border-slate-200 text-slate-800; }
+  .tag { @apply rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-500; }
+  .label { @apply text-[11px] font-semibold uppercase tracking-wide text-slate-400; }
+  @keyframes breathe { 50% { opacity: 0.35; transform: scale(0.8); } }
+  .breathe { animation: breathe 1.4s ease-in-out infinite; }
+  @keyframes sweep { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+  .sweep { background: linear-gradient(90deg, #707070 40%, #d2d2d7 50%, #707070 60%); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: sweep 2.2s linear infinite; }
+  .fade { -webkit-mask-image: linear-gradient(#000 60%, transparent); mask-image: linear-gradient(#000 60%, transparent); }
+</style>
+</head>
+<body class="h-full bg-slate-50 text-slate-800 font-sans antialiased">
+
+<div class="mx-auto max-w-5xl px-6 py-12">
+  <header class="mb-12">
+    <h1 class="text-[40px] font-semibold tracking-tight" style="letter-spacing: 0.44px">Collect Detail Lab</h1>
+    <p class="mt-2 text-[17px] font-light text-slate-500">D2(체크리스트 유지 + 탭 미리보기)로 정한 뒤의 세부. 1부는 실제로 생기는 경우마다 카드가 어떻게 보이는지, 2부는 머리·단계·미리보기·동작의 선택지입니다. 문구는 수집 파이프라인이 실제로 내는 문장입니다.</p>
+  </header>
+
+  <h2 class="mb-6 text-[28px] font-semibold tracking-tight">1. 경우</h2>
+  <div class="space-y-12" id="cases"></div>
+
+  <h2 class="mb-6 mt-20 text-[28px] font-semibold tracking-tight">2. 세부 선택지</h2>
+  <div class="space-y-14" id="options"></div>
+</div>
+
+<script>
+  const ico = (d, cls = "h-3.5 w-3.5") => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="${cls}">${d}</svg>`;
+  const BOX = ico('<rect x="3.5" y="4" width="17" height="4.5" rx="1"/><path d="M5 8.5V19a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8.5M10 12.5h4"/>', "h-3 w-3");
+  const KIND = {
+    web: ico('<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.5 2.6 2.5 14.4 0 17M12 3.5c-2.5 2.6-2.5 14.4 0 17"/>'),
+    repo: ico('<path d="M6 4h11a1 1 0 0 1 1 1v14H7a2 2 0 0 1-2-2V5a1 1 0 0 1 1-1z"/><path d="M5 17a2 2 0 0 1 2-2h11"/>'),
+    paper: ico('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>'),
+  };
+  const MARK = {
+    done: ico('<path d="M4 12.5l5 5L20 6.5"/>', "h-[11px] w-[11px] text-slate-400"),
+    error: ico('<path d="M6 6l12 12M18 6L6 18"/>', "h-[11px] w-[11px] text-red-500"),
+    skip: ico('<path d="M5 12h14"/>', "h-[11px] w-[11px] text-slate-300"),
+    running: `<span class="breathe block h-[7px] w-[7px] rounded-full bg-apple"></span>`,
+    idle: `<span class="block h-[7px] w-[7px] rounded-full border border-slate-300"></span>`,
+  };
+  const ENG = "Codex CLI is a coding agent from OpenAI that runs locally on your computer. If you want Codex in your code editor, install it in your IDE. If you are looking for the cloud-based agent, go to chatgpt.com/codex.";
+  const KOR = "Codex CLI 는 내 컴퓨터에서 로컬로 실행되는 OpenAI 의 코딩 에이전트다. 코드 편집기에서 Codex 를 쓰려면 IDE 에 설치한다. 클라우드 기반 에이전트를 찾는다면 chatgpt.com/codex 로 간다.";
+
+  const head = (o) => {
+    const style = o.head || "domain";
+    if (style === "domain") return `<div class="flex items-center gap-2 border-b border-slate-100 px-4 py-2.5 text-[12px] text-slate-500"><span class="font-semibold text-slate-800">${o.host}</span><span class="min-w-0 flex-1 truncate">${o.rest}</span>${o.headOpen ? `<button class="fill">Open</button>` : ""}</div>`;
+    if (style === "kind") return `<div class="flex items-center gap-2.5 border-b border-slate-100 px-4 py-2.5"><span class="grid h-7 w-7 place-items-center rounded-lg bg-slate-50 text-slate-500">${KIND[o.kind]}</span><div class="min-w-0 flex-1"><div class="truncate text-[13px] text-slate-900">${o.name}</div><div class="truncate text-[11px] text-slate-400">${o.host}${o.rest}</div></div></div>`;
+    return `<div class="flex items-center gap-2 border-b border-slate-100 px-4 py-2.5"><span class="tag">${o.kindLabel}</span><span class="min-w-0 flex-1 truncate font-mono text-[12px] text-slate-800">${o.path || o.host + o.rest}</span></div>`;
+  };
+  const steps = (o) => `<ul class="px-4 py-2">${o.steps.map(([label, state, text, time]) => `
+    <li class="flex items-center gap-2.5 py-1.5">
+      <span class="flex h-4 w-4 items-center justify-center">${MARK[state]}</span>
+      <span class="w-10 text-[12px] ${state === "idle" ? "text-slate-300" : "text-slate-800"}">${label}</span>
+      <span class="min-w-0 flex-1 truncate text-[12px] ${state === "running" ? "sweep" : state === "error" ? "text-red-600" : state === "skip" || state === "idle" ? "text-slate-400" : "text-slate-500"}">${text || ""}</span>
+      <span class="font-mono text-[10px] ${state === "running" ? "text-apple-link" : "text-slate-300"}">${time || ""}</span>
+    </li>`).join("")}</ul>`;
+  const preview = (o) => {
+    if (!o.preview) return "";
+    const tab = (on) => `<div class="seg mb-2"><button aria-pressed="${on === "eng"}">Eng</button><button aria-pressed="${on === "kor"}">Kor</button><button aria-pressed="${on === "both"}">Line by line</button></div>`;
+    const style = o.preview;
+    if (style === "clamp") return `<div class="border-t border-slate-100 px-4 py-3">${tab("kor")}<p class="fade max-h-[4.5em] overflow-hidden text-[13px] leading-relaxed">${KOR}</p><button class="mt-1 text-[12px] text-apple-link">더 보기</button></div>`;
+    if (style === "both") return `<div class="border-t border-slate-100 px-4 py-3">${tab("both")}<p class="text-[13px] leading-relaxed text-slate-500">${ENG.split(". ")[0]}.</p><p class="mt-1 text-[13px] leading-relaxed">${KOR.split(". ")[0]}.</p></div>`;
+    if (style === "eng") return `<div class="border-t border-slate-100 px-4 py-3"><div class="mb-2 flex items-center gap-2"><span class="label">Eng</span><span class="text-[11px] text-slate-400">번역 없음</span></div><p class="text-[13px] leading-relaxed">${ENG}</p></div>`;
+    if (style === "meta") return `<div class="border-t border-slate-100 px-4 py-3 text-[13px] leading-relaxed"><p>${o.meta.description}</p><div class="mt-2 flex flex-wrap gap-1.5">${o.meta.tags.map((t) => `<span class="tag">${t}</span>`).join("")}</div></div>`;
+    if (style === "none") return `<div class="border-t border-slate-100 px-4 py-3 text-[12px] text-slate-400">${o.none}</div>`;
+    return `<div class="border-t border-slate-100 px-4 py-3">${tab("kor")}<p class="text-[13px] leading-relaxed">${KOR.split(". ").slice(0, 2).join(". ")}.</p></div>`;
+  };
+  const actions = (o) => o.actions ? `<div class="flex items-center gap-2 border-t border-slate-100 bg-slate-50 px-4 py-2.5">${o.actions}</div>` : "";
+  const banner = (o) => o.banner ? `<div class="flex items-center gap-2 border-b border-slate-100 bg-ice px-4 py-2 text-[12px] text-slate-600">${o.banner}</div>` : "";
+  const card = (o) => `<div class="mb-3 flex items-center gap-2 text-[12px] text-slate-500"><span class="profile">${BOX}</span><span>수집</span>${o.when ? `<span class="text-slate-400">· ${o.when}</span>` : ""}</div>
+    <div class="max-w-2xl overflow-hidden rounded-xl border border-slate-200 bg-white">${head(o)}${banner(o)}${steps(o)}${preview(o)}${actions(o)}</div>`;
+
+  const BASE = { host: "github.com", rest: "/openai/codex/blob/main/README.md", name: "README.md", kind: "web", kindLabel: "Web", path: "repos/github/openai/codex/README.md" };
+  const OPEN = `<button class="fill">Open</button><button class="pill">Line by line</button><span class="flex-1"></span><button class="quiet">Ask about it</button>`;
+  const CASES = [
+    { title: "대기 중", note: "앞 수집이 도는 동안. 모든 단계가 회색으로 미리 보이고, 머리 아래 얇은 띠에 몇 번째로 기다리는지.", o: { ...BASE, banner: `${MARK.running}<span>앞에 수집 1건이 진행 중이라 기다리는 중</span>`, steps: [["판별", "idle"], ["원문", "idle"], ["번역", "idle"], ["검사", "idle"]] } },
+    { title: "번역 중", note: "가장 오래 머무는 상태. 진행 중인 단계의 시간은 파란 글자로 매초 늘어남. 오래 걸리는 단계라는 안내를 문장 뒤에 짧게.", o: { ...BASE, steps: [["판별", "done", "Detected GitHub document", "0.4s"], ["원문", "done", "New document, 14,280 chars", "2.1s"], ["번역", "running", "Translating to Korean · 보통 수 분", "2:41"], ["검사", "idle"]] } },
+    { title: "정상 완료", note: "기본형. 탭 기본은 Kor, 첫 두 문장. 아래 동작 줄.", o: { ...BASE, when: "3분 전", steps: [["판별", "done", "Detected GitHub document", "0.4s"], ["원문", "done", "New document, 14,280 chars", "2.1s"], ["번역", "done", "Korean 13,912 chars", "3m 12s"], ["검사", "done", "1,103 originals, 412 translations, 0 problems", "0.8s"]], preview: "tabs", actions: OPEN } },
+    { title: "변경 없음 (다시 수집)", note: "이미 있는 문서를 다시 넣었고 상류도 그대로. 번역은 건너뜀(–). 머리 띠로 '이미 최신'을 먼저 알림.", o: { ...BASE, banner: "이미 수집된 문서이고 바뀐 것이 없습니다", steps: [["판별", "done", "Already collected", "0.2s"], ["원문", "done", "Upstream changed, now v1. 14,280 chars", "1.8s"], ["번역", "skip", "Korean translation is already up to date"], ["검사", "done", "0 problems", "0.7s"]], preview: "tabs", actions: OPEN } },
+    { title: "저장소 카드", note: "본문이 없는 기록. 번역은 건너뜀. 미리보기 대신 설명과 별·언어 태그. 동작은 이 저장소의 문서를 이어서 수집하도록.", o: { ...BASE, rest: "/openai/codex", name: "openai/codex", kind: "repo", kindLabel: "Repo", path: "repos/github/openai/codex", steps: [["판별", "done", "Detected GitHub repository card", "0.3s"], ["원문", "done", "Saved the repository card", "1.2s"], ["번역", "skip", "Repository cards are not translated"], ["검사", "done", "0 problems", "0.6s"]], preview: "meta", meta: { description: "Lightweight coding agent that runs in your terminal", tags: ["★ 58.2k", "Rust", "main"] }, actions: `<button class="fill">Open</button><button class="pill">Collect README</button>` } },
+    { title: "논문 HTML", note: "조판된 원문이라 자동 번역을 건너뜀. 미리보기 자리에 이유와 다음 행동(/collect 로 분할 번역).", o: { ...BASE, host: "arxiv.org", rest: "/abs/2510.01234", name: "Attention Is All You Need Again", kind: "paper", kindLabel: "Paper", path: "papers/arxiv/attention-is-all-you-need-again.html", steps: [["판별", "done", "Detected arXiv paper", "0.3s"], ["원문", "done", "New document, 412,330 chars", "6.4s"], ["번역", "skip", "Paper HTML needs segmented translation"], ["검사", "done", "0 problems", "0.9s"]], preview: "none", none: "논문은 조판을 지키려고 한 번에 번역하지 않습니다. /collect 로 구간별 번역을 이어 갈 수 있습니다.", actions: `<button class="fill">Open original</button>` } },
+    { title: "원문만 받고 번역 실패", note: "부분 성공. 원문은 저장됐으니 Open 은 살리고, 미리보기는 Eng 만. 번역만 다시 시도.", o: { ...BASE, steps: [["판별", "done", "Detected GitHub document", "0.4s"], ["원문", "done", "New document, 14,280 chars", "2.1s"], ["번역", "error", "Translation failed: Claude 인증이 만료됐습니다", "41s"], ["검사", "done", "0 problems", "0.8s"]], preview: "eng", actions: `<button class="fill">Open</button><button class="pill">Retry translation</button>` } },
+    { title: "받기 실패", note: "아무것도 저장되지 않음. 이후 단계는 회색. 미리보기 없음. 다시 시도와 주소 고치기.", o: { ...BASE, steps: [["판별", "done", "Detected Web document", "0.3s"], ["원문", "error", "Fetch failed: 페이지를 받지 못했다", "12s"], ["번역", "idle"], ["검사", "idle"]], actions: `<button class="pill">Try again</button><button class="quiet">Edit URL</button>` } },
+  ];
+
+  const DONE = CASES[2].o;
+  const OPTIONS = [
+    { title: "머리", picks: [
+      ["H1. 도메인 + 경로", "지금 D2. 어디서 왔는지가 먼저.", { ...DONE, head: "domain" }],
+      ["H2. 종류 아이콘 + 문서 이름", "무엇을 받았는지가 먼저. 출처는 작은 둘째 줄.", { ...DONE, head: "kind" }],
+      ["H3. 종류 태그 + 보관 경로", "DB 의 path 그대로. 사이드바·근거 링크와 같은 이름.", { ...DONE, head: "tag" }],
+    ] },
+    { title: "미리보기", picks: [
+      ["P1. 탭, 첫 두 문장", "가볍게 확인만.", { ...DONE, preview: "tabs" }],
+      ["P2. 탭, 세 줄 흐림 + 더 보기", "길게 볼 수 있지만 카드는 짧게 유지.", { ...DONE, preview: "clamp" }],
+      ["P3. 줄 단위 대조 기본", "원문 아래 번역. 번역 품질 확인이 목적일 때.", { ...DONE, preview: "both" }],
+    ] },
+    { title: "동작 줄", picks: [
+      ["A1. Open · Line by line · Ask", "열기가 주 동작, 대조 보기와 질문은 보조.", { ...DONE, actions: OPEN }],
+      ["A2. Open Korean · Open original", "어느 언어로 열지를 바로 고름.", { ...DONE, actions: `<button class="fill">Open Korean</button><button class="pill">Open original</button><span class="flex-1"></span><button class="quiet">Ask about it</button>` }],
+      ["A3. 동작 줄 없음, 머리 오른쪽 Open", "카드가 한 단 짧아짐. 나머지는 탭과 사이드바로.", { ...DONE, actions: "", head: "domain", headOpen: true }],
+    ] },
+  ];
+
+  document.getElementById("cases").innerHTML = CASES.map((c, i) => `<section><h3 class="text-[21px] font-semibold tracking-tight">${i + 1}. ${c.title}</h3><p class="mb-4 mt-1 max-w-3xl text-[14px] text-slate-500">${c.note}</p>${card(c.o)}</section>`).join("");
+  document.getElementById("options").innerHTML = OPTIONS.map((g) => `<section><h3 class="mb-4 text-[21px] font-semibold tracking-tight">${g.title}</h3><div class="grid gap-8 lg:grid-cols-3">${g.picks.map(([name, note, o]) => `<div><div class="text-[14px] font-semibold">${name}</div><p class="mb-3 mt-0.5 text-[12px] text-slate-500">${note}</p>${card(o).replace("max-w-2xl", "")}</div>`).join("")}</div></section>`).join("");
+</script>
+</body>
+</html>
