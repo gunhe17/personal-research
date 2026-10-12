@@ -47,7 +47,6 @@ export default function CollectCard({ input, events, state, collected, onOpen }:
             {STAGES.map(([key, label]) => (
               <Row key={key} label={label} step={steps.find((s) => s.key === key)} now={now} />
             ))}
-            {!recorded && <li className="pt-1 pl-[26px] text-[11px] text-slate-400">단계 기록을 남기기 전에 수집해 걸린 시간은 없습니다</li>}
           </ul>
         )}
         {texts && texts.eng.length > 0 && <Preview texts={texts} />}
@@ -81,7 +80,11 @@ function Row({ label, step, now }: { label: string; step?: Step; now: number }) 
       <span className={cx("min-w-0 flex-1 truncate text-[12px]", state === "running" ? "sweep" : state === "error" ? "text-red-600" : state === "skip" ? "text-slate-400" : "text-slate-500")} title={step?.text}>
         {step?.text || ""}
       </span>
-      <span className={cx("shrink-0 font-mono text-[10px] tabular-nums", state === "running" ? "text-apple-link" : "text-slate-300")}>{time}</span>
+      {step && step.at === 0 ? (
+        <span className="block h-2 w-8 shrink-0 rounded-full bg-slate-100" aria-label="시간 기록 없음" />
+      ) : (
+        <span className={cx("shrink-0 font-mono text-[10px] tabular-nums", state === "running" ? "text-apple-link" : "text-slate-300")}>{time}</span>
+      )}
     </li>
   );
 }
