@@ -24,6 +24,7 @@ def start(*, input: str) -> dict:
         raise ValueError("input 이 비어 있다")
     job = {
         "id": str(uuid.uuid4()),
+        "user_id": store.user(),
         "input": given,
         "state": "queued",
         "events": [],
@@ -42,11 +43,13 @@ def start(*, input: str) -> dict:
 
 
 def listed() -> list[dict]:
-    return sorted(JOBS.values(), key=lambda j: j["created_at"], reverse=True)
+    return sorted((j for j in JOBS.values() if j["user_id"] == store.user()), key=lambda j: j["created_at"], reverse=True)
 
 
 def get(*, id: str) -> dict | None:
-    return JOBS.get(id)
+    job = JOBS.get(id)
+
+    return job if job and job["user_id"] == store.user() else None
 
 
 # #
