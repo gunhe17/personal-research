@@ -66,7 +66,7 @@ personal-research/
 
 왼쪽 사이드바는 Home, Agent, Space 순이다. Space, space 이름, 그 아래 Conversations·Collected·Materials 폴더는 모두 펼치고 접는 폴더이고, 실제로 여는 것은 대화, 수집물, 자료 항목뿐이다. Agent 는 홈에서 시작한 대화(ask 와 collect 기록)를 폴더 없이 대화 하나에 한 줄로 나열한다.
 
-본문(`/collected`)은 VS Code 같은 편집기 그룹이다. 그룹 하나에 항목 하나만 뜬다. 사이드바 항목을 누르면 지금 그룹의 항목을 바꾸고, 끌어서 그룹 왼쪽이나 오른쪽 가장자리에 놓으면 그 쪽으로 화면이 나뉜다(최대 4개, 모두 나란히). 그룹 위의 `유형 / 이름` 줄을 끌면 그룹을 옮기고, 그 줄 오른쪽의 ×로 닫는다. 수집물은 × 왼쪽에 내려받기가 있다. 항목마다 유형에 맞는 패널이 뜬다: 대화는 `ChatPane`, 수집물은 `DocPane`, 자료는 `MaterialPane`. 패널 사이의 연결(근거 열기, 인용 보내기, 포커스)은 작업대 Context(`features/workbench/WorkbenchProvider.tsx`) 하나가 맡는다. 답변의 근거를 누르면 옆 그룹에 문서가 열리고, 문서에서 인용하면 열린 대화로 들어간다. 배치는 브라우저에 남아 다시 열어도 그대로다.
+본문(`/collected`)은 VS Code 같은 편집기 그룹이다. 그룹 하나에 항목 하나만 뜬다. 사이드바 항목을 누르면 지금 그룹의 항목을 바꾸고, 끌어서 그룹 왼쪽이나 오른쪽 가장자리에 놓으면 그 쪽으로 화면이 나뉜다(최대 4개, 모두 나란히). 그룹 위의 `유형 / 이름` 줄을 끌면 그룹을 옮기고, 그 줄 오른쪽의 ×로 닫는다. 수집물은 × 왼쪽에 내려받기가 있다. 항목마다 유형에 맞는 패널이 뜬다: 대화는 `ChatPane`, 수집물은 `DocPane`, 자료는 `MaterialPane`. 패널 사이의 연결(근거 열기, 인용 보내기, 포커스)은 작업대 Context(`features/workbench/WorkbenchProvider.tsx`) 하나가 맡는다. 답변의 근거를 누르면 옆 그룹에 문서가 열리고, 문서에서 인용하면 열린 대화로 들어간다. 배치는 브라우저에 남아 다시 열어도 그대로다. 문서의 이미지 주소는 저장된 원문을 고치지 않고 그릴 때만 고친다. GitHub 의 `blob` 주소는 `raw.githubusercontent.com` 원본 파일로, 상대 경로는 문서의 원본 URL 을 기준으로 바꾸고, referrer 를 보내지 않는다.
 
 서비스는 셋이다. `api` 는 Python 서버로 `/api/*` 만 내고, `wui` 는 Next.js 서버로 화면을 내고, `agent` 는 모델 CLI 를 실행한다. 브라우저는 wui 만 보고, wui 가 `/api/*` 를 compose 네트워크 안의 `http://api:${PORT}` 로 넘긴다. agent 는 포트를 열지 않고 api 와만 `agent` 네트워크(`http://agent:8770`)로 만난다. 환경은 둘이고, 포트와 경로는 `.env/.env.{환경}` 에서 정한다.
 
