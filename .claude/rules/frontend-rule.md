@@ -41,8 +41,8 @@ wui/
     globals.css           토큰, 전역 글자 스타일(prose), 애니메이션
   features/<이름>/         한 화면 영역의 컴포넌트 묶음
   ui/                     어디서나 쓰는 모양 부품
-  lib/                    React 가 없는 함수(api, cx, storage, time, markdown, events, collect)
-  check/                  화면 점검 스크립트(smoke, workbench, chat, flows, panes, settings, search, collect, persist, auth, library)
+  lib/                    React 가 없는 함수(api, cx, storage, time, markdown, events, collect, items, zoom, number)
+  check/                  화면 점검 스크립트(smoke, workbench, chat, flows, panes, settings, search, collect, persist, auth, library, mobile)
   design/                 디자인 랩. 앱이 가져오지 않는다
 ```
 
@@ -61,7 +61,7 @@ wui/
 |---|---|
 | `shell` | 헤더, 로그인 화면, 사이드바(Home, Agent 대화 목록, Collected 문서 트리, Space 트리, 각 검색), 사이드바 폭 조절 |
 | `home` | 홈 입력창, ask/collect 모드, 백그라운드 수집 작업의 진행 표시 |
-| `workbench` | 그룹(최대 4), 좌우 분할, 드롭 구역, 패널 바, 작업대 Context |
+| `workbench` | 그룹(최대 4), 좌우 분할, 드롭 구역, 패널 틀(`Pane` `Body`)과 패널 바, 작업대 Context |
 | `chat` | 대화 패널, 질문과 답변(모델 답변, 수집 카드), 입력창(명령어, 제공사·모델), 인용, 주석 |
 | `doc` | 문서 패널, 언어 전환, 내려받기, 선택 막대 |
 | `material` | 자료 패널 |
@@ -89,13 +89,18 @@ wui/
 | `TreeRow` `Chevron` `Fold` | 사이드바의 줄, 회전 화살표, 접기 애니메이션 | 사이드바 트리, 설정의 수단 목록 |
 | `Menu` `MenuItem` | 흰 바탕, 얇은 테두리, 그림자 없음 | 드롭다운, 명령어, 모델 선택 |
 | `Modal` | 어두운 배경 위 흰 패널, Esc 와 바깥 클릭으로 닫힘 | 설정 |
+| `Popup` | 모달 위에 한 번 더 뜨는 작은 확인 창. Esc 는 이 창만 닫는다 | 사용자 삭제, 발급된 비밀번호, 수단·키 제거 |
+| `TextInput` | 흰 둥근 입력. `size` sm(13px) md lg(15px) | 로그인, 설정의 입력 |
 | `KeyValue` | 왼쪽 96px 회색 키, 오른쪽 값과 버튼 | 설정의 세부 |
 | `Logo` | 제공사 로고(openai, anthropic, xai) | 답변의 프로필 |
 | `Icon` | 24 격자 1.5 선. 이름으로 고른다 | 모든 아이콘 |
 | `toast()` (`ui/Toaster.tsx`) | 화면 아래 흰 알약 | 짧은 알림 |
-| `Steps` | 체크·진행 점과 세로선, 단계별 걸린 시간 | 수집 진행(홈 답변) |
+| `Steps` `StepMark` | 체크·진행 점과 세로선, 단계별 걸린 시간 | 수집 진행(홈 답변), 수집 카드 |
+| `useEscape` `useOutside` | Esc 와 바깥 클릭으로 닫는 훅. `capture` 면 안쪽 창만 닫힌다 | 메뉴, 모달, 팝업, 선택 막대 |
 
 버튼 규칙:
+
+- 브라우저의 `confirm()` `alert()` `prompt()` 를 쓰지 않는다. 확인은 `Popup` 으로 묻는다.
 
 - 채움 버튼은 한 화면(모달, 패널)에 하나. 두 번째 동작은 윤곽이나 회색이다.
 - 버튼 안 글자 크기는 `size="sm"`(12px) 과 `size="md"`(13px) 둘. 15px 는 페이지 머리의 `size="lg"` 만.
@@ -116,7 +121,7 @@ wui/
 ## 상태와 데이터
 
 - 화면 상태는 그 컴포넌트의 `useState` 에 둔다. 전역 Context 는 작업대(`WorkbenchProvider`) 하나뿐이다. 패널 사이의 일(근거 문서 열기 `open`, 인용 보내기 `sendQuote`, 지금 문서 `doc`, 포커스)은 모두 이 Context 를 거친다.
-- 기능 사이의 짧은 신호는 `lib/events.ts` 의 이름 있는 이벤트로 보낸다: `spaces`(space 목록이 바뀜), `settings`(제공사 설정이 바뀜), `zoom`(글자 크기가 바뀜), `agents`(홈 대화가 생기거나 바뀜), `auth`(어떤 요청이 401 을 받음. Shell 이 로그인 화면으로 바꾼다). 새 신호도 여기에 이름을 더한다.
+- 기능 사이의 짧은 신호는 `lib/events.ts` 의 이름 있는 이벤트로 보낸다: `spaces`(space 목록이 바뀜), `settings`(제공사 설정이 바뀜), `zoom`(글자 크기가 바뀜), `agents`(홈 대화가 생기거나 바뀜), `auth`(어떤 요청이 401 을 받음. Shell 이 로그인 화면으로 바꾼다), `sidebar`(사이드바 항목을 골랐음. 덮개일 때 Shell 이 닫는다). 새 신호도 여기에 이름을 더한다.
 - `fetch` 는 `lib/api.ts` 에서만 부른다. 엔드포인트마다 함수 하나, 응답 타입을 함께 둔다. 실패하면 서버의 `error` 문장으로 `ApiError` 를 던지고, 화면이 그 문장을 보여 준다.
 - 브라우저 저장은 `lib/storage.ts` 의 `load` `save` 만 쓴다. 오래 남길 취향은 localStorage: `workbench` `sidebarWidth` `sidebarOpen` `spaceExpanded` `docZoom` `chatZoom` `docLang` `dlFmt` `homeMode` `lastDoc` `model` `space-draft:<그룹>` `pg:<key>`. 새로고침에만 이어지면 되는 화면 상태는 세 번째 인자 `true` 로 sessionStorage: `settingsOpen` `settingsTab` `sidebarScroll` `chatScroll:<그룹>` `docScroll:<경로>`.
 - 문서와 대화 글자 크기는 `<html>` 의 CSS 변수 `--doc-zoom` `--chat-zoom` 으로 퍼뜨린다.
