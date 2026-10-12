@@ -10,7 +10,7 @@ const PATHS: Record<string, string> = {
   download: '<path d="M12 3v12.5"/><path d="M6.5 10.5L12 16l5.5-5.5"/><path d="M3 21h18"/>',
   close: '<path d="M6 6l12 12M18 6L6 18"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
-  collapse: '<path d="M7 11l5-5 5 5"/><path d="M7 18l5-5 5 5"/>',
+  collapse: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 12h7"/>',
   function: '<path d="M15.5 4H14a2.5 2.5 0 0 0-2.5 2.5v11A2.5 2.5 0 0 1 9 20H7.5"/><path d="M8.5 10.5h7"/>',
   agent: '<rect x="4.5" y="8" width="15" height="11" rx="3"/><path d="M12 8V5"/><circle cx="12" cy="4" r="1"/><path d="M9.5 13v1.5M14.5 13v1.5"/><path d="M2.5 12.5v2.5M21.5 12.5v2.5"/>',
   search: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>',
