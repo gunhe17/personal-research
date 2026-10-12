@@ -64,7 +64,7 @@ personal-research/
 - 모델을 부를 때마다(답변은 Codex, 수집할 때의 번역은 claude) `llm` 에 한 행이 남는다. `owner_id` 는 질문 메시지 id 나 번역한 문서 id 다.
 - DB 를 처음 열 때 `common/store.py` 의 `upgrade` 가 예전 구조(`extra` `body` 열, `opened` `conversations` `agent` `asked` 표, 대화를 JSON 으로 담던 `space`, `space` 의 `purpose` `log` 열, 대화 첫머리에 끼워 둔 수업)를 지금 구조로 옮긴다.
 
-왼쪽 사이드바는 Home, Agent, Space 순이다. Space, space 이름, 그 아래 Conversations·Collected·Materials 폴더는 모두 펼치고 접는 폴더이고, 실제로 여는 것은 대화, 수집물, 자료 항목뿐이다. Agent 는 홈에서 시작한 대화(ask 와 collect 기록)를 폴더 없이 대화 하나에 한 줄로 나열한다.
+왼쪽 사이드바는 Home, Agent, Collected, Space 순이다. Collected 는 모두가 함께 보는 수집 문서 전체를 `/api/tree` 의 폴더 구조 그대로 보여 주고, 검색창은 경로로 거른다. 처음에는 접혀 있다. Space, space 이름, 그 아래 Conversations·Collected·Materials 폴더는 모두 펼치고 접는 폴더이고, 실제로 여는 것은 대화, 수집물, 자료 항목뿐이다. Agent 는 홈에서 시작한 대화(ask 와 collect 기록)를 폴더 없이 대화 하나에 한 줄로 나열한다.
 
 본문(`/collected`)은 VS Code 같은 편집기 그룹이다. 그룹 하나에 항목 하나만 뜬다. 사이드바 항목을 누르면 지금 그룹의 항목을 바꾸고, 끌어서 그룹 왼쪽이나 오른쪽 가장자리에 놓으면 그 쪽으로 화면이 나뉜다(최대 4개, 모두 나란히). 그룹 위의 `유형 / 이름` 줄을 끌면 그룹을 옮기고, 그 줄 오른쪽의 ×로 닫는다. 수집물은 × 왼쪽에 내려받기가 있다. 항목마다 유형에 맞는 패널이 뜬다: 대화는 `ChatPane`, 수집물은 `DocPane`, 자료는 `MaterialPane`. 패널 사이의 연결(근거 열기, 인용 보내기, 포커스)은 작업대 Context(`features/workbench/WorkbenchProvider.tsx`) 하나가 맡는다. 답변의 근거를 누르면 옆 그룹에 문서가 열리고, 문서에서 인용하면 열린 대화로 들어간다. 배치는 브라우저에 남아 다시 열어도 그대로다. 문서의 이미지 주소는 저장된 원문을 고치지 않고 그릴 때만 고친다. GitHub 의 `blob` 주소는 `raw.githubusercontent.com` 원본 파일로, 상대 경로는 문서의 원본 URL 을 기준으로 바꾸고, referrer 를 보내지 않는다.
 
@@ -98,9 +98,9 @@ docker compose --env-file .env/.env.production -f .docker/docker-compose.product
 
 ## 사용자와 권한
 
-로그인한 사용자만 쓴다. 역할은 `admin` 과 `user` 둘이다(`user.role`). 관리자는 서버에서 `bin/user.py add` 로 만들고, 일반 사용자는 관리자가 설정의 Users 화면(`POST /api/users`)에서 이름과 이메일로 추가한다. 이때 서버가 무작위 비밀번호를 만들어 응답에 한 번만 담고 해시만 저장하므로 다시 볼 수 없다. 관리자는 사용자 카드의 Delete(`DELETE /api/users/{id}`)로 다른 사용자를 지운다. 자기 계정은 지울 수 없고, 지우면 그 사람의 세션, 저장된 요금제·API 키(`user_meta`), CLI 로그인 폴더가 함께 지워진다. 그 사람의 대화는 DB 에 남지만 누구에게도 보이지 않는다. 사용자는 Profile 화면(`POST /api/auth/password`)에서 자기 비밀번호만 바꾼다. 로그인된 본인 세션으로만 바꿀 수 있고 현재 비밀번호는 묻지 않는다. 가입 화면은 없고, 비밀번호는 scrypt 해시로 `user.password` 에 둔다. 로그인하면 `user_session` 에 토큰의 SHA-256 을 30일 동안 두고 브라우저에는 `HttpOnly` `SameSite=Lax` 쿠키 `session` 을 준다. `/api/health` 와 `/api/auth/login` 을 뺀 모든 `/api/*` 는 세션이 없으면 401 이다.
+로그인한 사용자만 쓴다. 역할은 `admin` 과 `user` 둘이다(`user.role`). 관리자는 서버에서 `bin/user.py add` 로 만들고, 일반 사용자는 관리자가 설정의 Users 화면(`POST /api/users`)에서 이름과 이메일로 추가한다. 이때 서버가 무작위 비밀번호를 만들어 응답에 한 번만 담고 해시만 저장하므로 다시 볼 수 없다. 관리자는 사용자 카드의 Delete(`DELETE /api/users/{id}`)로 다른 사용자를 지운다. 자기 계정은 지울 수 없고, 지우면 그 사람의 세션, 저장된 요금제·API 키(`user_meta`), CLI 로그인 폴더가 함께 지워진다. 그 사람의 대화와 space 는 DB 에 남지만 누구에게도 보이지 않는다. 사용자는 Profile 화면(`POST /api/auth/password`)에서 자기 비밀번호만 바꾼다. 로그인된 본인 세션으로만 바꿀 수 있고 현재 비밀번호는 묻지 않는다. 가입 화면은 없고, 비밀번호는 scrypt 해시로 `user.password` 에 둔다. 로그인하면 `user_session` 에 토큰의 SHA-256 을 30일 동안 두고 브라우저에는 `HttpOnly` `SameSite=Lax` 쿠키 `session` 을 준다. `/api/health` 와 `/api/auth/login` 을 뺀 모든 `/api/*` 는 세션이 없으면 401 이다.
 
-사용자를 나누는 목적은 AI 사용의 격리다. 수집물, space, 자료는 모두가 함께 본다. 대화(`space_conversation` `agent_conversation`)는 `user_id` 로 주인을 가지고 주인만 보고 이어 간다. 제공사 설정, 요금제 토큰, API 키는 `user_meta` 에 사용자별로 있고, codex·grok 의 로그인 폴더도 `data/cli/{codex,grok}/{사용자}/{수단}` 으로 나뉜다. 답변은 대화 주인의, 번역은 수집을 요청한 사람의 인증만 쓴다. 저장된 토큰이나 키가 없는 수단은 실행하지 않으므로 서버 쪽 CLI 자체 로그인으로 넘어가지 않는다. 모델 호출 기록 `llm` 에도 `user_id` 가 남아 사용량을 사람마다 센다.
+사용자를 나누는 목적은 AI 사용과 학습 공간의 격리다. 수집물만 모두가 함께 본다. space(`space.user_id`)와 그 자료, 대화(`space_conversation` `agent_conversation`)는 `user_id` 로 주인을 가지고 주인만 보고 고친다. 다른 사람의 space 는 목록에 없고 열면 404 다. 제공사 설정, 요금제 토큰, API 키는 `user_meta` 에 사용자별로 있고, codex·grok 의 로그인 폴더도 `data/cli/{codex,grok}/{사용자}/{수단}` 으로 나뉜다. 답변은 대화 주인의, 번역은 수집을 요청한 사람의 인증만 쓴다. 저장된 토큰이나 키가 없는 수단은 실행하지 않으므로 서버 쪽 CLI 자체 로그인으로 넘어가지 않는다. 모델 호출 기록 `llm` 에도 `user_id` 가 남아 사용량을 사람마다 센다.
 
 서버는 요청마다 `store.CURRENT` 에 사용자를 정하고, 답변·수집·로그인의 백그라운드 스레드는 시작할 때의 사용자를 이어받는다(`contextvars.copy_context`). 처음 만드는 계정은 그 전까지의 `default` 사용자를 넘겨받아 기존 설정과 대화가 그 계정 것이 된다.
 

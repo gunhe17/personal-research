@@ -21,9 +21,11 @@ def listed() -> list[dict]:
                       MAX(s.updated_at, COALESCE(MAX(c.updated_at), '')),
                       COUNT(DISTINCT c.id), COUNT(DISTINCT NULLIF(c.collected_id, ''))
                FROM space AS s
-               LEFT JOIN space_conversation AS c ON c.space_id = s.id
+               LEFT JOIN space_conversation AS c ON c.space_id = s.id AND c.user_id = s.user_id
                LEFT JOIN space_material AS p ON p.space_id = s.id AND p.kind = 'plan'
-               GROUP BY s.id ORDER BY 5 DESC"""
+               WHERE s.user_id = ?
+               GROUP BY s.id ORDER BY 5 DESC""",
+            (store.user(),),
         ).fetchall()
 
     return [
@@ -44,7 +46,7 @@ def get(*, id: str) -> dict | None:
     if not IDENTIFIER.fullmatch(id or ""):
         return None
     with store.session() as connection:
-        row = connection.execute("SELECT id, title, created_at, updated_at FROM space WHERE id = ?", (id,)).fetchone()
+        row = connection.execute("SELECT id, title, created_at, updated_at FROM space WHERE id = ? AND user_id = ?", (id, store.user())).fetchone()
     if not row:
         return None
     materials = listed_materials(space_id=row[0])
@@ -68,9 +70,9 @@ def collected(*, id: str) -> list[dict]:
                       (SELECT COUNT(*) FROM collected AS d WHERE d.id = root.id OR d.path LIKE root.path || '/%')
                FROM space_conversation AS c
                JOIN collected AS root ON root.id = c.collected_id
-               WHERE c.space_id = ?
+               WHERE c.space_id = ? AND c.user_id = ?
                GROUP BY root.id ORDER BY 5 DESC""",
-            (id,),
+            (id, store.user()),
         ).fetchall()
 
     return [
@@ -107,8 +109,9 @@ def material(*, id: str) -> dict | None:
         return None
     with store.session() as connection:
         row = connection.execute(
-            "SELECT id, space_id, kind, title, content, created_at, updated_at FROM space_material WHERE id = ?",
-            (id,),
+            """SELECT m.id, m.space_id, m.kind, m.title, m.content, m.created_at, m.updated_at FROM space_material AS m
+               JOIN space AS s ON s.id = m.space_id WHERE m.id = ? AND s.user_id = ?""",
+            (id, store.user()),
         ).fetchone()
     if not row:
         return None
@@ -130,8 +133,8 @@ def create(*, data: dict) -> dict:
     }
     with store.session() as connection:
         connection.execute(
-            "INSERT INTO space (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)",
-            (created["id"], created["title"], created["created_at"], created["created_at"]),
+            "INSERT INTO space (id, title, created_at, updated_at, user_id) VALUES (?, ?, ?, ?, ?)",
+            (created["id"], created["title"], created["created_at"], created["created_at"], store.user()),
         )
     if data.get("purpose"):
         edit(id=created["id"], data={"purpose": data["purpose"]})
@@ -156,6 +159,8 @@ def edit(*, id: str, data: dict) -> dict:
 
 
 def remove(*, id: str) -> bool:
+    if get(id=id) is None:
+        return False
     for item in conversation.listed(domain="space", space_id=id):
         conversation.remove(domain="space", id=item["id"])
     with store.session() as connection:
@@ -173,6 +178,8 @@ def save_material(*, space_id: str, data: dict, id: str = "") -> dict:
         raise ValueError("고칠 수 없는 자료 종류입니다.")
     if not title or not isinstance(content, (str, dict)):
         raise ValueError("제목과 본문이 필요합니다.")
+    if get(id=space_id) is None:
+        raise ValueError("space 를 찾을 수 없습니다.")
     encoded = json.dumps(content, ensure_ascii=False) if isinstance(content, dict) else content
     with store.session() as connection:
         if id:
@@ -194,6 +201,36 @@ def save_material(*, space_id: str, data: dict, id: str = "") -> dict:
 
 def remove_material(*, id: str) -> bool:
     with store.session() as connection:
-        removed = connection.execute("DELETE FROM space_material WHERE id = ? AND kind != 'plan'", (id,)).rowcount
+        removed = connection.execute(
+            "DELETE FROM space_material WHERE id = ? AND kind != 'plan' AND space_id IN (SELECT id FROM space WHERE user_id = ?)",
+            (id, store.user()),
+        ).rowcount
 
     return removed > 0
+
+
+# #
+# check
+
+if __name__ == "__main__":
+    import tempfile
+    from pathlib import Path
+
+    store.DATABASE = Path(tempfile.mkdtemp()) / "check.db"
+    mine = create(data={"title": "mine", "purpose": "goal"})
+    note = save_material(space_id=mine["id"], data={"kind": "note", "title": "n", "content": "body"})
+    store.CURRENT.set("other")
+    assert listed() == [] and get(id=mine["id"]) is None and material(id=note["id"]) is None
+    assert not remove(id=mine["id"]) and not remove_material(id=note["id"])
+    try:
+        save_material(space_id=mine["id"], data={"kind": "note", "title": "x", "content": "y"})
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("foreign material")
+    theirs = create(data={"title": "theirs"})
+    assert [s["id"] for s in listed()] == [theirs["id"]]
+    store.CURRENT.set(store.USER)
+    assert [s["id"] for s in listed()] == [mine["id"]] and get(id=mine["id"])["purpose"] == "goal"
+    assert remove_material(id=note["id"]) and remove(id=mine["id"])
+    print("ok")

@@ -45,7 +45,8 @@ CREATE TABLE IF NOT EXISTS space (
     id         TEXT PRIMARY KEY,
     title      TEXT NOT NULL,
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    user_id    TEXT NOT NULL DEFAULT 'default'
 );
 
 CREATE TABLE IF NOT EXISTS space_material (
@@ -449,7 +450,7 @@ def upgrade(*, connection) -> None:
     if "secret" not in columns(connection=connection, table="user_meta"):
         connection.execute("ALTER TABLE user_meta ADD COLUMN secret TEXT NOT NULL DEFAULT ''")
     # owner
-    for table, column, fallback in (("user", "password", "''"), ("user", "email", "''"), ("user", "role", "'user'"), ("space_conversation", "user_id", "'default'"), ("agent_conversation", "user_id", "'default'"), ("llm", "user_id", "'default'")):
+    for table, column, fallback in (("user", "password", "''"), ("user", "email", "''"), ("user", "role", "'user'"), ("space", "user_id", "'default'"), ("space_conversation", "user_id", "'default'"), ("agent_conversation", "user_id", "'default'"), ("llm", "user_id", "'default'")):
         if column not in columns(connection=connection, table=table):
             connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} TEXT NOT NULL DEFAULT {fallback}")
     # conversation
