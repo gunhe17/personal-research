@@ -45,17 +45,27 @@ export default function UsersPane() {
       <h3 className="text-[21px] font-semibold tracking-tight text-slate-900">Users</h3>
       <section>
         <SectionHeader title="Users" count={members.length} className="mb-2" />
-        {members.map((member) => (
-          <KeyValue key={member.id} label={member.name}>
-            <span className="min-w-0 flex-1 truncate">{member.email}</span>
-            <span className="shrink-0 text-[12px] text-slate-400">{member.role === "admin" ? "Admin" : "User"}</span>
-          </KeyValue>
-        ))}
-        <KeyValue label="New">
-          <input aria-label="New user name" placeholder="Name" value={name} onChange={(event) => setName(event.target.value)} className={`${field} w-28 flex-none`} />
-          <input type="email" aria-label="New user email" placeholder="Email" value={email} onChange={(event) => setEmail(event.target.value)} onKeyDown={(event) => event.key === "Enter" && add()} className={field} />
-          <Button size="sm" disabled={!email.trim()} onClick={add}>Add</Button>
-        </KeyValue>
+        <div className="divide-y divide-slate-100">
+          {members.map((member) => (
+            <div key={member.id} className="py-1.5">
+              <KeyValue label="Name">{member.name}</KeyValue>
+              <KeyValue label="Email">{member.email}</KeyValue>
+              <KeyValue label="Role">{member.role === "admin" ? "Admin" : "User"}</KeyValue>
+            </div>
+          ))}
+          <div className="py-1.5">
+            <KeyValue label="Name">
+              <input aria-label="New user name" placeholder="Name" value={name} onChange={(event) => setName(event.target.value)} className={field} />
+            </KeyValue>
+            <KeyValue label="Email">
+              <input type="email" aria-label="New user email" placeholder="Email" value={email} onChange={(event) => setEmail(event.target.value)} onKeyDown={(event) => event.key === "Enter" && add()} className={field} />
+            </KeyValue>
+            <KeyValue label="Role">
+              <span className="min-w-0 flex-1">User</span>
+              <Button size="sm" disabled={!email.trim()} onClick={add}>Add</Button>
+            </KeyValue>
+          </div>
+        </div>
         {error && <p className="mt-1 text-[12px] text-red-600">{error}</p>}
         {issued && (
           <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
