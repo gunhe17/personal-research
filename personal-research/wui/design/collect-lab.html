@@ -50,6 +50,9 @@
     <h1 class="text-[40px] font-semibold tracking-tight" style="letter-spacing: 0.44px">Collect Lab</h1>
     <p class="mt-2 text-[17px] font-light text-slate-500">대화 안의 수집 답변을 어떻게 보여 줄지 정합니다. 시안마다 진행 중 · 완료 · 실패를 바꿔 볼 수 있고, 재생으로 처음부터 끝까지 흐름을 봅니다.</p>
   </header>
+  <h2 class="mb-6 text-[28px] font-semibold tracking-tight">5 + 6</h2>
+  <div class="space-y-16" id="mixes"></div>
+  <h2 class="mb-6 mt-20 text-[28px] font-semibold tracking-tight">처음 시안</h2>
   <div class="space-y-16" id="variants"></div>
 
   <section class="mt-16 rounded-2xl bg-white p-6">
@@ -178,8 +181,59 @@
     },
   ];
 
-  const root = document.getElementById("variants");
-  for (const v of VARIANTS) {
+  const head = () => `<div class="flex items-center gap-2 border-b border-slate-100 px-4 py-2.5 text-[12px] text-slate-500"><span class="font-semibold text-slate-800">github.com</span><span class="truncate">${URL.replace("https://github.com", "")}</span></div>`;
+  const checklist = (sts) => `<ul class="px-4 py-2">${STEPS.map((s, i) => `<li class="flex items-center gap-2.5 py-1.5"><span class="flex h-4 w-4 items-center justify-center">${mark(sts[i])}</span><span class="w-10 text-[12px] ${sts[i] === "idle" ? "text-slate-300" : "text-slate-800"}">${s.label}</span><span class="min-w-0 flex-1 truncate text-[12px] ${sts[i] === "running" ? "sweep" : sts[i] === "error" ? "text-red-600" : sts[i] === "idle" ? "text-slate-300" : "text-slate-500"}">${sts[i] === "idle" ? "" : textOf(s, sts[i])}</span><span class="font-mono text-[10px] text-slate-300">${sts[i] === "done" ? TIMES[i] : ""}</span></li>`).join("")}</ul>`;
+  const summary = (open = false) => `<details ${open ? "open" : ""} class="group px-4 py-2.5 text-[12px] text-slate-500"><summary class="flex cursor-pointer list-none items-center gap-2"><span class="flex h-4 w-4 items-center justify-center">${check}</span><span class="flex-1">4 steps · 3m 15s</span><span class="transition group-open:rotate-90">›</span></summary><ul class="mt-1.5 space-y-1 pl-6">${STEPS.map((s, i) => `<li class="flex"><span class="flex-1">${s.done}</span><span class="font-mono text-[10px] text-slate-300">${TIMES[i]}</span></li>`).join("")}</ul></details>`;
+  const ENG = "Codex CLI is a coding agent from OpenAI that runs locally on your computer.";
+  const KOR = "Codex CLI 는 내 컴퓨터에서 로컬로 실행되는 OpenAI 의 코딩 에이전트다.";
+  const card = (body) => profile() + `<div class="max-w-2xl overflow-hidden rounded-xl border border-slate-200 bg-white">${body}</div>`;
+  const actions = (done) => done
+    ? `<div class="flex items-center gap-2 border-t border-slate-100 bg-slate-50 px-4 py-2.5"><button class="fill">Open</button><button class="pill">Line by line</button><span class="flex-1"></span><button class="quiet">Ask about it</button></div>`
+    : `<div class="flex items-center gap-2 border-t border-slate-100 bg-slate-50 px-4 py-2.5"><button class="pill">Try again</button></div>`;
+  const MIXES = [
+    {
+      title: "D1. 체크리스트 → 끝나면 접고 미리보기", note: "진행 중엔 C5 그대로. 완료되면 체크리스트가 '4 steps · 3m 15s' 한 줄로 접히고 그 자리에 원문/번역 첫 문단이 나란히 들어옴.",
+      render: (state, at) => {
+        const sts = stateOf(state, at);
+        if (state !== "done") return card(head() + checklist(sts) + (state === "failed" ? actions(false) : ""));
+        return card(head() + `<div class="rise grid grid-cols-2 gap-3 px-4 pt-3 text-[13px] leading-relaxed"><div><div class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Eng</div>${ENG}</div><div><div class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Kor</div>${KOR}</div></div>` + summary() + actions(true));
+      },
+    },
+    {
+      title: "D2. 체크리스트 유지 + 탭 미리보기", note: "단계는 끝나도 남김. 아래에 Eng · Kor · Line by line 탭으로 미리보기. 무엇이 얼마나 걸렸는지와 결과를 함께 봄.",
+      render: (state, at) => {
+        const sts = stateOf(state, at);
+        if (state !== "done") return card(head() + checklist(sts) + (state === "failed" ? actions(false) : ""));
+        return card(head() + checklist(sts) + `<div class="rise border-t border-slate-100 px-4 py-3"><div class="seg mb-2"><button aria-pressed="false">Eng</button><button aria-pressed="true">Kor</button><button aria-pressed="false">Line by line</button></div><p class="text-[13px] leading-relaxed">${KOR}</p></div>` + actions(true));
+      },
+    },
+    {
+      title: "D3. 미리보기가 주인공, 단계는 위쪽 칩", note: "카드 머리 아래에 네 단계를 작은 칩으로 한 줄. 완료되면 본문은 줄 단위 대조(원문 아래 번역)로 첫 두 문장.",
+      render: (state, at) => {
+        const sts = stateOf(state, at);
+        const chips = `<div class="flex flex-wrap gap-1.5 px-4 pt-3">${STEPS.map((s, i) => `<span class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] ${sts[i] === "idle" ? "bg-slate-50 text-slate-300" : sts[i] === "error" ? "bg-red-50 text-red-600" : sts[i] === "running" ? "bg-ice text-apple-link" : "bg-slate-100 text-slate-600"}"><span class="flex h-3 w-3 items-center justify-center">${sts[i] === "idle" ? "" : mark(sts[i])}</span>${s.label}${sts[i] === "done" ? ` <span class="font-mono text-[10px] text-slate-400">${TIMES[i]}</span>` : ""}</span>`).join("")}</div>`;
+        const running = sts.findIndex((x) => x === "running");
+        const body = state === "done"
+          ? `<div class="rise space-y-2 px-4 py-3 text-[13px] leading-relaxed"><p class="text-slate-500">${ENG}</p><p>${KOR}</p></div>`
+          : state === "failed" ? `<p class="px-4 py-3 text-[12px] text-red-600">Fetch failed: 페이지를 받지 못했다</p>` : `<p class="px-4 py-3 text-[13px] sweep">${textOf(STEPS[running], "running")}</p>`;
+        return card(head() + chips + body + (state === "running" ? "" : actions(state === "done")));
+      },
+    },
+    {
+      title: "D4. 좌우 분할", note: "넓은 카드를 왼쪽 단계, 오른쪽 미리보기로 나눔. 진행 중엔 오른쪽에 '번역 중' 자리표시, 끝나면 첫 문단 번역이 들어옴.",
+      render: (state, at) => {
+        const sts = stateOf(state, at);
+        const right = state === "done"
+          ? `<div class="rise text-[13px] leading-relaxed"><div class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Kor</div>${KOR}<div class="mt-2 text-[12px] text-slate-400">${ENG}</div></div>`
+          : state === "failed" ? `<p class="text-[12px] text-slate-400">미리볼 문서가 없습니다</p>`
+          : `<div class="space-y-2"><div class="h-2.5 w-11/12 rounded bg-slate-100 breathe"></div><div class="h-2.5 w-4/5 rounded bg-slate-100 breathe"></div><div class="h-2.5 w-2/3 rounded bg-slate-100 breathe"></div></div>`;
+        return card(head() + `<div class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] divide-x divide-slate-100"><div>${checklist(sts)}</div><div class="px-4 py-3">${right}</div></div>` + (state === "running" ? "" : actions(state === "done")));
+      },
+    },
+  ];
+
+  const mount = (list, root) => {
+  for (const v of list) {
     const section = document.createElement("section");
     section.innerHTML = `
       <div class="mb-3 flex flex-wrap items-center gap-3">
@@ -211,6 +265,9 @@
     });
     show("done");
   }
+  };
+  mount(MIXES, document.getElementById("mixes"));
+  mount(VARIANTS, document.getElementById("variants"));
 </script>
 </body>
 </html>
