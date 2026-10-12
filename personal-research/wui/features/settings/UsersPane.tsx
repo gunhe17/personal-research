@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { api, type Member } from "@/lib/api";
 import Button from "@/ui/Button";
-import KeyValue from "@/ui/KeyValue";
 import SectionHeader from "@/ui/SectionHeader";
 import { toast } from "@/ui/Toaster";
 
@@ -44,14 +43,23 @@ export default function UsersPane() {
     <div className="space-y-6">
       <h3 className="text-[21px] font-semibold tracking-tight text-slate-900">Users</h3>
       <section>
-        <SectionHeader title="Add user" className="mb-2" />
-        <KeyValue label="Name">
-          <input aria-label="New user name" value={name} onChange={(event) => setName(event.target.value)} className={field} />
-        </KeyValue>
-        <KeyValue label="Email">
-          <input type="email" aria-label="New user email" value={email} onChange={(event) => setEmail(event.target.value)} onKeyDown={(event) => event.key === "Enter" && add()} className={field} />
-          <Button tone="fill" size="sm" disabled={!email.trim()} onClick={add}>Add</Button>
-        </KeyValue>
+        <SectionHeader title="Users" count={members.length} className="mb-2" />
+        <ul className="divide-y divide-slate-100">
+          {members.map((member) => (
+            <li key={member.id} className="flex min-h-10 items-center gap-3 py-1.5 text-[13px]">
+              <span className="w-32 shrink-0 truncate text-slate-900">{member.name}</span>
+              <span className="min-w-0 flex-1 truncate text-slate-500">{member.email}</span>
+              <span className="w-14 shrink-0 text-right text-[12px] text-slate-400">{member.role === "admin" ? "Admin" : "User"}</span>
+            </li>
+          ))}
+          <li className="flex min-h-10 items-center gap-3 py-1.5 text-[13px]">
+            <input aria-label="New user name" placeholder="Name" value={name} onChange={(event) => setName(event.target.value)} className={`${field} w-32 flex-none`} />
+            <input type="email" aria-label="New user email" placeholder="Email" value={email} onChange={(event) => setEmail(event.target.value)} onKeyDown={(event) => event.key === "Enter" && add()} className={field} />
+            <span className="flex w-14 shrink-0 justify-end">
+              <Button size="sm" disabled={!email.trim()} onClick={add}>Add</Button>
+            </span>
+          </li>
+        </ul>
         {error && <p className="mt-1 text-[12px] text-red-600">{error}</p>}
         {issued && (
           <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
@@ -62,18 +70,6 @@ export default function UsersPane() {
             </div>
           </div>
         )}
-      </section>
-      <section>
-        <SectionHeader title="Members" count={members.length} className="mb-2" />
-        <ul className="divide-y divide-slate-100">
-          {members.map((member) => (
-            <li key={member.id} className="flex items-center gap-3 py-2 text-[13px]">
-              <span className="w-28 shrink-0 truncate text-slate-900">{member.name}</span>
-              <span className="min-w-0 flex-1 truncate text-slate-500">{member.email}</span>
-              <span className="shrink-0 text-[12px] text-slate-400">{member.role === "admin" ? "Admin" : "User"}</span>
-            </li>
-          ))}
-        </ul>
       </section>
     </div>
   );
