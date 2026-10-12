@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { api, type Account, type Provider } from "@/lib/api";
+import { cx } from "@/lib/cx";
 import { load, save } from "@/lib/storage";
 import Dot from "@/ui/Dot";
 import Icon from "@/ui/Icon";
@@ -19,11 +20,23 @@ import useProviders, { statusKey } from "./useProviders";
 
 export default function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [tab, setTab] = useState(() => load("settingsTab", "font", true));
+  const [paned, setPaned] = useState(false);
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 639px)");
+    const sync = () => setNarrow(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
+  const chosen = (key: string) => tab === key && !narrow;
   const [account, setAccount] = useState<Account | null>(null);
   const { providers, statuses, errors, sheet, openSheet, saveProvider, logout, prune, closeSheet } = useProviders(open);
 
   useEffect(() => {
-    if (open) api.me().then(setAccount, () => {});
+    if (!open) return;
+    setPaned(false);
+    api.me().then(setAccount, () => {});
   }, [open]);
 
   useEffect(() => save("settingsTab", tab, true), [tab]);
@@ -36,29 +49,34 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
 
   const ready = (provider: Provider) => provider.methods.some((m) => usable(m, statuses[statusKey(provider, m)]));
   const current = providers.find((p) => p.id === tab);
+  const pick = (next: string) => {
+    setTab(next);
+    setPaned(true);
+  };
 
   return (
     <Modal open={open} onClose={close} label="Settings" className="flex h-[min(560px,90vh)] max-w-2xl">
-      <nav className="flex w-48 shrink-0 flex-col gap-1 border-r border-slate-100 bg-white px-2 pt-3 pb-2 max-sm:w-36">
+      <nav className={cx("flex w-48 shrink-0 flex-col gap-1 border-r border-slate-100 bg-white px-2 pt-3 pb-2 max-sm:w-full max-sm:border-r-0", paned && "max-sm:hidden")}>
         <div className="mb-2 px-2 text-sm font-semibold text-slate-900">Settings</div>
         <Group icon="gear" label="General">
-          <TreeRow variant="nav" label="Font" active={tab === "font"} onClick={() => setTab("font")} />
+          <TreeRow variant="nav" label="Font" active={chosen("font")} onClick={() => pick("font")} />
         </Group>
         <Group icon="person" label="Account">
-          <TreeRow variant="nav" label="Profile" active={tab === "account"} onClick={() => setTab("account")} />
-          {account?.role === "admin" && <TreeRow variant="nav" label="Users" active={tab === "users"} onClick={() => setTab("users")} />}
+          <TreeRow variant="nav" label="Profile" active={chosen("account")} onClick={() => pick("account")} />
+          {account?.role === "admin" && <TreeRow variant="nav" label="Users" active={chosen("users")} onClick={() => pick("users")} />}
         </Group>
         <Group icon="chip" label="Models">
           {providers.map((provider) => (
-            <TreeRow key={provider.id} variant="nav" label={provider.label} active={tab === provider.id} trailing={<Dot on={ready(provider)} />} onClick={() => setTab(provider.id)} />
+            <TreeRow key={provider.id} variant="nav" label={provider.label} active={chosen(provider.id)} trailing={<Dot on={ready(provider)} />} onClick={() => pick(provider.id)} />
           ))}
         </Group>
         <Group icon="agent" label="Agent">
-          <TreeRow variant="nav" label="Function" active={tab === "function"} onClick={() => setTab("function")} />
+          <TreeRow variant="nav" label="Function" active={chosen("function")} onClick={() => pick("function")} />
         </Group>
       </nav>
       <IconButton icon="close" label="Close" className="absolute top-3 right-3 z-10 bg-white" onClick={close} />
-      <div className="min-w-0 flex-1 overflow-y-auto p-6">
+      <div className={cx("min-w-0 flex-1 overflow-y-auto p-6", !paned && "max-sm:hidden")}>
+        <IconButton icon="back" label="Back" className="-mt-3 -ml-2 mb-3 sm:hidden" onClick={() => setPaned(false)} />
         {current ? (
           <ProviderPane
             key={current.id}

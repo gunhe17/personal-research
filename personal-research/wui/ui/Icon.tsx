@@ -16,6 +16,7 @@ const PATHS: Record<string, string> = {
   search: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>',
   up: '<path d="M12 20V4"/><path d="M5 11l7-7 7 7"/>',
   down: '<path d="M6 9l6 6 6-6"/>',
+  back: '<path d="M15 5l-7 7 7 7"/>',
   person: '<circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-3.5 4.5-5 8-5s6.5 1.5 8 5"/>',
   key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M14 9l2 2"/>',
   chat: '<path d="M21 11a8 8 0 0 1-8 8H6.5L3 21V11a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/>',

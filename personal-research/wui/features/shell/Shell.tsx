@@ -11,7 +11,7 @@ import Header from "./Header";
 import LoginScreen from "./LoginScreen";
 import Sidebar from "./Sidebar";
 
-const OVERLAY = "(max-width: 767px)";
+const OVERLAY = "(max-width: 1023px)";
 
 const clampWidth = (px: number) => Math.min(480, Math.max(200, Math.round(px)));
 
@@ -105,10 +105,10 @@ export default function Shell({ children }: { children: ReactNode }) {
     <div className={cx("flex h-full flex-col", resizing && "cursor-col-resize select-none")}>
       <Header sidebar={sidebar} settings={settings} onSidebar={() => showSidebar(!sidebar)} onSettings={() => showSettings(true)} />
       <div className="relative flex min-h-0 flex-1">
-        {sidebar && <div className="absolute inset-0 z-20 bg-slate-900/20 md:hidden" onClick={() => showSidebar(false)} />}
+        {sidebar && <div className="absolute inset-0 z-20 bg-slate-900/20 lg:hidden" onClick={() => showSidebar(false)} />}
         <aside
           inert={!sidebar}
-          className={cx("flex h-full shrink-0 flex-col overflow-hidden bg-white max-md:absolute max-md:inset-y-0 max-md:left-0 max-md:z-30", !resizing && "transition-all duration-300 ease-spring")}
+          className={cx("flex h-full shrink-0 flex-col overflow-hidden bg-white max-lg:absolute max-lg:inset-y-0 max-lg:left-0 max-lg:z-30", !resizing && "transition-all duration-300 ease-spring")}
           style={{ width: sidebar ? width : 0, opacity: sidebar ? 1 : 0 }}
         >
           <div ref={pane} onScroll={(event) => save("sidebarScroll", Math.round(event.currentTarget.scrollTop), true)} className="min-h-0 flex-1 overflow-y-auto text-sm" style={{ width }}>
@@ -129,7 +129,7 @@ export default function Shell({ children }: { children: ReactNode }) {
               setWidth(288);
               save("sidebarWidth", 288);
             }}
-            className="relative z-20 w-px shrink-0 cursor-col-resize bg-slate-100 transition-colors hover:bg-slate-300 active:bg-apple max-md:hidden"
+            className="relative z-20 w-px shrink-0 cursor-col-resize bg-slate-100 transition-colors hover:bg-slate-300 active:bg-apple max-lg:hidden"
           >
             <div className="absolute inset-y-0 -right-2.5 -left-2.5" />
           </div>

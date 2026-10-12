@@ -7,6 +7,7 @@ import ChatPane from "@/features/chat/ChatPane";
 import DocPane from "@/features/doc/DocPane";
 import MaterialPane from "@/features/material/MaterialPane";
 import { fromQuery, itemKey, LIMIT, type Group, type Item, type Side } from "@/lib/items";
+import PaneTabs from "./PaneTabs";
 import { useWorkbench } from "./WorkbenchProvider";
 
 const SIDES: Record<Side, string> = { left: "inset-y-0 left-0 right-1/2", right: "inset-y-0 left-1/2 right-0", center: "inset-0" };
@@ -36,27 +37,30 @@ export default function Workbench() {
     );
   }
   return (
-    <div className="grid min-h-0 min-w-0 flex-1 gap-px bg-slate-100 max-md:grid-cols-1!" style={{ gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))` }}>
-      {workbench.groups.map((group, index) => (
-        <section
-          key={group.id}
-          onPointerDownCapture={() => workbench.focusGroup(group.id)}
-          className={cx("relative flex min-h-0 min-w-0 flex-col bg-white", index !== workbench.focus && "max-md:hidden")}
-        >
-          <Drop
-            className="relative flex min-h-0 flex-1 flex-col"
-            full={count >= LIMIT}
-            onDrop={(item, side, from) => {
-              if (from) return workbench.move(from, group.id, side);
-              if (!item) return;
-              if (side === "center") workbench.open(item, { group: index });
-              else workbench.split(item, index, side);
-            }}
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <PaneTabs />
+      <div className="grid min-h-0 min-w-0 flex-1 gap-px bg-slate-100 max-md:grid-cols-1!" style={{ gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))` }}>
+        {workbench.groups.map((group, index) => (
+          <section
+            key={group.id}
+            onPointerDownCapture={() => workbench.focusGroup(group.id)}
+            className={cx("relative flex min-h-0 min-w-0 flex-col bg-white", index !== workbench.focus && "max-md:hidden")}
           >
-            <Pane group={group} />
-          </Drop>
-        </section>
-      ))}
+            <Drop
+              className="relative flex min-h-0 flex-1 flex-col"
+              full={count >= LIMIT}
+              onDrop={(item, side, from) => {
+                if (from) return workbench.move(from, group.id, side);
+                if (!item) return;
+                if (side === "center") workbench.open(item, { group: index });
+                else workbench.split(item, index, side);
+              }}
+            >
+              <Pane group={group} />
+            </Drop>
+          </section>
+        ))}
+      </div>
     </div>
   );
 }

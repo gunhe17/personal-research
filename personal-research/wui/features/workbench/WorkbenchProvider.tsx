@@ -19,6 +19,7 @@ type Value = {
   move: (from: string, to: string, side: Side) => void;
   focusGroup: (group: string) => void;
   replace: (group: string, item: Item) => void;
+  rename: (group: string, title: string) => void;
   doc: Source | null;
   viewDoc: (doc: Source) => void;
   quote: Quote | null;
@@ -143,6 +144,10 @@ export default function WorkbenchProvider({ children }: { children: ReactNode })
     setGroups((current) => current.map((g) => (g.id === group ? { ...g, item } : g)));
   }, []);
 
+  const rename = useCallback((group: string, title: string) => {
+    setGroups((current) => (current.some((g) => g.id === group && g.item.title !== title) ? current.map((g) => (g.id === group ? { ...g, item: { ...g.item, title } } : g)) : current));
+  }, []);
+
   const sendQuote = useCallback((detail: Omit<Quote, "target" | "nonce">) => {
     const chats = groups.filter((g) => g.item.kind === "chat" || g.item.kind === "agent");
     const target = chats.find((g) => g.id === lastChat.current) || chats[0];
@@ -162,6 +167,7 @@ export default function WorkbenchProvider({ children }: { children: ReactNode })
     move,
     focusGroup,
     replace,
+    rename,
     doc: doc && groups.some((g) => g.item.kind === "doc" && g.item.id === doc.id) ? doc : null,
     viewDoc: setDoc,
     quote,
@@ -169,7 +175,7 @@ export default function WorkbenchProvider({ children }: { children: ReactNode })
     clearQuote: () => setQuote(null),
     activeKey: focused ? itemKey(focused.item) : "",
     activeSpace: focused?.item.kind === "chat" ? focused.item.space : null,
-  }), [groups, focus, ready, open, split, close, move, focusGroup, replace, doc, quote, sendQuote, focused]);
+  }), [groups, focus, ready, open, split, close, move, focusGroup, replace, rename, doc, quote, sendQuote, focused]);
 
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
