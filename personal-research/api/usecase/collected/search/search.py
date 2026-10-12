@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from usecase.common import store
+from usecase.collected.record import record as documents
 
 WINDOW = 260
 
@@ -14,14 +14,8 @@ def run(*, terms: list[str], limit: int = 8) -> list[dict]:
     wanted = [t.strip().lower() for t in terms if t.strip()]
     if not wanted:
         return []
-    clause = " AND ".join(["LOWER(c.content) LIKE ?"] * len(wanted))
-    with store.session() as connection:
-        rows = connection.execute(
-            f"SELECT collected.id, collected.path, collected.url, c.language, c.content {store.LATEST} WHERE {clause}",
-            tuple(f"%{t}%" for t in wanted),
-        ).fetchall()
     scored = []
-    for id, path, url, language, body in rows:
+    for id, path, url, language, body in documents.matching(terms=wanted):
         lowered = body.lower()
         hits = sum(lowered.count(t) for t in wanted)
         scored.append(

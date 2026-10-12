@@ -60,7 +60,7 @@ def remove(*, user_id: str, by: str) -> None:
         shutil.rmtree(home / user_id, ignore_errors=True)
 
 
-def change(*, user_id: str, password: str) -> None:
+def change_password(*, user_id: str, password: str) -> None:
     if len(password) < 8:
         raise ValueError("새 비밀번호는 8자 이상이어야 합니다.")
     with store.session() as connection:
@@ -90,7 +90,7 @@ def verify(*, email: str, password: str) -> dict | None:
 # #
 # session
 
-def begin(*, user_id: str) -> str:
+def open_session(*, user_id: str) -> str:
     token = secrets.token_urlsafe(32)
     expires = (datetime.now(timezone.utc) + timedelta(days=DAYS)).isoformat(timespec="seconds")
     with store.session() as connection:
@@ -115,7 +115,7 @@ def resolve(*, token: str) -> dict | None:
     return {"id": row[0], "name": row[1], "email": row[2], "role": row[3]} if row else None
 
 
-def end(*, token: str) -> None:
+def close_session(*, token: str) -> None:
     with store.session() as connection:
         connection.execute("DELETE FROM user_session WHERE token = ?", (digest(token=token),))
 
@@ -152,16 +152,17 @@ if __name__ == "__main__":
     from pathlib import Path
 
     store.DATABASE = Path(tempfile.mkdtemp()) / "check.db"
+    store.CURRENT.set(store.USER)
     first = create(email="Gunhee@Example.com", password="correct horse", role="admin")
     assert first["id"] == store.USER and first["email"] == "gunhee@example.com" and first["password"] == ""
     second = create(email="friend@example.com", name="Friend", password="another pass")
     assert second["id"] != store.USER and second["role"] == "user"
     issued = create(email="new@example.com", name="New")
     assert len(issued["password"]) >= 16 and verify(email="new@example.com", password=issued["password"])["name"] == "New"
-    change(user_id=issued["id"], password="my own pass")
+    change_password(user_id=issued["id"], password="my own pass")
     assert verify(email="new@example.com", password="my own pass")
     try:
-        change(user_id=issued["id"], password="short")
+        change_password(user_id=issued["id"], password="short")
     except ValueError:
         pass
     else:
@@ -175,12 +176,12 @@ if __name__ == "__main__":
             raise AssertionError(email)
     assert verify(email=" GUNHEE@example.com", password="correct horse")["role"] == "admin"
     assert verify(email="gunhee@example.com", password="wrong password") is None
-    token = begin(user_id=second["id"])
+    token = open_session(user_id=second["id"])
     assert resolve(token=token)["email"] == "friend@example.com"
     reset(email="friend@example.com", password="new password!")
     assert resolve(token=token) is None
-    token = begin(user_id=second["id"])
-    end(token=token)
+    token = open_session(user_id=second["id"])
+    close_session(token=token)
     assert resolve(token=token) is None
     assert [u["email"] for u in listed()] == ["gunhee@example.com", "friend@example.com", "new@example.com"]
     for user_id in (store.USER, "missing"):

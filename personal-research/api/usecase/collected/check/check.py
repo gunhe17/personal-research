@@ -1,20 +1,14 @@
 from __future__ import annotations
 
-from usecase.common import store
+from usecase.collected.record import record as documents
 
 
 # #
 # check
 
 def run() -> tuple[list[str], int, int]:
-    with store.session() as connection:
-        rows = connection.execute(
-            """SELECT collected.path, collected_content.language, MAX(collected_content.version)
-               FROM collected_content
-               JOIN collected ON collected.id = collected_content.collected_id
-               GROUP BY collected_content.collected_id, collected_content.language"""
-        ).fetchall()
-        recorded = {row[0] for row in connection.execute("SELECT path FROM collected")}
+    rows = documents.versions()
+    recorded = documents.paths()
     english = {path: number for path, language, number in rows if language == "eng"}
     korean = {path: number for path, language, number in rows if language == "kor"}
     problems = []
@@ -26,7 +20,7 @@ def run() -> tuple[list[str], int, int]:
     problems += [
         f"원문 없는 메타: {path}"
         for path in sorted(recorded - set(english))
-        if path.endswith(store.DOCUMENT_SUFFIX)
+        if path.endswith(documents.DOCUMENT_SUFFIX)
     ]
 
     return problems, len(english), len(korean)

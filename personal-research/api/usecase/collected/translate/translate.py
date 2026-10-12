@@ -5,46 +5,47 @@ from pathlib import Path
 
 from usecase.collected.collect.type import paper
 from usecase.collected.collect.type import x
+from usecase.collected.record import record as documents
 from usecase.common import agent
 from usecase.common import llm
 from usecase.common import store
-from usecase.setting.record import record as setting
+from usecase.setting.record import record as settings
 
 
 # #
 # handoff
 
 def dump(*, reference: str, file: str, language: str) -> str:
-    id = store.resolve(text=reference)
-    store.write_file(path=Path(file), text=store.read(id=id, language=language))
+    id = documents.resolve(text=reference)
+    documents.write_file(path=Path(file), text=documents.read(id=id, language=language))
 
     return file
 
 
 def load(*, reference: str, file: str, language: str) -> str:
-    id = store.resolve(text=reference)
+    id = documents.resolve(text=reference)
     body = Path(file).read_text(encoding="utf-8")
-    if language == "kor" and store.path_of(id=id).startswith("document/x/"):
-        x.verify(source=store.read(id=id, language="eng"), translated=body)
+    if language == "kor" and documents.path_of(id=id).startswith("document/x/"):
+        x.verify(source=documents.read(id=id, language="eng"), translated=body)
 
-    return store.save(id=id, language=language, body=body)
+    return documents.save(id=id, language=language, content=body)
 
 
 # #
 # segment
 
 def extract(*, reference: str, segments: str) -> str:
-    id = store.resolve(text=reference)
-    paper.extract(body=store.read(id=id, language="eng"), segments=Path(segments))
+    id = documents.resolve(text=reference)
+    paper.extract(body=documents.read(id=id, language="eng"), segments=Path(segments))
 
     return segments
 
 
 def inject(*, reference: str, segments: str, language: str) -> str:
-    id = store.resolve(text=reference)
-    body = paper.inject(body=store.read(id=id, language="eng"), segments=Path(segments))
+    id = documents.resolve(text=reference)
+    body = paper.inject(body=documents.read(id=id, language="eng"), segments=Path(segments))
 
-    return store.save(id=id, language=language, body=body)
+    return documents.save(id=id, language=language, content=body)
 
 
 # #
@@ -69,7 +70,7 @@ def rules() -> str:
 def korean(*, id: str) -> str:
     if not available():
         raise RuntimeError("claude CLI not found")
-    body = store.read(id=id, language="eng")
+    body = documents.read(id=id, language="eng")
     with agent.workspace(prefix="translate-") as folder:
         work = Path(folder)
         (work / "doc.md").write_text(body, encoding="utf-8")
@@ -81,37 +82,26 @@ def korean(*, id: str) -> str:
             "--permission-mode", "acceptEdits",
             "--disallowedTools", "Bash", "WebFetch", "WebSearch",
         ]
-        usable = setting.methods(provider="anthropic")
+        usable = settings.methods(provider="anthropic")
         if not usable:
             raise RuntimeError("Anthropic 에 쓸 수 있는 인증이 없습니다. 설정에서 Claude 로 로그인하거나 API 키를 넣어 주세요.")
-        method = usable[0]
-        started_at = store.now()
-        exit_code, stdout, stderr = agent.run(
-            id=f"translate-{id}",
-            command=command,
-            cwd=folder,
-            env=setting.environment(provider="anthropic", method=method),
-            stdin="",
-            timeout=1800,
-        )
-        llm.record(
-            provider="claude",
+        exit_code, stdout, stderr = llm.call(
+            provider="anthropic",
             model="",
             purpose="translate",
             owner_id=id,
+            method=usable[0],
             command=command,
             request=request,
-            response=stdout,
-            stderr=stderr,
-            exit_code=exit_code,
-            started_at=started_at,
-            auth=method,
+            cwd=folder,
+            stdin="",
+            timeout=1800,
         )
         target = work / "doc.ko.md"
         if not target.is_file():
             raise RuntimeError(f"No translation produced: {stderr.strip()[-300:] or stdout.strip()[-300:]}")
         translated = target.read_text(encoding="utf-8")
-    if store.path_of(id=id).startswith("document/x/"):
+    if documents.path_of(id=id).startswith("document/x/"):
         x.verify(source=body, translated=translated)
 
-    return store.save(id=id, language="kor", body=translated)
+    return documents.save(id=id, language="kor", content=translated)

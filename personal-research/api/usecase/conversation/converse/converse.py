@@ -13,8 +13,10 @@ from usecase.common import agent
 from usecase.common import llm
 from usecase.common import log
 from usecase.common import store
-from usecase.conversation.record import record
-from usecase.setting.record import record as setting
+from usecase.common.error import NotFound
+from usecase.collected.record import record as documents
+from usecase.conversation.record import record as conversations
+from usecase.setting.record import record as settings
 from usecase.space.record import record as spaces
 
 BIN = agent.BINARIES["codex"]
@@ -104,7 +106,7 @@ def models() -> dict:
             "models": p["models"],
             "model": next((m["id"] for m in p["models"] if m["id"] == os.environ.get("CODEX_MODEL")), p["models"][0]["id"]),
         }
-        for id, p in setting.PROVIDERS.items()
+        for id, p in settings.PROVIDERS.items()
     ]
 
     return {
@@ -115,7 +117,7 @@ def models() -> dict:
 
 def chosen(*, question: dict) -> dict:
     picked = (question.get("context") or {}).get("model") or {}
-    known = setting.PROVIDERS.get(picked.get("provider"), {}).get("models", [])
+    known = settings.PROVIDERS.get(picked.get("provider"), {}).get("models", [])
     if any(m["id"] == picked.get("model") for m in known):
         return {"provider": picked["provider"], "model": picked["model"]}
 
@@ -123,20 +125,76 @@ def chosen(*, question: dict) -> dict:
 
 
 # #
+# query
+
+def get(*, domain: str, id: str) -> dict | None:
+    found = conversations.get(domain=domain, id=id)
+    if found:
+        found["codex_available"] = available()
+
+    return found
+
+
+# #
 # command
 
+def open(*, domain: str, data: dict) -> dict:
+    if domain == "space" and not spaces.get(id=data.get("space_id") or ""):
+        raise NotFound("space 를 찾을 수 없습니다.")
+    opened = conversations.create(domain=domain, data=data)
+    if (data.get("question") or "").strip():
+        opened["question"] = queue(domain=domain, id=opened["id"], data={"content": data["question"], "client_id": data.get("client_id")})
+
+    return opened
+
+
+def ask(*, domain: str, id: str, data: dict) -> dict:
+    owned(domain=domain, id=id, message_id=None)
+
+    return queue(domain=domain, id=id, data=data)
+
+
+def retry(*, domain: str, id: str, message_id: str) -> dict:
+    owned(domain=domain, id=id, message_id=message_id)
+    if status(domain=domain, message_id=message_id) in ("failed", "cancelled", "interrupted"):
+        submit(domain=domain, id=id, message_id=message_id)
+
+    return {"ok": True}
+
+
+def cancel(*, domain: str, id: str, message_id: str) -> dict:
+    owned(domain=domain, id=id, message_id=message_id)
+    conversations.mark(domain=domain, message_id=message_id, status="cancelled", error=None)
+    agent.stop(id=message_id)
+
+    return {"ok": True}
+
+
+def owned(*, domain: str, id: str, message_id: str | None) -> None:
+    found = conversations.get(domain=domain, id=id)
+    if found is None:
+        raise NotFound("찾을 수 없습니다.")
+    if message_id is not None and not any(m["id"] == message_id for m in found["messages"]):
+        raise NotFound("찾을 수 없습니다.")
+    if not available():
+        raise RuntimeError("codex CLI 가 없습니다.")
+
+
+def queue(*, domain: str, id: str, data: dict) -> dict:
+    question = conversations.ask(domain=domain, id=id, data=data)
+    if question["status"] == "queued":
+        submit(domain=domain, id=id, message_id=question["id"])
+
+    return question
+
+
 def submit(*, domain: str, id: str, message_id: str) -> None:
-    record.change(domain=domain, message_id=message_id, status="queued", error=None)
+    conversations.mark(domain=domain, message_id=message_id, status="queued", error=None)
     threading.Thread(target=contextvars.copy_context().run, args=(run,), kwargs={"domain": domain, "id": id, "message_id": message_id}, daemon=True).start()
 
 
-def cancel(*, domain: str, message_id: str) -> None:
-    record.change(domain=domain, message_id=message_id, status="cancelled", error=None)
-    agent.stop(id=message_id)
-
-
 def status(*, domain: str, message_id: str) -> str:
-    return record.message(domain=domain, id=message_id)["status"]
+    return conversations.message(domain=domain, id=message_id)["status"]
 
 
 # #
@@ -146,20 +204,20 @@ def run(*, domain: str, id: str, message_id: str) -> None:
     with TURN:
         if status(domain=domain, message_id=message_id) != "queued":
             return
-        record.change(domain=domain, message_id=message_id, status="running", error=None)
-        conversation = record.get(domain=domain, id=id)
+        conversations.mark(domain=domain, message_id=message_id, status="running", error=None)
+        conversation = conversations.get(domain=domain, id=id)
         question = next(m for m in conversation["messages"] if m["id"] == message_id)
         try:
             answer = generate(conversation=conversation, question=question)
         except Exception as error:
             log.write(level="error", message=f"{domain} {message_id} {error}")
             if status(domain=domain, message_id=message_id) != "cancelled":
-                record.change(domain=domain, message_id=message_id, status="failed", error=str(error)[:600])
+                conversations.mark(domain=domain, message_id=message_id, status="failed", error=str(error)[:600])
             return
         if status(domain=domain, message_id=message_id) == "cancelled":
             return
         sources = cited(paths=answer.pop("sources"))
-        record.answer(domain=domain, id=id, question_id=message_id, rich=answer, sources=sources)
+        conversations.answer(domain=domain, id=id, question_id=message_id, rich=answer, sources=sources)
 
 
 def generate(*, conversation: dict, question: dict) -> dict:
@@ -168,18 +226,18 @@ def generate(*, conversation: dict, question: dict) -> dict:
     request = prompt(conversation=conversation, question=question)
     runner = {"openai": codex, "anthropic": claude, "xai": grok}[picked["provider"]]
     failures = []
-    for method in setting.methods(provider=picked["provider"]):
+    for method in settings.methods(provider=picked["provider"]):
         try:
             answer = attempt(runner=runner, conversation=conversation, question=question, request=request, model=picked["model"], method=method)
         except Unavailable as error:
-            failures.append(f"{setting.label(method=method)}: {error}")
+            failures.append(f"{settings.label(method=method)}: {error}")
             continue
         answer["via"] = method
         return answer
     if failures:
         raise RuntimeError(" / ".join(failures)[-600:])
 
-    raise RuntimeError(f"{setting.PROVIDERS[picked['provider']]['label']} 에 쓸 수 있는 인증이 없습니다. 설정에서 로그인하거나 API 키를 넣어 주세요.")
+    raise RuntimeError(f"{settings.PROVIDERS[picked['provider']]['label']} 에 쓸 수 있는 인증이 없습니다. 설정에서 로그인하거나 API 키를 넣어 주세요.")
 
 
 def attempt(*, runner, conversation: dict, question: dict, request: str, model: str, method: str) -> dict:
@@ -219,7 +277,7 @@ def codex(*, conversation: dict, question: dict, request: str, model: str, metho
             failed = next((e["message"] for e in reversed(parsed) if e.get("type") == "error"), stderr)
             raise Unavailable(f"Codex 가 답하지 못했습니다 (exit {exit_code}). {failed.strip()[-300:]}")
         if started and not thread_id:
-            record.remember(domain=conversation["domain"], id=conversation["id"], provider="codex", values={"thread_id": started["thread_id"], "model": model})
+            conversations.remember_session(domain=conversation["domain"], id=conversation["id"], provider="codex", values={"thread_id": started["thread_id"], "model": model})
         generated = validate(answer=json.loads(output.read_text(encoding="utf-8")))
 
     return generated
@@ -244,7 +302,7 @@ def claude(*, conversation: dict, question: dict, request: str, model: str, meth
         failed = str(result.get("result") or stderr or stdout)
         raise Unavailable(f"Claude 가 답하지 못했습니다 (exit {exit_code}). {failed.strip()[-300:]}")
     if result.get("session_id") and not session_id:
-        record.remember(domain=conversation["domain"], id=conversation["id"], provider="claude", values={"session_id": result["session_id"], "model": model})
+        conversations.remember_session(domain=conversation["domain"], id=conversation["id"], provider="claude", values={"session_id": result["session_id"], "model": model})
     generated = validate(answer=result["structured_output"])
 
     return generated
@@ -271,7 +329,7 @@ def grok(*, conversation: dict, question: dict, request: str, model: str, method
         session_id = session_id or studied.get("sessionId")
         if exit_code != 0 or not session_id:
             raise Unavailable(f"Grok 이 조사하지 못했습니다 (exit {exit_code}). {str(studied.get('text') or stderr or stdout).strip()[-300:]}")
-        record.remember(domain=conversation["domain"], id=conversation["id"], provider="grok", values={"session_id": session_id, "model": model})
+        conversations.remember_session(domain=conversation["domain"], id=conversation["id"], provider="grok", values={"session_id": session_id, "model": model})
         answer = Path(folder) / "answer.txt"
         answer.write_text(GROK_ANSWER, encoding="utf-8")
         command = [*base, "--prompt-file", str(answer), "--json-schema", json.dumps(SCHEMA), "-r", session_id]
@@ -298,38 +356,21 @@ def parsed_json(*, text: str) -> dict:
 
 
 def call(*, command: list, request: str, conversation: dict, question: dict, provider: str, model: str, method: str) -> tuple[int, str, str]:
-    runner = setting.RUNNERS[provider]
-    started_at = store.now()
-    exit_code, stdout, stderr = -1, "", ""
     try:
-        exit_code, stdout, stderr = agent.run(
-            id=question["id"],
+        return llm.call(
+            provider=provider,
+            model=model,
+            purpose=f"{conversation['domain']}_answer",
+            owner_id=question["id"],
+            method=method,
             command=command,
+            request=request,
             cwd=str(CORPUS),
-            env=setting.environment(provider=provider, method=method),
             stdin=request,
             timeout=TIMEOUT,
         )
     except agent.Timeout:
         raise RuntimeError("응답 시간이 길어 중단했습니다. 다시 시도해 주세요.")
-    finally:
-        if setting.kind(method=method) == "plan_key":
-            setting.sync(provider=provider, method=method)
-        llm.record(
-            provider=runner,
-            model=model,
-            purpose=f"{conversation['domain']}_answer",
-            owner_id=question["id"],
-            command=command,
-            request=request,
-            response=stdout or "",
-            stderr=stderr or "",
-            exit_code=exit_code,
-            started_at=started_at,
-            auth=method,
-        )
-
-    return exit_code, stdout or "", stderr or ""
 
 
 def prompt(*, conversation: dict, question: dict) -> str:
@@ -343,14 +384,14 @@ def prompt(*, conversation: dict, question: dict) -> str:
         "message": {k: question[k] for k in ("kind", "content", "context")},
     }
     if conversation["domain"] == "space":
-        materials = spaces.listed_materials(space_id=conversation["space_id"])
+        materials = spaces.materials(space_id=conversation["space_id"])
         text = lambda kind, limit: [{"title": m["title"], "content": m["content"][:limit]} for m in materials if m["kind"] == kind]
         context = {
             "purpose": text("plan", 20_000),
             "log": [{"title": m["title"], "content": m["content"][-12_000:]} for m in materials if m["kind"] == "log"],
             "lessons": text("lesson", 8_000),
             "notes": text("note", 4_000),
-            "learning_notes": record.notes(space_id=conversation["space_id"]),
+            "learning_notes": conversations.notes(space_id=conversation["space_id"]),
             **context,
         }
 
@@ -358,16 +399,13 @@ def prompt(*, conversation: dict, question: dict) -> str:
 
 
 def refresh() -> None:
-    with store.session() as connection:
-        stamp = str(connection.execute(
-            "SELECT (SELECT COUNT(*) FROM collected), COUNT(*), MAX(created_at) FROM collected_content"
-        ).fetchone())
+    stamp = documents.stamp()
     marker = CORPUS / ".stamp"
     if not marker.is_file() or marker.read_text(encoding="utf-8") != stamp:
         CORPUS.mkdir(parents=True, exist_ok=True)
         for child in CORPUS.iterdir():
             shutil.rmtree(child) if child.is_dir() else child.unlink()
-        store.export(folder=CORPUS)
+        documents.export(folder=CORPUS)
         marker.write_text(stamp, encoding="utf-8")
     grok_config = CORPUS / ".grok" / "config.toml"
     grok_config.parent.mkdir(exist_ok=True)
@@ -380,9 +418,9 @@ def refresh() -> None:
 def cited(*, paths: list) -> list[dict]:
     found = []
     for path in dict.fromkeys(p for p in paths if isinstance(p, str)):
-        id = store.locate(text=path)
+        id = documents.locate(text=path)
         if id:
-            found.append({"id": id, "path": store.path_of(id=id)})
+            found.append({"id": id, "path": documents.path_of(id=id)})
 
     return found
 
@@ -443,4 +481,20 @@ if __name__ == "__main__":
         except ValueError:
             continue
         raise AssertionError(broken)
+    import tempfile
+
+    store.DATABASE = Path(tempfile.mkdtemp()) / "check.db"
+    store.CURRENT.set(store.USER)
+    opened = open(domain="agent", data={})
+    assert get(domain="agent", id=opened["id"])["codex_available"] == available()
+    for attempt in (
+        lambda: open(domain="space", data={"space_id": "missing"}),
+        lambda: ask(domain="agent", id="missing", data={"content": "q"}),
+        lambda: retry(domain="agent", id=opened["id"], message_id="missing"),
+    ):
+        try:
+            attempt()
+        except NotFound:
+            continue
+        raise AssertionError(attempt)
     print("ok")

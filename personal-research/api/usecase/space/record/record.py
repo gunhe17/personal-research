@@ -4,8 +4,10 @@ import json
 import re
 import uuid
 
+from usecase.collected.record import record as documents
 from usecase.common import store
-from usecase.conversation.record import record as conversation
+from usecase.common.error import NotFound
+from usecase.conversation.record import record as conversations
 
 KINDS = ("plan", "log", "lesson", "note")
 
@@ -48,16 +50,16 @@ def get(*, id: str) -> dict | None:
         row = connection.execute("SELECT id, title, created_at, updated_at FROM space WHERE id = ? AND user_id = ?", (id, store.user())).fetchone()
     if not row:
         return None
-    materials = listed_materials(space_id=row[0])
+    found = materials(space_id=row[0])
 
     return {
         "id": row[0],
         "title": row[1],
         "created_at": row[2],
         "updated_at": row[3],
-        "purpose": next((m["content"] for m in materials if m["kind"] == "plan"), ""),
-        "materials": [{k: v for k, v in m.items() if k != "content"} for m in materials if m["kind"] != "plan"],
-        "conversations": conversation.listed(domain="space", space_id=row[0]),
+        "purpose": next((m["content"] for m in found if m["kind"] == "plan"), ""),
+        "materials": [{k: v for k, v in m.items() if k != "content"} for m in found if m["kind"] != "plan"],
+        "conversations": conversations.listed(domain="space", space_id=row[0]),
         "collected": collected(id=row[0]),
     }
 
@@ -75,21 +77,21 @@ def collected(*, id: str) -> list[dict]:
 
     found = []
     for r in rows:
-        documents = conversation.documents(collected_id=r[0])
+        members = documents.under(id=r[0])
         found.append({
             "id": r[0],
             "path": r[1],
             "url": r[2],
             "conversation_count": r[3],
             "updated_at": r[4],
-            "document_count": len(documents),
-            "documents": documents,
+            "document_count": len(members),
+            "documents": members,
         })
 
     return found
 
 
-def listed_materials(*, space_id: str) -> list[dict]:
+def materials(*, space_id: str) -> list[dict]:
     with store.session() as connection:
         rows = connection.execute(
             """SELECT id, kind, title, content, created_at, updated_at FROM space_material
@@ -104,7 +106,7 @@ def listed_materials(*, space_id: str) -> list[dict]:
     ]
 
 
-def material(*, id: str) -> dict | None:
+def get_material(*, id: str) -> dict | None:
     if not re.fullmatch(store.IDENTIFIER, id or ""):
         return None
     with store.session() as connection:
@@ -144,7 +146,7 @@ def create(*, data: dict) -> dict:
 
 def edit(*, id: str, data: dict) -> dict:
     if get(id=id) is None:
-        raise ValueError("space 를 찾을 수 없습니다.")
+        raise NotFound("space 를 찾을 수 없습니다.")
     with store.session() as connection:
         if isinstance(data.get("title"), str) and data["title"].strip():
             connection.execute("UPDATE space SET title = ?, updated_at = ? WHERE id = ?", (data["title"].strip(), store.now(), id))
@@ -158,11 +160,23 @@ def edit(*, id: str, data: dict) -> dict:
     return get(id=id)
 
 
+def create_material(*, space_id: str, data: dict) -> dict:
+    return write_material(space_id=space_id, data=data, id="")
+
+
+def edit_material(*, id: str, data: dict) -> dict:
+    found = get_material(id=id)
+    if not found:
+        raise NotFound("자료를 찾을 수 없습니다.")
+
+    return write_material(space_id=found["space_id"], data={**found, **data}, id=found["id"])
+
+
 def remove(*, id: str) -> bool:
     if get(id=id) is None:
         return False
-    for item in conversation.listed(domain="space", space_id=id):
-        conversation.remove(domain="space", id=item["id"])
+    for item in conversations.listed(domain="space", space_id=id):
+        conversations.remove(domain="space", id=item["id"])
     with store.session() as connection:
         connection.execute("DELETE FROM space_material WHERE space_id = ?", (id,))
         removed = connection.execute("DELETE FROM space WHERE id = ?", (id,)).rowcount
@@ -170,7 +184,7 @@ def remove(*, id: str) -> bool:
     return removed > 0
 
 
-def save_material(*, space_id: str, data: dict, id: str = "") -> dict:
+def write_material(*, space_id: str, data: dict, id: str) -> dict:
     kind = data.get("kind") or "note"
     title = (data.get("title") or "").strip()
     content = data.get("content")
@@ -179,7 +193,7 @@ def save_material(*, space_id: str, data: dict, id: str = "") -> dict:
     if not title or not isinstance(content, (str, dict)):
         raise ValueError("제목과 본문이 필요합니다.")
     if get(id=space_id) is None:
-        raise ValueError("space 를 찾을 수 없습니다.")
+        raise NotFound("space 를 찾을 수 없습니다.")
     encoded = json.dumps(content, ensure_ascii=False) if isinstance(content, dict) else content
     with store.session() as connection:
         if id:
@@ -188,7 +202,7 @@ def save_material(*, space_id: str, data: dict, id: str = "") -> dict:
                 (title, encoded, store.now(), id, space_id),
             ).rowcount
             if not changed:
-                raise ValueError("자료를 찾을 수 없습니다.")
+                raise NotFound("자료를 찾을 수 없습니다.")
         else:
             id = str(uuid.uuid4())
             connection.execute(
@@ -196,7 +210,7 @@ def save_material(*, space_id: str, data: dict, id: str = "") -> dict:
                 (id, space_id, kind, title, encoded, store.now(), store.now()),
             )
 
-    return material(id=id)
+    return get_material(id=id)
 
 
 def remove_material(*, id: str) -> bool:
@@ -217,14 +231,15 @@ if __name__ == "__main__":
     from pathlib import Path
 
     store.DATABASE = Path(tempfile.mkdtemp()) / "check.db"
+    store.CURRENT.set(store.USER)
     mine = create(data={"title": "mine", "purpose": "goal"})
-    note = save_material(space_id=mine["id"], data={"kind": "note", "title": "n", "content": "body"})
+    note = create_material(space_id=mine["id"], data={"kind": "note", "title": "n", "content": "body"})
     store.CURRENT.set("other")
-    assert listed() == [] and get(id=mine["id"]) is None and material(id=note["id"]) is None
+    assert listed() == [] and get(id=mine["id"]) is None and get_material(id=note["id"]) is None
     assert not remove(id=mine["id"]) and not remove_material(id=note["id"])
     try:
-        save_material(space_id=mine["id"], data={"kind": "note", "title": "x", "content": "y"})
-    except ValueError:
+        create_material(space_id=mine["id"], data={"kind": "note", "title": "x", "content": "y"})
+    except NotFound:
         pass
     else:
         raise AssertionError("foreign material")

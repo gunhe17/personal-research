@@ -6,9 +6,10 @@ import time
 import uuid
 
 from usecase.collected.collect import pipeline
+from usecase.collected.record import record as documents
 from usecase.common import log
 from usecase.common import store
-from usecase.conversation.record import record
+from usecase.conversation.record import record as conversations
 
 JOBS: dict[str, dict] = {}
 TURN = threading.Lock()
@@ -68,8 +69,8 @@ def run(*, job: dict) -> None:
 
 
 def collecting(*, job: dict) -> None:
-    started = record.create(domain="agent", data={})
-    question = record.ask(domain="agent", id=started["id"], data={"content": job["input"], "kind": "collect", "status": "completed"})
+    started = conversations.create(domain="agent", data={})
+    question = conversations.ask(domain="agent", id=started["id"], data={"content": job["input"], "kind": "collect", "status": "completed"})
     job["conversation_id"] = started["id"]
     outcome = {}
 
@@ -84,15 +85,15 @@ def collecting(*, job: dict) -> None:
         pipeline.run(input=job["input"], send=forward)
     finally:
         if outcome.get("id"):
-            record.edit(domain="agent", id=started["id"], data={"collected_id": outcome["id"]})
-        record.add(domain="agent", id=started["id"], message={
+            conversations.edit(domain="agent", id=started["id"], data={"collected_id": outcome["id"]})
+        conversations.add(domain="agent", id=started["id"], message={
             "id": str(uuid.uuid4()),
             "role": "assistant",
             "kind": "collect",
             "context": {"steps": job["events"]},
             "question_id": question["id"],
             "content": outcome.get("text") or outcome.get("error") or "수집을 마치지 못했습니다.",
-            "sources": [{"id": outcome["id"], "path": store.path_of(id=outcome["id"])}] if outcome.get("id") else None,
+            "sources": [{"id": outcome["id"], "path": documents.path_of(id=outcome["id"])}] if outcome.get("id") else None,
             "created_at": store.now(),
         })
 

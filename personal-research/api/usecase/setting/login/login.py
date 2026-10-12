@@ -16,7 +16,7 @@ from pathlib import Path
 
 from usecase.common import agent
 from usecase.common import store
-from usecase.setting.record import record as setting
+from usecase.setting.record import record as settings
 
 STARTS = {
     "openai": ["login", "--device-auth"],
@@ -53,10 +53,10 @@ def status(*, provider: str, method: str) -> dict:
 
 
 def signed(*, provider: str, method: str) -> dict:
-    environment = setting.environment(provider=provider, method=method)
+    environment = settings.environment(provider=provider, method=method)
     if provider == "anthropic" and "CLAUDE_CODE_OAUTH_TOKEN" not in environment:
         return {"logged_in": False, "detail": ""}
-    executable = agent.binary(runner=setting.RUNNERS[provider])
+    executable = agent.binary(runner=settings.RUNNERS[provider])
     command = {
         "openai": [executable, "login", "status"],
         "anthropic": [executable, "auth", "status"],
@@ -66,7 +66,7 @@ def signed(*, provider: str, method: str) -> dict:
         done = subprocess.run(command, capture_output=True, text=True, timeout=20, env=environment, stdin=subprocess.DEVNULL)
     except (OSError, subprocess.TimeoutExpired) as error:
         return {"logged_in": False, "detail": f"{Path(command[0]).name} 를 실행하지 못했습니다. {error}"[:200]}
-    setting.sync(provider=provider, method=method)
+    settings.sync(provider=provider, method=method)
     output = clean(text=done.stdout + done.stderr).strip()
     first = output.splitlines()[0] if output else ""
     if provider == "anthropic":
@@ -90,10 +90,10 @@ def start(*, provider: str, method: str) -> dict:
     cancel(provider=provider, method=method)
     master, slave = pty.openpty()
     fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 50, 4000, 0, 0))
-    environment = setting.environment(provider=provider, method=method)
+    environment = settings.environment(provider=provider, method=method)
     environment.update({"BROWSER": "true", "TERM": "xterm-256color", "COLUMNS": "4000"})
     process = subprocess.Popen(
-        [agent.binary(runner=setting.RUNNERS[provider]), *STARTS[provider]],
+        [agent.binary(runner=settings.RUNNERS[provider]), *STARTS[provider]],
         stdin=slave,
         stdout=slave,
         stderr=slave,
@@ -141,7 +141,7 @@ def submit(*, provider: str, method: str, code: str) -> dict:
     if not found:
         pending["error"] = "토큰을 받지 못했습니다. 코드를 다시 확인해 주세요."
         return status(provider=provider, method=method)
-    setting.remember(provider=provider, method=method, token=found.group(0))
+    settings.remember(provider=provider, method=method, token=found.group(0))
     cancel(provider=provider, method=method)
 
     return status(provider=provider, method=method)
@@ -152,15 +152,15 @@ def signout(*, provider: str, method: str) -> dict:
     cancel(provider=provider, method=method)
     if provider != "anthropic":
         subprocess.run(
-            [agent.binary(runner=setting.RUNNERS[provider]), "logout"],
+            [agent.binary(runner=settings.RUNNERS[provider]), "logout"],
             capture_output=True,
             timeout=20,
-            env=setting.environment(provider=provider, method=method),
+            env=settings.environment(provider=provider, method=method),
             stdin=subprocess.DEVNULL,
         )
-    setting.remember(provider=provider, method=method, token="")
-    if provider in setting.HOMES:
-        (setting.home(provider=provider, method=method) / "auth.json").unlink(missing_ok=True)
+    settings.remember(provider=provider, method=method, token="")
+    if provider in settings.HOMES:
+        (settings.home(provider=provider, method=method) / "auth.json").unlink(missing_ok=True)
 
     return status(provider=provider, method=method)
 
@@ -211,9 +211,9 @@ def read(*, provider: str, method: str, pending: dict) -> None:
 
 
 def check(*, provider: str, method: str) -> None:
-    if provider not in setting.PROVIDERS:
+    if provider not in settings.PROVIDERS:
         raise ValueError("알 수 없는 제공사입니다.")
-    if setting.kind(method=method) != "plan_key" or not setting.METHOD.fullmatch(method):
+    if settings.kind(method=method) != "plan_key" or not settings.METHOD.fullmatch(method):
         raise ValueError("로그인할 수 없는 인증 수단입니다.")
 
 

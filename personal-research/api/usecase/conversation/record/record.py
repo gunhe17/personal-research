@@ -5,7 +5,9 @@ import re
 import sqlite3
 import uuid
 
+from usecase.collected.record import record as documents
 from usecase.common import store
+from usecase.common.error import NotFound
 
 DOMAINS = ("space", "agent")
 KINDS = ("question", "retrieval", "next", "collect")
@@ -35,14 +37,14 @@ def listed(*, domain: str, space_id: str = "") -> list[dict]:
     ]
 
 
-def find(*, collected_id: str) -> list[dict]:
+def by_collected(*, collected_id: str) -> list[dict]:
     with store.session() as connection:
         rows = connection.execute(
             f"""SELECT c.id, c.space_id, c.title
                 FROM space_conversation AS c
                 JOIN collected AS root ON root.id = c.collected_id
                 JOIN collected AS wanted ON wanted.id = ?
-                WHERE c.user_id = ? AND {store.subtree(root="root", node="wanted")}
+                WHERE c.user_id = ? AND {documents.subtree(root="root", node="wanted")}
                 ORDER BY c.updated_at DESC""",
             (collected_id, store.user()),
         ).fetchall()
@@ -68,7 +70,7 @@ def get(*, domain: str, id: str) -> dict | None:
         ).fetchall()
     found = {**dict(row), "meta": json.loads(row["meta"]), "domain": domain}
     found["messages"] = [decoded(row=m) for m in messages]
-    found["documents"] = documents(collected_id=found["collected_id"])
+    found["documents"] = documents.under(id=found["collected_id"])
 
     return found
 
@@ -79,28 +81,9 @@ def message(*, domain: str, id: str) -> dict:
         connection.row_factory = sqlite3.Row
         row = connection.execute(f"SELECT * FROM {domain}_message WHERE id = ?", (id,)).fetchone()
     if row is None:
-        raise ValueError("메시지를 찾을 수 없습니다.")
+        raise NotFound("메시지를 찾을 수 없습니다.")
 
     return decoded(row=row)
-
-
-def documents(*, collected_id: str) -> list[dict]:
-    if not collected_id:
-        return []
-    with store.session() as connection:
-        rows = connection.execute(
-            f"""SELECT document.id, document.path, document.url
-                FROM collected AS root
-                JOIN collected AS document ON {store.subtree(root="root", node="document")}
-                WHERE root.id = ?
-                ORDER BY document.path""",
-            (collected_id,),
-        ).fetchall()
-
-    return [
-        {"id": r[0], "path": r[1], "url": r[2]}
-        for r in rows
-    ]
 
 
 def notes(*, space_id: str) -> list[str]:
@@ -143,8 +126,12 @@ def create(*, domain: str, data: dict) -> dict:
     }
     if domain == "space":
         created["space_id"] = data["space_id"]
+    stored = {**created, "meta": "{}"}
     with store.session() as connection:
-        store.conversation(connection=connection, domain=domain, row=created, messages=[])
+        connection.execute(
+            f"INSERT OR IGNORE INTO {domain}_conversation ({', '.join(stored)}) VALUES ({', '.join('?' * len(stored))})",
+            tuple(stored.values()),
+        )
 
     return created
 
@@ -152,7 +139,7 @@ def create(*, domain: str, data: dict) -> dict:
 def edit(*, domain: str, id: str, data: dict) -> dict:
     assert domain in DOMAINS
     if get(domain=domain, id=id) is None:
-        raise ValueError("대화를 찾을 수 없습니다.")
+        raise NotFound("대화를 찾을 수 없습니다.")
     with store.session() as connection:
         if isinstance(data.get("title"), str):
             connection.execute(f"UPDATE {domain}_conversation SET title = ? WHERE id = ? AND user_id = ?", (data["title"], id, store.user()))
@@ -185,7 +172,7 @@ def ask(*, domain: str, id: str, data: dict) -> dict:
     client_id = str(data.get("client_id") or uuid.uuid4())
     conversation = get(domain=domain, id=id)
     if conversation is None:
-        raise ValueError("대화를 찾을 수 없습니다.")
+        raise NotFound("대화를 찾을 수 없습니다.")
     repeated = next((m for m in conversation["messages"] if m["client_id"] == client_id), None)
     if repeated:
         return repeated
@@ -213,7 +200,7 @@ def add(*, domain: str, id: str, message: dict) -> None:
         connection.execute(f"UPDATE {domain}_conversation SET updated_at = ? WHERE id = ?", (store.now(), id))
 
 
-def change(*, domain: str, message_id: str, **fields) -> None:
+def mark(*, domain: str, message_id: str, **fields) -> None:
     assert domain in DOMAINS and set(fields) <= {"status", "error"}
     assignments = ", ".join(f"{key} = ?" for key in fields)
     with store.session() as connection:
@@ -224,7 +211,7 @@ def change(*, domain: str, message_id: str, **fields) -> None:
 
 
 def answer(*, domain: str, id: str, question_id: str, rich: dict, sources: list[dict]) -> None:
-    change(domain=domain, message_id=question_id, status="completed", error=None)
+    mark(domain=domain, message_id=question_id, status="completed", error=None)
     add(domain=domain, id=id, message={
         "id": str(uuid.uuid4()),
         "role": "assistant",
@@ -236,7 +223,7 @@ def answer(*, domain: str, id: str, question_id: str, rich: dict, sources: list[
     })
 
 
-def remember(*, domain: str, id: str, provider: str, values: dict) -> None:
+def remember_session(*, domain: str, id: str, provider: str, values: dict) -> None:
     assert domain in DOMAINS
     with store.session() as connection:
         meta = json.loads(connection.execute(f"SELECT meta FROM {domain}_conversation WHERE id = ?", (id,)).fetchone()[0])
@@ -260,8 +247,44 @@ def recover() -> None:
 def root(*, collected_id: str) -> str:
     if not collected_id:
         return ""
-    path = store.path_of(id=collected_id)
+    path = documents.path_of(id=collected_id)
     matched = REPOSITORY.match(path)
-    card = store.locate(text=matched.group(1)) if matched else None
+    card = documents.locate(text=matched.group(1)) if matched else None
 
     return card or collected_id
+
+
+# #
+# check
+
+if __name__ == "__main__":
+    import tempfile
+    from pathlib import Path
+
+    store.DATABASE = Path(tempfile.mkdtemp()) / "check.db"
+    store.CURRENT.set(store.USER)
+    card = documents.register(path="repository/github/o/r", url="https://github.com/o/r", meta={})
+    readme = documents.write(document=documents.Document(path="repository/github/o/r/README.md", body="# R\n", url="https://github.com/o/r"))
+    page = documents.write(document=documents.Document(path="document/t/a.md", body="# A\n", url="https://t/a"))
+    assert root(collected_id=readme) == card and root(collected_id=page) == page and root(collected_id="") == ""
+    mine = create(domain="agent", data={"collected_id": readme})
+    assert mine["collected_id"] == card and [d["id"] for d in get(domain="agent", id=mine["id"])["documents"]] == [card, readme]
+    first = ask(domain="agent", id=mine["id"], data={"content": " first question ", "client_id": "c1"})
+    assert get(domain="agent", id=mine["id"])["title"] == "first question"
+    assert ask(domain="agent", id=mine["id"], data={"content": "again", "client_id": "c1"})["id"] == first["id"]
+    ask(domain="agent", id=mine["id"], data={"content": "second", "client_id": "c2"})
+    found = get(domain="agent", id=mine["id"])
+    assert found["title"] == "first question" and len(found["messages"]) == 2
+    store.CURRENT.set("other")
+    assert listed(domain="agent") == [] and get(domain="agent", id=mine["id"]) is None
+    assert not remove(domain="agent", id=mine["id"])
+    try:
+        edit(domain="agent", id=mine["id"], data={"title": "stolen"})
+    except NotFound:
+        pass
+    else:
+        raise AssertionError("foreign edit")
+    store.CURRENT.set(store.USER)
+    assert [c["id"] for c in listed(domain="agent")] == [mine["id"]] and get(domain="agent", id=mine["id"])["title"] == "first question"
+    assert remove(domain="agent", id=mine["id"]) and get(domain="agent", id=mine["id"]) is None
+    print("ok")

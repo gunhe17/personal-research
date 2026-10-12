@@ -8,6 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from usecase.common import store
 from usecase.user.account import account
 
 
@@ -24,6 +25,7 @@ def main() -> None:
         if name == "add":
             command.add_argument("--name", default="")
     given = parser.parse_args()
+    store.CURRENT.set(store.USER)
     try:
         if given.command == "list":
             for found in account.listed():

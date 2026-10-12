@@ -2,21 +2,17 @@ from __future__ import annotations
 
 import re
 
-from usecase.common import store
+from usecase.collected.record import record as documents
 
 
 # #
 # list
 
 def lines() -> list[str]:
-    with store.session() as connection:
-        rows = connection.execute(
-            f"SELECT collected.path, c.language, c.content, c.version {store.LATEST} ORDER BY c.language, collected.path"
-        ).fetchall()
     out = []
     group = None
-    for path, language, body, number in rows:
-        if not path.endswith(store.DOCUMENT_SUFFIX):
+    for path, language, body, number in documents.editions():
+        if not path.endswith(documents.DOCUMENT_SUFFIX):
             continue
         kind, _, rest = path.partition("/")
         current = f"{language}/{kind}/{rest.partition('/')[0]}"

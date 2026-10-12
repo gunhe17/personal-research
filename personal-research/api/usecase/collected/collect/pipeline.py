@@ -5,7 +5,7 @@ from typing import Callable
 from usecase.collected.check import check
 from usecase.collected.collect import collect
 from usecase.collected.translate import translate
-from usecase.common import store
+from usecase.collected.record import record as documents
 
 KIND_LABEL = {
     "paper": "arXiv paper",
@@ -41,9 +41,9 @@ def run(*, input: str, send: Callable[[dict], None]) -> None:
         send({"type": "done", "text": "Nothing was collected."})
         return
 
-    path = store.path_of(id=id)
-    edition = store.version(id=id, language="eng")
-    size = len(store.read(id=id, language="eng")) if kind != "repo" else 0
+    path = documents.path_of(id=id)
+    edition = documents.version(id=id, language="eng")
+    size = len(documents.read(id=id, language="eng")) if kind != "repo" else 0
     report(
         key="fetch",
         text=fetched(kind=kind, edition=edition, size=size),
@@ -56,7 +56,7 @@ def run(*, input: str, send: Callable[[dict], None]) -> None:
     if not translatable(kind=kind, path=path, report=report):
         finish(send=send, path=path, id=id, report=report)
         return
-    if store.version(id=id, language="kor") == edition:
+    if documents.version(id=id, language="kor") == edition:
         report(key="translate", text="Korean translation is already up to date", state="skip")
         finish(send=send, path=path, id=id, report=report)
         return
@@ -74,7 +74,7 @@ def run(*, input: str, send: Callable[[dict], None]) -> None:
         return
     report(
         key="translate",
-        text=f"Korean {len(store.read(id=id, language='kor')):,} chars",
+        text=f"Korean {len(documents.read(id=id, language='kor')):,} chars",
         state="done",
     )
     finish(send=send, path=path, id=id, report=report)

@@ -7,6 +7,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from usecase.collected.record import record as documents
 from usecase.common import store
 
 MODEL = "large-v3-turbo"
@@ -15,8 +16,8 @@ MODEL = "large-v3-turbo"
 # #
 # get
 
-def get(*, url: str) -> store.Document:
-    token = hf_token()
+def get(*, url: str) -> documents.Document:
+    token = huggingface_token()
     with tempfile.TemporaryDirectory() as folder:
         work = Path(folder)
         subprocess.run(
@@ -35,11 +36,11 @@ def get(*, url: str) -> store.Document:
             check=True,
         )
         result = json.loads((work / "audio.json").read_text())
-    document = store.Document(
-        path=f"video/youtube/{store.slugify(title=title)}.md",
+    document = documents.Document(
+        path=f"video/youtube/{documents.slugify(title=title)}.md",
         body=to_markdown(result=result, title=title),
         url=url,
-        extra={
+        meta={
             "channel": channel,
             "fetched": store.today(),
             "via": f"yt-dlp + whisperx {MODEL} + pyannote diarization",
@@ -49,7 +50,7 @@ def get(*, url: str) -> store.Document:
     return document
 
 
-def hf_token() -> str:
+def huggingface_token() -> str:
     token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
     cached = Path.home() / ".cache" / "huggingface" / "token"
     if not token and cached.exists():
@@ -63,7 +64,7 @@ def hf_token() -> str:
 # #
 # render
 
-def hms(*, seconds: float) -> str:
+def clock(*, seconds: float) -> str:
     return str(datetime.timedelta(seconds=int(seconds)))
 
 
@@ -74,10 +75,10 @@ def to_markdown(*, result: dict, title: str) -> str:
         current = segment.get("speaker", "UNKNOWN")
         if current != speaker:
             if texts:
-                lines += [f"**[{hms(seconds=start)}] {speaker}:** {' '.join(texts)}", ""]
+                lines += [f"**[{clock(seconds=start)}] {speaker}:** {' '.join(texts)}", ""]
             speaker, start, texts = current, segment["start"], []
         texts.append(segment["text"].strip())
     if texts:
-        lines += [f"**[{hms(seconds=start)}] {speaker}:** {' '.join(texts)}", ""]
+        lines += [f"**[{clock(seconds=start)}] {speaker}:** {' '.join(texts)}", ""]
 
     return "\n".join(lines)

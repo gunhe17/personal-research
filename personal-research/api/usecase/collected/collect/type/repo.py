@@ -5,6 +5,7 @@ import re
 import urllib.error
 import urllib.request
 
+from usecase.collected.record import record as documents
 from usecase.common import store
 
 URL = re.compile(r"^https?://github\.com/([^/]+)/([^/#?]+?)(?:\.git)?(?:/(?:blob|tree)/([^/]+)/(.+?))?/?$")
@@ -16,23 +17,23 @@ HEADERS = {"User-Agent": "personal-research document mirror", "Accept": "applica
 
 def card(*, url: str) -> tuple[str, str, dict]:
     owner, repo, _, _ = parse(url=url)
-    info = api(owner=owner, repo=repo)
+    details = api(owner=owner, repo=repo)
     fields = {
-        "description": (info.get("description") or "").strip(),
-        "default_branch": info.get("default_branch"),
-        "language": info.get("language"),
-        "stars": info.get("stargazers_count"),
-        "status": "archived" if info.get("archived") else None,
-        "updated_upstream": info.get("updated_at"),
+        "description": (details.get("description") or "").strip(),
+        "default_branch": details.get("default_branch"),
+        "language": details.get("language"),
+        "stars": details.get("stargazers_count"),
+        "status": "archived" if details.get("archived") else None,
+        "updated_upstream": details.get("updated_at"),
         "fetched": store.today(),
-        "api_error": info.get("_api_error"),
+        "api_error": details.get("_api_error"),
     }
     data = {k: v for k, v in fields.items() if v not in (None, "")}
 
     return f"repository/github/{owner}/{repo}", f"https://github.com/{owner}/{repo}", data
 
 
-def get(*, url: str, path: str | None = None) -> store.Document:
+def get(*, url: str, path: str | None = None) -> documents.Document:
     owner, repo, branch, given = parse(url=url)
     path = path or given or "README.md"
     branch = branch or api(owner=owner, repo=repo).get("default_branch") or "main"
@@ -41,11 +42,11 @@ def get(*, url: str, path: str | None = None) -> store.Document:
             text = response.read().decode("utf-8")
     except urllib.error.HTTPError as error:
         raise ValueError(f"문서를 찾지 못했다: {owner}/{repo}@{branch}/{path} ({error.code})") from None
-    document = store.Document(
+    document = documents.Document(
         path=f"repository/github/{owner}/{repo}/{path}",
         body=rewrite(text=text, owner=owner, repo=repo, branch=branch, path=path),
         url=f"https://github.com/{owner}/{repo}/blob/{branch}/{path}",
-        extra={
+        meta={
             "branch": branch,
             "fetched": store.today(),
             "via": "raw.githubusercontent.com",

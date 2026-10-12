@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from usecase.common import store
+from usecase.collected.record import record as documents
 
 from usecase.collected.collect.type import paper
 from usecase.collected.collect.type import repo
@@ -21,11 +21,11 @@ def auto(*, input: str) -> str:
 
 def dispatch(*, kind: str, input: str) -> str:
     run = {
-        "paper": lambda: store.write(document=paper.get(id=input)),
+        "paper": lambda: documents.write(document=paper.get(id=input)),
         "x": lambda: article(url=input),
         "repo": lambda: card(url=input),
         "repo-doc": lambda: repo_file(url=input),
-        "video": lambda: store.write(document=video.get(url=input)),
+        "video": lambda: documents.write(document=video.get(url=input)),
         "web": lambda: page(url=input),
         "existing": lambda: existing(path=input),
     }
@@ -46,7 +46,7 @@ def detect(*, input: str) -> str:
         return "video"
     if re.match(r"^https?://", text):
         return "web"
-    if store.locate(text=text):
+    if documents.locate(text=text):
         return "existing"
     raise ValueError(f"Unrecognised input: {input}")
 
@@ -55,37 +55,40 @@ def detect(*, input: str) -> str:
 # kind
 
 def article(*, url: str, tweet_id: str | None = None) -> str:
-    return store.write(document=x.get(url=url, tweet_id=tweet_id))
+    return documents.write(document=x.get(url=url, tweet_id=tweet_id))
 
 
 def repo_file(*, url: str, path: str | None = None) -> str:
-    return store.write(document=repo.get(url=url, path=path))
+    return documents.write(document=repo.get(url=url, path=path))
 
 
 def card(*, url: str) -> str:
-    path, address, extra = repo.card(url=url)
+    path, address, meta = repo.card(url=url)
 
-    return store.record(path=path, url=address, extra=extra)
+    return documents.register(path=path, url=address, meta=meta)
 
 
-def page(*, url: str, rel: str | None = None) -> str:
-    if rel is None:
-        found = store.find(url=url)
+def page(*, url: str, relative: str | None = None) -> str:
+    if relative is None:
+        found = documents.find(url=url)
         if found:
             return found
         if web.synced(url=url):
             raise ValueError(f"Managed by sync but not collected yet. Run sync.sh ({url})")
 
-    return store.write(document=web.get(url=url, rel=rel))
+    return documents.write(document=web.get(url=url, relative=relative))
 
 
 def existing(*, path: str) -> str:
-    id = store.resolve(text=path)
-    if not store.exists(id=id, language="eng"):
+    id = documents.resolve(text=path)
+    if not documents.exists(id=id, language="eng"):
         raise ValueError(f"No original for: {path}")
 
     return id
 
 
 def ingest(*, url: str, path: str, file: str) -> str:
-    return store.mirror(url=url, path=path, text=Path(file).read_text(encoding="utf-8"))
+    decoration, body = documents.split(text=Path(file).read_text(encoding="utf-8"))
+    document = documents.Document(path=path, body=body, url=url, decoration=decoration)
+
+    return documents.write(document=document)

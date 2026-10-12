@@ -10,6 +10,7 @@ import urllib.request
 from html.parser import HTMLParser
 from pathlib import Path
 
+from usecase.collected.record import record as documents
 from usecase.common import store
 
 ID = re.compile(r"(\d{4}\.\d{4,5})(v\d+)?")
@@ -28,17 +29,17 @@ HAS_LETTER = re.compile(r"[A-Za-z]")
 # #
 # get
 
-def get(*, id: str) -> store.Document:
+def get(*, id: str) -> documents.Document:
     matched = ID.search(id)
     if not matched:
         raise ValueError(f"arXiv id 를 찾지 못했다: {id}")
     arxiv = matched.group(1)
     page, title = build(page_url=f"https://arxiv.org/html/{arxiv}")
-    document = store.Document(
-        path=f"paper/arxiv/{store.slugify(title=title)}.html",
+    document = documents.Document(
+        path=f"paper/arxiv/{documents.slugify(title=title)}.html",
         body=page,
         url=f"https://arxiv.org/abs/{arxiv}",
-        extra={"fetched": store.today(), "via": "arXiv html"},
+        meta={"fetched": store.today(), "via": "arXiv html"},
     )
 
     return document

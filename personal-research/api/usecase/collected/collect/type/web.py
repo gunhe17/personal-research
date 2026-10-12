@@ -7,6 +7,7 @@ import urllib.request
 from html.parser import HTMLParser
 from urllib.parse import urljoin, urlparse
 
+from usecase.collected.record import record as documents
 from usecase.common import store
 
 SYNCED = (
@@ -29,17 +30,17 @@ ARCHIVED = ("openai.com",)
 # #
 # get
 
-def get(*, url: str, rel: str | None = None) -> store.Document:
+def get(*, url: str, relative: str | None = None) -> documents.Document:
     markdown = fetch(url=url if url.endswith(".md") else url.rstrip("/") + ".md")
     if markdown and not markdown.lstrip().startswith("<"):
-        head, body = store.split(text=markdown)
+        head, body = documents.split(text=markdown)
         name = urlparse(url).path.rstrip("/").rsplit("/", 1)[-1].removesuffix(".md")
-        document = store.Document(
-            path=rel or f"{provider(url=url)}/{name}.md",
+        document = documents.Document(
+            path=relative or f"{provider(url=url)}/{name}.md",
             body=body,
             url=url,
             decoration=head,
-            extra={"fetched": store.today(), "via": "markdown 원문"},
+            meta={"fetched": store.today(), "via": "markdown 원문"},
         )
         return document
 
@@ -54,12 +55,12 @@ def get(*, url: str, rel: str | None = None) -> store.Document:
         raise ValueError(f"본문(<article> 이나 <main>)을 찾지 못했다: {url}")
     body, published = converted
     heading = body.splitlines()[0]
-    name = store.slugify(title=heading[2:]) if heading.startswith("# ") else "untitled"
-    document = store.Document(
-        path=rel or f"{provider(url=url)}/{name}.md",
+    name = documents.slugify(title=heading[2:]) if heading.startswith("# ") else "untitled"
+    document = documents.Document(
+        path=relative or f"{provider(url=url)}/{name}.md",
         body=body,
         url=url,
-        extra={
+        meta={
             "published": published,
             "fetched": store.today(),
             "via": "web.archive.org 스냅샷 html 변환" if archived else "html 변환",

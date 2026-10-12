@@ -14,9 +14,9 @@ from usecase.common import store
 from usecase.collected.list import list as listing
 from usecase.collected.check import check
 from usecase.collected.collect import collect
+from usecase.collected.record import record as documents
 from usecase.collected.translate import translate
 from usecase.common import log
-from usecase.common import migrate
 
 
 # #
@@ -24,6 +24,7 @@ from usecase.common import migrate
 
 def main(*, argv: list[str]) -> int:
     args = parse(argv=argv)
+    store.CURRENT.set(store.USER)
     try:
         if args.command == "detect":
             print(collect.detect(input=args.input))
@@ -58,17 +59,13 @@ def route(*, args) -> str:
         "repo": lambda: collect.card(url=args.url),
         "repo-doc": lambda: collect.repo_file(url=args.url, path=args.path),
         "video": lambda: collect.dispatch(kind="video", input=args.url),
-        "web": lambda: collect.page(url=args.url, rel=args.rel),
+        "web": lambda: collect.page(url=args.url, relative=args.rel),
         "ingest": lambda: collect.ingest(url=args.url, path=args.path, file=args.file),
         "dump": lambda: translate.dump(reference=args.reference, file=args.file, language=args.language),
         "load": lambda: translate.load(reference=args.reference, file=args.file, language=args.language),
         "extract": lambda: translate.extract(reference=args.reference, segments=args.segments),
         "inject": lambda: translate.inject(reference=args.reference, segments=args.segments, language=args.language),
-        "migrate": lambda: migrate.run(
-            collected=Path(args.collected),
-            conversations=Path(args.conversations),
-        ),
-        "export": lambda: store.export(folder=Path(args.folder)),
+        "export": lambda: documents.export(folder=Path(args.folder)),
     }
 
     return run[args.command]()
@@ -125,9 +122,6 @@ def parse(*, argv: list[str]):
     command.add_argument("reference")
     command.add_argument("segments")
     command.add_argument("--language", default="kor", choices=("eng", "kor"))
-    command = commands.add_parser("migrate", help="옛 두 DB 를 새 스키마로 옮긴다")
-    command.add_argument("collected", nargs="?", default=str(store.API / "database" / "collected.db"))
-    command.add_argument("conversations", nargs="?", default=str(store.API / "database" / "conversations.db"))
     command = commands.add_parser("export", help="DB 를 collected 파일 트리로 내보낸다")
     command.add_argument("folder", nargs="?", default=str(store.API / "data" / "collected"))
     commands.add_parser("check", help="원문, 번역, 사이드카의 정합을 검사한다")
@@ -148,9 +142,9 @@ def selftest() -> None:
     from usecase.collected.collect.type import web
     from usecase.collected.collect.type import x
 
-    decoration, body = store.split(text="> ## Documentation Index\n> Fetch x\n\n# T\n\nbody\n")
+    decoration, body = documents.split(text="> ## Documentation Index\n> Fetch x\n\n# T\n\nbody\n")
     assert body == "# T\n\nbody\n" and decoration.startswith("> ## Doc"), (decoration, body)
-    assert store.split(text="# plain\n") == ("", "# plain\n")
+    assert documents.split(text="# plain\n") == ("", "# plain\n")
     block = {"text": "😀 bold link", "inlineStyleRanges": [{"offset": 3, "length": 4, "style": "Bold"}],
              "entityRanges": [{"key": 0, "offset": 8, "length": 4}]}
     got = x.inline(block=block, entities={"0": {"type": "LINK", "data": {"url": "https://a"}}})
@@ -183,27 +177,27 @@ def roundtrip() -> None:
     with tempfile.TemporaryDirectory() as folder:
         store.DATABASE = Path(folder) / "t.db"
         try:
-            id = store.write(document=store.Document(
+            id = documents.write(document=documents.Document(
                 path="document/t/a.md", body="# T\n\nbody\n", url="https://t/a",
             ))
-            assert store.find(url="https://t/a") == id
-            assert store.locate(text="document/t/a.md") == id
-            assert store.locate(text="https://t/a") == id
-            assert store.locate(text=id) == id
-            assert store.locate(text="eng/document/t/a.md") == id
-            assert store.version(id=id, language="eng") == 1
+            assert documents.find(url="https://t/a") == id
+            assert documents.locate(text="document/t/a.md") == id
+            assert documents.locate(text="https://t/a") == id
+            assert documents.locate(text=id) == id
+            assert documents.locate(text="eng/document/t/a.md") == id
+            assert documents.version(id=id, language="eng") == 1
 
-            store.save(id=id, language="eng", body="# T\n\nbody\n")
-            assert store.version(id=id, language="eng") == 1
+            documents.save(id=id, language="eng", content="# T\n\nbody\n")
+            assert documents.version(id=id, language="eng") == 1
 
-            store.save(id=id, language="kor", body="# T\n\n본문\n")
+            documents.save(id=id, language="kor", content="# T\n\n본문\n")
             assert check.run()[0] == [], check.run()[0]
 
-            again = store.write(document=store.Document(
+            again = documents.write(document=documents.Document(
                 path="document/t/a.md", body="# T\n\nchanged\n", url="https://t/a",
             ))
             assert again == id, (again, id)
-            assert store.version(id=id, language="eng") == 2
+            assert documents.version(id=id, language="eng") == 2
             assert check.run()[0][0].startswith("번역 낡음"), check.run()[0]
 
             with store.session() as connection:
@@ -212,10 +206,10 @@ def roundtrip() -> None:
                 ).fetchone()[0]
             assert kept == 2, kept
 
-            store.save(id=id, language="kor", body="# T\n\n바뀜\n")
+            documents.save(id=id, language="kor", content="# T\n\n바뀜\n")
             assert check.run()[0] == [], check.run()[0]
 
-            other = store.write(document=store.Document(
+            other = documents.write(document=documents.Document(
                 path="document/t/b.md", body="# B\n", url="https://t/a",
             ))
             assert other != id

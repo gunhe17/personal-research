@@ -360,6 +360,7 @@ if __name__ == "__main__":
 
     folder = Path(tempfile.mkdtemp())
     store.DATABASE = folder / "check.db"
+    store.CURRENT.set(store.USER)
     KEY_FILE = folder / "encryption.key"
     HOMES = {"openai": ("CODEX_HOME", folder / "codex")}
     with store.session() as connection:

@@ -8,6 +8,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+from usecase.collected.record import record as documents
 from usecase.common import store
 
 URL = re.compile(r"^https?://(?:www\.)?(?:x|twitter)\.com/(\w+)/(?:article|status)/(\d+)/?(?:\?.*)?$")
@@ -19,7 +20,7 @@ MARK = {"Bold": "**", "Italic": "*"}
 # #
 # get
 
-def get(*, url: str, tweet_id: str | None = None) -> store.Document:
+def get(*, url: str, tweet_id: str | None = None) -> documents.Document:
     matched = URL.match(url.strip())
     if not matched:
         raise ValueError(f"Not an X article or status URL: {url}")
@@ -38,11 +39,11 @@ def get(*, url: str, tweet_id: str | None = None) -> store.Document:
         article = status.get("article") or {}
     if not article:
         raise ValueError(f"Tweet {tweet_id} has no article. Only tweets carrying an article are collected")
-    document = store.Document(
-        path=f"document/x/{user}/article/{store.slugify(title=article['title'])}.md",
+    document = documents.Document(
+        path=f"document/x/{user}/article/{documents.slugify(title=article['title'])}.md",
         body=f"# {article['title']}\n\n" + render(article=article),
         url=f"https://x.com/{user}/article/{article['id']}",
-        extra={
+        meta={
             "author": f"@{status['author']['screen_name']}",
             "published": article["created_at"][:10],
             "fetched": store.today(),
@@ -58,10 +59,10 @@ def get(*, url: str, tweet_id: str | None = None) -> store.Document:
 
 def grok(*, prompt: str, args: list[str]) -> dict:
     with tempfile.TemporaryDirectory() as cwd:
-        prompt_file = Path(cwd) / "prompt.md"
-        prompt_file.write_text(prompt, encoding="utf-8")
+        prompt_path = Path(cwd) / "prompt.md"
+        prompt_path.write_text(prompt, encoding="utf-8")
         done = subprocess.run(
-            ["grok", "--prompt-file", str(prompt_file), "--output-format", "json",
+            ["grok", "--prompt-file", str(prompt_path), "--output-format", "json",
              "--no-subagents", *args],
             cwd=cwd, capture_output=True, text=True, timeout=1800,
         )

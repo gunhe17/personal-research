@@ -6,9 +6,12 @@ import json
 import os
 import re
 import sys
+import traceback
+from dataclasses import dataclass
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from typing import Callable
 from urllib.parse import parse_qs, urlparse
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -16,12 +19,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from usecase.common import agent
 from usecase.common import log
 from usecase.common import store
+from usecase.common.error import NotFound
 
 from usecase.conversation.converse import converse
-from usecase.conversation.record import record
+from usecase.conversation.record import record as conversations
 from usecase.space.record import record as spaces
 from usecase.setting.login import login
-from usecase.setting.record import record as setting
+from usecase.setting.record import record as settings
 from usecase.user.account import account
 from usecase.collected.collect import job
 from usecase.collected.read import read
@@ -29,37 +33,270 @@ from usecase.collected.search import search
 
 HOST = os.environ.get("HOST") or "127.0.0.1"
 PORT = int(os.environ.get("PORT") or 8765)
-SPACE = re.compile(rf"/api/spaces/({store.IDENTIFIER})")
-PUBLIC = {"/api/health", "/api/auth/login"}
-SHARED = {"/api/search", "/api/file", "/api/tree"}
-MATERIALS = re.compile(rf"/api/spaces/({store.IDENTIFIER})/materials")
-MATERIAL = re.compile(rf"/api/materials/({store.IDENTIFIER})")
-CONVERSATIONS = re.compile(r"/api/(space|agent)/conversations")
-CONVERSATION = re.compile(rf"/api/(space|agent)/conversations/({store.IDENTIFIER})(?:/(messages|retry|cancel))?")
+ID = store.IDENTIFIER
+DOMAIN = "(space|agent)"
+CONVERSATION = rf"/api/{DOMAIN}/conversations/({ID})"
+
+
+# #
+# route
+
+@dataclass(frozen=True, kw_only=True)
+class Route:
+    method: str
+    pattern: str
+    guard: str
+    handle: Callable
+    denied: str = "권한이 없습니다."
+
+
+@dataclass(frozen=True, kw_only=True)
+class Request:
+    groups: tuple
+    query: dict
+    body: dict
+    account: dict
+    token: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class Response:
+    payload: object = None
+    code: int = 200
+    text: str | None = None
+    content_type: str = "application/json; charset=utf-8"
+    sandbox: bool = False
+    cookie: str = ""
+
+
+ROUTES = [
+    Route(method="GET", pattern="/api/health", guard="public", handle=lambda request: health()),
+    Route(method="GET", pattern="/api/auth/me", guard="user", handle=lambda request: request.account),
+    Route(method="GET", pattern="/api/users", guard="admin", handle=lambda request: {"items": account.listed()}, denied="관리자만 볼 수 있습니다."),
+    Route(method="GET", pattern="/api/settings", guard="user", handle=lambda request: settings.get()),
+    Route(method="GET", pattern="/api/login", guard="trusted", handle=lambda request: login.status(provider=argument(query=request.query, name="provider"), method=argument(query=request.query, name="method", default="plan_key"))),
+    Route(method="GET", pattern="/api/models", guard="user", handle=lambda request: converse.models()),
+    Route(method="GET", pattern="/api/collect", guard="user", handle=lambda request: {"items": job.listed()}),
+    Route(method="GET", pattern=f"/api/collect/({ID})", guard="user", handle=lambda request: job.get(id=request.groups[0])),
+    Route(method="GET", pattern="/api/skills", guard="user", handle=lambda request: skills()),
+    Route(method="GET", pattern="/api/tree", guard="shared", handle=lambda request: {"root": "collected", "tree": read.tree()}),
+    Route(method="GET", pattern="/api/raw", guard="user", handle=lambda request: raw(request=request)),
+    Route(method="GET", pattern="/api/file", guard="shared", handle=lambda request: read.document(reference=argument(query=request.query, name="id"), language=argument(query=request.query, name="language", default="eng"))),
+    Route(method="GET", pattern="/api/meta", guard="user", handle=lambda request: read.meta(reference=argument(query=request.query, name="id"))),
+    Route(method="GET", pattern="/api/search", guard="shared", handle=lambda request: {"items": search.run(terms=argument(query=request.query, name="q").split())}),
+    Route(method="GET", pattern="/api/spaces", guard="user", handle=lambda request: {"items": spaces.listed()}),
+    Route(method="GET", pattern="/api/conversations", guard="user", handle=lambda request: {"items": conversations.by_collected(collected_id=argument(query=request.query, name="collected_id"))}),
+    Route(method="GET", pattern=f"/api/{DOMAIN}/conversations", guard="user", handle=lambda request: {"items": conversations.listed(domain=request.groups[0], space_id=argument(query=request.query, name="space_id"))}),
+    Route(method="GET", pattern=f"/api/materials/({ID})", guard="user", handle=lambda request: spaces.get_material(id=request.groups[0])),
+    Route(method="GET", pattern=f"/api/spaces/({ID})", guard="user", handle=lambda request: spaces.get(id=request.groups[0])),
+    Route(method="GET", pattern=CONVERSATION, guard="user", handle=lambda request: converse.get(domain=request.groups[0], id=request.groups[1])),
+    Route(method="POST", pattern="/api/auth/login", guard="public", handle=lambda request: signin(request=request)),
+    Route(method="POST", pattern="/api/users", guard="admin", handle=lambda request: account.create(email=str(request.body.get("email") or ""), name=str(request.body.get("name") or "")), denied="관리자만 사용자를 추가할 수 있습니다."),
+    Route(method="POST", pattern="/api/auth/password", guard="trusted", handle=lambda request: password(request=request)),
+    Route(method="POST", pattern="/api/auth/logout", guard="trusted", handle=lambda request: signout(request=request)),
+    Route(method="POST", pattern="/api/opened", guard="trusted", handle=lambda request: opened(request=request)),
+    Route(method="POST", pattern="/api/login", guard="trusted", handle=lambda request: provider_login(request=request)),
+    Route(method="POST", pattern="/api/collect", guard="trusted", handle=lambda request: job.start(input=str(request.body.get("input") or ""))),
+    Route(method="POST", pattern="/api/spaces", guard="trusted", handle=lambda request: spaces.create(data=request.body)),
+    Route(method="POST", pattern=f"/api/spaces/({ID})/materials", guard="trusted", handle=lambda request: spaces.create_material(space_id=request.groups[0], data=request.body)),
+    Route(method="POST", pattern=f"/api/{DOMAIN}/conversations", guard="trusted", handle=lambda request: converse.open(domain=request.groups[0], data=request.body)),
+    Route(method="POST", pattern=f"{CONVERSATION}/messages", guard="trusted", handle=lambda request: converse.ask(domain=request.groups[0], id=request.groups[1], data=request.body)),
+    Route(method="POST", pattern=f"{CONVERSATION}/retry", guard="trusted", handle=lambda request: converse.retry(domain=request.groups[0], id=request.groups[1], message_id=str(request.body.get("message_id") or ""))),
+    Route(method="POST", pattern=f"{CONVERSATION}/cancel", guard="trusted", handle=lambda request: converse.cancel(domain=request.groups[0], id=request.groups[1], message_id=str(request.body.get("message_id") or ""))),
+    Route(method="PUT", pattern="/api/settings", guard="trusted", handle=lambda request: settings.edit(data=request.body)),
+    Route(method="PUT", pattern=f"/api/spaces/({ID})", guard="trusted", handle=lambda request: spaces.edit(id=request.groups[0], data=request.body)),
+    Route(method="PUT", pattern=f"/api/materials/({ID})", guard="trusted", handle=lambda request: spaces.edit_material(id=request.groups[0], data=request.body)),
+    Route(method="PUT", pattern=CONVERSATION, guard="trusted", handle=lambda request: conversations.edit(domain=request.groups[0], id=request.groups[1], data=request.body)),
+    Route(method="DELETE", pattern=f"/api/users/({ID})", guard="admin", handle=lambda request: remove_user(request=request), denied="관리자만 사용자를 지울 수 있습니다."),
+    Route(method="DELETE", pattern="/api/login", guard="trusted", handle=lambda request: provider_logout(request=request)),
+    Route(method="DELETE", pattern=f"/api/spaces/({ID})", guard="trusted", handle=lambda request: removed(ok=spaces.remove(id=request.groups[0]))),
+    Route(method="DELETE", pattern=f"/api/materials/({ID})", guard="trusted", handle=lambda request: removed(ok=spaces.remove_material(id=request.groups[0]))),
+    Route(method="DELETE", pattern=CONVERSATION, guard="trusted", handle=lambda request: removed(ok=conversations.remove(domain=request.groups[0], id=request.groups[1]))),
+]
 
 
 def argument(*, query: dict, name: str, default: str = "") -> str:
     return (query.get(name) or [default])[0]
 
 
-def load_dotenv(*, path: Path) -> None:
-    if not path.is_file():
-        return
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip().removeprefix("export ")
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, _, value = line.partition("=")
-        os.environ.setdefault(key.strip(), value.strip().strip("\"'"))
+# #
+# dispatch
+
+def answer(*, method: str, target: str, headers, read_body: Callable) -> Response:
+    parsed = urlparse(target)
+    route, groups = matched(method=method, path=parsed.path)
+    if route is None:
+        missing = {"error": "찾을 수 없습니다."}
+        if method == "GET":
+            missing["path"] = parsed.path
+        return Response(code=404, payload=missing)
+    admitted = admit(route=route, method=method, headers=headers)
+    if isinstance(admitted, Response):
+        return admitted
+    body = read_body() if method != "GET" else {}
+    if body is None:
+        return Response(code=400, payload={"error": "JSON 이 올바르지 않습니다."})
+    request = Request(groups=groups, query=parse_qs(parsed.query), body=body, account=admitted, token=token(headers=headers))
+    try:
+        result = route.handle(request=request)
+    except NotFound as error:
+        return Response(code=404, payload={"error": str(error) or "찾을 수 없습니다."})
+    except (ValueError, RuntimeError, KeyError, StopIteration) as error:
+        return Response(code=400, payload={"error": str(error) or "요청을 처리하지 못했습니다."})
+    except Exception:
+        log.write(level="error", message=f"{method} {parsed.path} {traceback.format_exc()}")
+        return Response(code=500, payload={"error": "서버 오류가 났습니다."})
+    if result is None:
+        return Response(code=404, payload={"error": "찾을 수 없습니다."})
+    if isinstance(result, Response):
+        return result
+
+    return Response(payload=result)
+
+
+def matched(*, method: str, path: str) -> tuple[Route | None, tuple]:
+    for route in ROUTES:
+        found = re.fullmatch(route.pattern, path)
+        if found and route.method == method:
+            return route, found.groups()
+
+    return None, ()
+
+
+def admit(*, route: Route, method: str, headers) -> dict | Response:
+    if route.guard == "public":
+        found = {}
+    elif route.guard == "shared" and method == "GET" and hmac.compare_digest(headers.get("Authorization") or "", f"Bearer {agent.TOKEN}"):
+        return {}
+    else:
+        found = account.resolve(token=token(headers=headers))
+        if found is None:
+            return Response(code=401, payload={"error": "로그인이 필요합니다."})
+        store.CURRENT.set(found["id"])
+    if route.guard == "admin" and (found.get("role") != "admin" or not trusted(headers=headers)):
+        return Response(code=403, payload={"error": route.denied})
+    if (route.guard == "trusted" or method != "GET") and not trusted(headers=headers):
+        return Response(code=403, payload={"error": route.denied})
+
+    return found
+
+
+def trusted(*, headers) -> bool:
+    origin = headers.get("Origin")
+    host = headers.get("X-Forwarded-Host") or headers.get("Host")
+
+    return origin is None or urlparse(origin).netloc == host
+
+
+def token(*, headers) -> str:
+    jar = SimpleCookie(headers.get("Cookie") or "")
+
+    return jar["session"].value if "session" in jar else ""
 
 
 # #
-# route
+# handle
+
+def health() -> dict:
+    return {
+        "ok": True,
+        "codex_available": converse.available(),
+        "database": str(store.DATABASE),
+    }
+
+
+def skills() -> dict | Response:
+    try:
+        return {"items": agent.skills()}
+    except OSError as error:
+        return Response(code=502, payload={"error": f"agent 에서 목록을 받지 못했습니다. {error}"})
+
+
+def raw(*, request: Request) -> Response:
+    found = read.document(
+        reference=argument(query=request.query, name="id"),
+        language=argument(query=request.query, name="language", default="eng"),
+    )
+    if found is None:
+        return Response(code=404, text="찾을 수 없습니다.", content_type="text/plain; charset=utf-8")
+
+    return Response(
+        text=found["content"],
+        content_type=read.content_type(path=found["path"]),
+        sandbox=True,
+    )
+
+
+def signin(*, request: Request) -> Response:
+    found = account.verify(email=str(request.body.get("email") or ""), password=str(request.body.get("password") or ""))
+    if found is None:
+        return Response(code=401, payload={"error": "이메일이나 비밀번호가 맞지 않습니다."})
+    session = account.open_session(user_id=found["id"])
+
+    return Response(
+        payload=found,
+        cookie=f"session={session}; Path=/; HttpOnly; SameSite=Lax; Max-Age={account.DAYS * 86400}",
+    )
+
+
+def signout(*, request: Request) -> Response:
+    account.close_session(token=request.token)
+
+    return Response(
+        payload={"ok": True},
+        cookie="session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0",
+    )
+
+
+def password(*, request: Request) -> dict:
+    account.change_password(user_id=request.account["id"], password=str(request.body.get("password") or ""))
+
+    return {"ok": True}
+
+
+def remove_user(*, request: Request) -> dict:
+    account.remove(user_id=request.groups[0], by=request.account["id"])
+
+    return {"ok": True}
+
+
+def opened(*, request: Request) -> dict:
+    wanted = (request.body.get("id") or "").strip()
+    if not wanted:
+        raise ValueError("id 가 비어 있습니다.")
+    store.touch(id=wanted)
+
+    return {"id": wanted}
+
+
+def provider_login(*, request: Request) -> dict:
+    provider = request.body.get("provider") or ""
+    method = request.body.get("method") or "plan_key"
+    if request.body.get("code") is not None:
+        return login.submit(provider=provider, method=method, code=request.body["code"])
+
+    return login.start(provider=provider, method=method)
+
+
+def provider_logout(*, request: Request) -> dict:
+    provider = argument(query=request.query, name="provider")
+    method = argument(query=request.query, name="method", default="plan_key")
+    if request.query.get("signout"):
+        return login.signout(provider=provider, method=method)
+    login.check(provider=provider, method=method)
+    login.cancel(provider=provider, method=method)
+
+    return {"ok": True}
+
+
+def removed(*, ok: bool) -> Response:
+    return Response(code=200 if ok else 404, payload={"ok": ok})
+
+
+# #
+# server
 
 class Handler(BaseHTTPRequestHandler):
-    cookie = ""
-    account: dict = {}
-
     server_version = "ResearchViewer/2.0"
 
     def log_message(self, fmt: str, *args) -> None:
@@ -74,336 +311,48 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self) -> None:
-        parsed = urlparse(self.path)
-        path = parsed.path
-        query = parse_qs(parsed.query)
-        if not self.identify(path=path, reading=True):
-            return
-        if path == "/api/auth/me":
-            return self.reply(code=200, payload=self.account)
-        if path == "/api/users":
-            if self.account.get("role") != "admin":
-                return self.reply(code=403, payload={"error": "관리자만 볼 수 있습니다."})
-            return self.reply(code=200, payload={"items": account.listed()})
-
-        if path == "/api/settings":
-            return self.reply(code=200, payload=setting.get())
-        if path == "/api/login":
-            if not self.trusted():
-                return self.reply(code=403, payload={"error": "권한이 없습니다."})
-            try:
-                return self.reply(code=200, payload=login.status(provider=argument(query=query, name="provider"), method=argument(query=query, name="method", default="plan_key")))
-            except ValueError as error:
-                return self.reply(code=400, payload={"error": str(error)})
-        if path == "/api/models":
-            return self.reply(code=200, payload=converse.models())
-        if path == "/api/collect":
-            return self.reply(code=200, payload={"items": job.listed()})
-        if path.startswith("/api/collect/"):
-            found = job.get(id=path.removeprefix("/api/collect/"))
-            if found is None:
-                return self.reply(code=404, payload={"error": "찾을 수 없습니다."})
-            return self.reply(code=200, payload=found)
-        if path == "/api/skills":
-            try:
-                return self.reply(code=200, payload={"items": agent.skills()})
-            except OSError as error:
-                return self.reply(code=502, payload={"error": f"agent 에서 목록을 받지 못했습니다. {error}"})
-        if path == "/api/health":
-            return self.reply(code=200, payload={
-                "ok": True,
-                "codex_available": converse.available(),
-                "database": str(store.DATABASE),
-            })
-        if path == "/api/tree":
-            return self.reply(code=200, payload={"root": "collected", "tree": read.tree()})
-        if path == "/api/raw":
-            found = read.document(
-                reference=argument(query=query, name="id"),
-                language=argument(query=query, name="language", default="eng"),
-            )
-            if found is None:
-                return self.send(code=404, data="찾을 수 없습니다.".encode("utf-8"), content_type="text/plain; charset=utf-8")
-            return self.send(
-                code=200,
-                data=found["content"].encode("utf-8"),
-                content_type=read.content_type(path=found["path"]),
-                sandbox=True,
-            )
-        if path == "/api/file":
-            found = read.document(
-                reference=argument(query=query, name="id"),
-                language=argument(query=query, name="language", default="eng"),
-            )
-            if found is None:
-                return self.reply(code=404, payload={"error": "찾을 수 없습니다."})
-            return self.reply(code=200, payload=found)
-        if path == "/api/meta":
-            found = read.meta(reference=argument(query=query, name="id"))
-            if found is None:
-                return self.reply(code=404, payload={"error": "찾을 수 없습니다."})
-            return self.reply(code=200, payload=found)
-        if path == "/api/search":
-            terms = [t for t in argument(query=query, name="q").split() if t]
-            return self.reply(code=200, payload={"items": search.run(terms=terms)})
-        if path == "/api/spaces":
-            return self.reply(code=200, payload={"items": spaces.listed()})
-        if path == "/api/conversations":
-            return self.reply(code=200, payload={"items": record.find(collected_id=argument(query=query, name="collected_id"))})
-        if CONVERSATIONS.fullmatch(path):
-            domain = CONVERSATIONS.fullmatch(path).group(1)
-            return self.reply(code=200, payload={"items": record.listed(domain=domain, space_id=argument(query=query, name="space_id"))})
-
-        matched = MATERIAL.fullmatch(path)
-        if matched:
-            found = spaces.material(id=matched.group(1))
-            return self.reply(code=200 if found else 404, payload=found or {"error": "찾을 수 없습니다."})
-        matched = SPACE.fullmatch(path)
-        if matched:
-            found = spaces.get(id=matched.group(1))
-            return self.reply(code=200 if found else 404, payload=found or {"error": "찾을 수 없습니다."})
-        matched = CONVERSATION.fullmatch(path)
-        if matched and not matched.group(3):
-            found = record.get(domain=matched.group(1), id=matched.group(2))
-            if found:
-                found["codex_available"] = converse.available()
-            return self.reply(code=200 if found else 404, payload=found or {"error": "찾을 수 없습니다."})
-
-        self.reply(code=404, payload={"error": "찾을 수 없습니다.", "path": path})
+        self.dispatch(method="GET")
 
     def do_POST(self) -> None:
-        parsed = urlparse(self.path)
-        body = self.payload()
-        if body is None:
-            return self.reply(code=400, payload={"error": "JSON 이 올바르지 않습니다."})
-        if not self.identify(path=parsed.path, reading=False):
-            return
-        if parsed.path == "/api/auth/login":
-            if not self.trusted():
-                return self.reply(code=403, payload={"error": "권한이 없습니다."})
-            found = account.verify(email=str(body.get("email") or ""), password=str(body.get("password") or ""))
-            if found is None:
-                return self.reply(code=401, payload={"error": "이메일이나 비밀번호가 맞지 않습니다."})
-            self.cookie = f"session={account.begin(user_id=found['id'])}; Path=/; HttpOnly; SameSite=Lax; Max-Age={account.DAYS * 86400}"
-            return self.reply(code=200, payload=found)
-        if parsed.path == "/api/users":
-            if self.account.get("role") != "admin" or not self.trusted():
-                return self.reply(code=403, payload={"error": "관리자만 사용자를 추가할 수 있습니다."})
-            try:
-                return self.reply(code=200, payload=account.create(email=str(body.get("email") or ""), name=str(body.get("name") or "")))
-            except ValueError as error:
-                return self.reply(code=400, payload={"error": str(error)})
-        if parsed.path == "/api/auth/password":
-            if not self.trusted():
-                return self.reply(code=403, payload={"error": "권한이 없습니다."})
-            try:
-                account.change(user_id=self.account["id"], password=str(body.get("password") or ""))
-            except ValueError as error:
-                return self.reply(code=400, payload={"error": str(error)})
-            return self.reply(code=200, payload={"ok": True})
-        if parsed.path == "/api/auth/logout":
-            account.end(token=self.token())
-            self.cookie = "session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"
-            return self.reply(code=200, payload={"ok": True})
-        if parsed.path == "/api/opened":
-            wanted = (body.get("id") or "").strip()
-            if not wanted:
-                return self.reply(code=400, payload={"error": "id 가 비어 있습니다."})
-            store.touch(id=wanted)
-            return self.reply(code=200, payload={"id": wanted})
-        if parsed.path == "/api/login":
-            if not self.trusted():
-                return self.reply(code=403, payload={"error": "권한이 없습니다."})
-            try:
-                provider = body.get("provider") or ""
-                method = body.get("method") or "plan_key"
-                if body.get("code") is not None:
-                    return self.reply(code=200, payload=login.submit(provider=provider, method=method, code=body["code"]))
-                return self.reply(code=200, payload=login.start(provider=provider, method=method))
-            except (ValueError, RuntimeError) as error:
-                return self.reply(code=400, payload={"error": str(error)})
-        try:
-            if parsed.path == "/api/spaces":
-                return self.reply(code=200, payload=spaces.create(data=body))
-            if MATERIALS.fullmatch(parsed.path):
-                return self.reply(code=200, payload=spaces.save_material(space_id=MATERIALS.fullmatch(parsed.path).group(1), data=body))
-            if CONVERSATIONS.fullmatch(parsed.path):
-                return self.reply(code=200, payload=self.start(domain=CONVERSATIONS.fullmatch(parsed.path).group(1), body=body))
-            matched = CONVERSATION.fullmatch(parsed.path)
-            if matched and matched.group(3):
-                return self.act(domain=matched.group(1), id=matched.group(2), action=matched.group(3), body=body)
-        except (ValueError, KeyError, StopIteration) as error:
-            return self.reply(code=400, payload={"error": str(error) or "요청을 처리하지 못했습니다."})
-        if parsed.path == "/api/collect":
-            if not self.trusted():
-                return self.reply(code=403, payload={"error": "권한이 없습니다."})
-            try:
-                return self.reply(code=200, payload=job.start(input=str(body.get("input") or "")))
-            except ValueError as error:
-                return self.reply(code=400, payload={"error": str(error)})
-
-        self.reply(code=404, payload={"error": "찾을 수 없습니다."})
+        self.dispatch(method="POST")
 
     def do_PUT(self) -> None:
-        path = urlparse(self.path).path
-        if not self.identify(path=path, reading=False):
-            return
-        body = self.payload()
-        if body is None:
-            return self.reply(code=400, payload={"error": "JSON 이 올바르지 않습니다."})
-        try:
-            if path == "/api/settings":
-                if not self.trusted():
-                    return self.reply(code=403, payload={"error": "권한이 없습니다."})
-                return self.reply(code=200, payload=setting.edit(data=body))
-            if SPACE.fullmatch(path):
-                return self.reply(code=200, payload=spaces.edit(id=SPACE.fullmatch(path).group(1), data=body))
-            if MATERIAL.fullmatch(path):
-                found = spaces.material(id=MATERIAL.fullmatch(path).group(1))
-                if not found:
-                    raise ValueError("자료를 찾을 수 없습니다.")
-                return self.reply(code=200, payload=spaces.save_material(space_id=found["space_id"], data={**found, **body}, id=found["id"]))
-            matched = CONVERSATION.fullmatch(path)
-            if matched and not matched.group(3):
-                return self.reply(code=200, payload=record.edit(domain=matched.group(1), id=matched.group(2), data=body))
-        except ValueError as error:
-            return self.reply(code=404, payload={"error": str(error)})
-
-        self.reply(code=404, payload={"error": "찾을 수 없습니다."})
+        self.dispatch(method="PUT")
 
     def do_DELETE(self) -> None:
-        path = urlparse(self.path).path
-        if not self.identify(path=path, reading=False):
-            return
-        if path.startswith("/api/users/"):
-            if self.account.get("role") != "admin" or not self.trusted():
-                return self.reply(code=403, payload={"error": "관리자만 사용자를 지울 수 있습니다."})
-            try:
-                account.remove(user_id=path.removeprefix("/api/users/"), by=self.account["id"])
-            except ValueError as error:
-                return self.reply(code=400, payload={"error": str(error)})
-            return self.reply(code=200, payload={"ok": True})
-        if path == "/api/login":
-            if not self.trusted():
-                return self.reply(code=403, payload={"error": "권한이 없습니다."})
-            asked = parse_qs(urlparse(self.path).query)
-            provider = argument(query=asked, name="provider")
-            method = argument(query=asked, name="method", default="plan_key")
-            try:
-                if asked.get("signout"):
-                    return self.reply(code=200, payload=login.signout(provider=provider, method=method))
-                login.check(provider=provider, method=method)
-                login.cancel(provider=provider, method=method)
-            except ValueError as error:
-                return self.reply(code=400, payload={"error": str(error)})
-            return self.reply(code=200, payload={"ok": True})
-        matched = CONVERSATION.fullmatch(path)
-        if SPACE.fullmatch(path):
-            removed = spaces.remove(id=SPACE.fullmatch(path).group(1))
-        elif MATERIAL.fullmatch(path):
-            removed = spaces.remove_material(id=MATERIAL.fullmatch(path).group(1))
-        elif matched and not matched.group(3):
-            removed = record.remove(domain=matched.group(1), id=matched.group(2))
-        else:
-            return self.reply(code=404, payload={"error": "찾을 수 없습니다."})
+        self.dispatch(method="DELETE")
 
-        self.reply(code=200 if removed else 404, payload={"ok": removed})
+    def dispatch(self, *, method: str) -> None:
+        store.CURRENT.set(None)
+        response = answer(method=method, target=self.path, headers=self.headers, read_body=self.body)
+        self.send(response=response)
 
-    # #
-    # conversation
-
-    def start(self, *, domain: str, body: dict) -> dict:
-        if domain == "space" and not spaces.get(id=body.get("space_id") or ""):
-            raise ValueError("space 를 찾을 수 없습니다.")
-        started = record.create(domain=domain, data=body)
-        if (body.get("question") or "").strip():
-            started["question"] = self.ask(domain=domain, id=started["id"], body={"content": body["question"], "client_id": body.get("client_id")})
-
-        return started
-
-    def act(self, *, domain: str, id: str, action: str, body: dict) -> None:
-        owned = record.get(domain=domain, id=id)
-        if owned is None:
-            return self.reply(code=404, payload={"error": "찾을 수 없습니다."})
-        if action != "messages" and not any(m["id"] == body.get("message_id") for m in owned["messages"]):
-            return self.reply(code=404, payload={"error": "찾을 수 없습니다."})
-        if not converse.available():
-            return self.reply(code=500, payload={"error": "codex CLI 가 없습니다."})
-        if action == "messages":
-            return self.reply(code=200, payload=self.ask(domain=domain, id=id, body=body))
-        message_id = body.get("message_id") or ""
-        if action == "cancel":
-            converse.cancel(domain=domain, message_id=message_id)
-        elif converse.status(domain=domain, message_id=message_id) in ("failed", "cancelled", "interrupted"):
-            converse.submit(domain=domain, id=id, message_id=message_id)
-
-        self.reply(code=200, payload={"ok": True})
-
-    def ask(self, *, domain: str, id: str, body: dict) -> dict:
-        question = record.ask(domain=domain, id=id, data=body)
-        if question["status"] == "queued":
-            converse.submit(domain=domain, id=id, message_id=question["id"])
-
-        return question
-
-    # #
-    # respond
-
-    def payload(self) -> dict | None:
+    def body(self) -> dict | None:
         length = int(self.headers.get("Content-Length") or 0)
         raw = self.rfile.read(length) if length else b"{}"
         try:
-            body = json.loads(raw.decode("utf-8") or "{}")
-        except json.JSONDecodeError:
+            parsed = json.loads(raw.decode("utf-8") or "{}")
+        except (json.JSONDecodeError, UnicodeDecodeError):
             return None
 
-        return body if isinstance(body, dict) else {}
-
-    def trusted(self) -> bool:
-        origin = self.headers.get("Origin")
-        host = self.headers.get("X-Forwarded-Host") or self.headers.get("Host")
-
-        return origin is None or urlparse(origin).netloc == host
-
-    def identify(self, *, path: str, reading: bool) -> bool:
-        if path in PUBLIC:
-            return True
-        if reading and path in SHARED and hmac.compare_digest(self.headers.get("Authorization") or "", f"Bearer {agent.TOKEN}"):
-            return True
-        found = account.resolve(token=self.token())
-        if found is None:
-            self.reply(code=401, payload={"error": "로그인이 필요합니다."})
-            return False
-        store.CURRENT.set(found["id"])
-        self.account = found
-
-        return True
-
-    def token(self) -> str:
-        jar = SimpleCookie(self.headers.get("Cookie") or "")
-
-        return jar["session"].value if "session" in jar else ""
+        return parsed if isinstance(parsed, dict) else {}
 
     def cors(self) -> None:
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
 
-    def reply(self, *, code: int, payload) -> None:
-        self.send(
-            code=code,
-            data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-            content_type="application/json; charset=utf-8",
-        )
-
-    def send(self, *, code: int, data: bytes, content_type: str, sandbox: bool = False) -> None:
-        self.send_response(code)
-        self.send_header("Content-Type", content_type)
-        if sandbox:
+    def send(self, *, response: Response) -> None:
+        data = (
+            response.text if response.text is not None else json.dumps(response.payload, ensure_ascii=False)
+        ).encode("utf-8")
+        self.send_response(response.code)
+        self.send_header("Content-Type", response.content_type)
+        if response.sandbox:
             self.send_header("Content-Security-Policy", "sandbox allow-scripts allow-popups")
         self.send_header("Content-Length", str(len(data)))
-        if self.cookie:
-            self.send_header("Set-Cookie", self.cookie)
+        if response.cookie:
+            self.send_header("Set-Cookie", response.cookie)
         self.cors()
         self.end_headers()
         self.wfile.write(data)
@@ -415,12 +364,54 @@ class Handler(BaseHTTPRequestHandler):
 def main() -> None:
     load_dotenv(path=store.API / ".env")
     if not store.DATABASE.is_file():
-        raise SystemExit(f"DB 없음: {store.DATABASE} (collect.py migrate 로 만든다)")
-    record.recover()
+        raise SystemExit(f"DB 없음: {store.DATABASE}")
+    conversations.recover()
     log.write(level="info", message=f"start {HOST}:{PORT} database={store.DATABASE} codex={converse.BIN}")
     print(f"API http://{HOST}:{PORT}/api/health")
     ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
 
 
+def load_dotenv(*, path: Path) -> None:
+    if not path.is_file():
+        return
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip().removeprefix("export ")
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        os.environ.setdefault(key.strip(), value.strip().strip("\"'"))
+
+
+# #
+# check
+
+def check() -> None:
+    cases = {
+        ("GET", "/api/health"): ("public", ()),
+        ("GET", "/api/tree"): ("shared", ()),
+        ("GET", "/api/users"): ("admin", ()),
+        ("GET", "/api/spaces/abc"): ("user", ("abc",)),
+        ("PUT", "/api/spaces/abc"): ("trusted", ("abc",)),
+        ("POST", "/api/spaces/abc/materials"): ("trusted", ("abc",)),
+        ("POST", "/api/agent/conversations/c1/retry"): ("trusted", ("agent", "c1")),
+        ("DELETE", "/api/users/u1"): ("admin", ("u1",)),
+    }
+    for (method, path), (guard, groups) in cases.items():
+        route, found = matched(method=method, path=path)
+        assert route is not None and (route.guard, found) == (guard, groups), (method, path)
+    assert matched(method="PATCH", path="/api/spaces")[0] is None
+    assert matched(method="GET", path="/api/spaces/a/b")[0] is None
+    assert all(r.guard in ("public", "trusted", "admin") for r in ROUTES if r.method != "GET")
+    unread = lambda: (_ for _ in ()).throw(AssertionError("body read"))
+    assert answer(method="GET", target="/api/nope", headers={}, read_body=unread).code == 404
+    assert answer(method="POST", target="/api/spaces", headers={}, read_body=unread).code == 401
+    assert answer(method="POST", target="/api/auth/login", headers={"Origin": "http://evil", "Host": "a"}, read_body=unread).code == 403
+    assert answer(method="GET", target="/api/spaces", headers={"Authorization": f"Bearer {agent.TOKEN}"}, read_body=unread).code == 401
+    print("ok")
+
+
 if __name__ == "__main__":
-    main()
+    if sys.argv[1:] == ["check"]:
+        check()
+    else:
+        main()
