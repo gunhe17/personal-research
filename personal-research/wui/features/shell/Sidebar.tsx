@@ -22,6 +22,7 @@ export default function Sidebar() {
   const [details, setDetails] = useState<Record<string, Space>>({});
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [query, setQuery] = useState("");
+  const [agentQuery, setAgentQuery] = useState("");
   const [agents, setAgents] = useState<ConversationItem[] | null>(null);
   const requested = useRef(new Set<string>());
 
@@ -44,6 +45,7 @@ export default function Sidebar() {
   }, []);
 
   const current = workbench.activeSpace;
+  const shownAgents = (agents || []).filter((conversation) => (conversation.title || "새 대화").toLowerCase().includes(agentQuery.trim().toLowerCase()));
   const needle = query.trim().toLowerCase();
   const isOpen = (key: string, fallback = true) => expanded[key] ?? fallback;
   const remember = (next: Record<string, boolean>) => {
@@ -75,8 +77,10 @@ export default function Sidebar() {
       <TreeRow variant="nav" label="Home" icon="home" active={pathname === "/"} onClick={() => router.push("/")} />
       <TreeRow variant="nav" label="Agent" icon="agent" onClick={() => toggle("agents")} />
       <Fold open={isOpen("agents")} className="ml-3 flex flex-col gap-1 border-l border-slate-100 pl-1">
-        {agents && !agents.length && <div className="flex h-8 items-center px-2 text-xs text-slate-400">Nothing yet</div>}
-        {(agents || []).map((conversation) => (
+        <Search value={agentQuery} onChange={setAgentQuery} label="Search agents" />
+        <TreeRow variant="leaf" flat label="새 대화" icon="plus" active={pathname === "/"} onClick={() => router.push("/")} />
+        {agentQuery.trim() && !shownAgents.length && <div className="flex h-8 items-center px-2 text-[12px] text-slate-400">No matches</div>}
+        {shownAgents.map((conversation) => (
           <Leaf
             key={conversation.id}
             row={[{ kind: "agent", agent: conversation.id, title: conversation.title }, conversation.collected_id ? "collected" : "chat", conversation.title || "새 대화"]}
@@ -91,22 +95,7 @@ export default function Sidebar() {
         <IconButton icon="collapse" size="sm" label="Collapse all" onClick={collapse} className="absolute top-1/2 right-1.5 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100" />
       </div>
       <Fold open={isOpen("spaces")} className="ml-3 flex flex-col gap-1 border-l border-slate-100 pl-1">
-        <label className="ml-1 flex h-8 shrink-0 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2 text-slate-400 transition focus-within:border-apple focus-within:bg-white">
-          <Icon name="search" className="h-3.5 w-3.5" />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={(event) => event.key === "Escape" && setQuery("")}
-            placeholder="Search spaces"
-            aria-label="Search spaces"
-            className="min-w-0 flex-1 bg-transparent text-[13px] text-slate-900 placeholder:text-slate-400 focus:outline-none"
-          />
-          {query && (
-            <button type="button" aria-label="Clear search" onClick={() => setQuery("")} className="text-slate-400 hover:text-slate-700">
-              <Icon name="close" className="h-3 w-3" />
-            </button>
-          )}
-        </label>
+        <Search value={query} onChange={setQuery} label="Search spaces" />
         {needle ? (
           <Results needle={needle} spaces={spaces || []} details={details} active={workbench.activeKey} onOpen={(item) => workbench.open(item)} onReveal={reveal} />
         ) : (
@@ -130,6 +119,27 @@ export default function Sidebar() {
         )}
       </Fold>
     </nav>
+  );
+}
+
+function Search({ value, onChange, label }: { value: string; onChange: (value: string) => void; label: string }) {
+  return (
+    <label className="ml-1 flex h-8 shrink-0 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2 text-slate-400 transition focus-within:border-apple focus-within:bg-white">
+      <Icon name="search" className="h-3.5 w-3.5" />
+      <input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        onKeyDown={(event) => event.key === "Escape" && onChange("")}
+        placeholder={label}
+        aria-label={label}
+        className="min-w-0 flex-1 bg-transparent text-[13px] text-slate-900 placeholder:text-slate-400 focus:outline-none"
+      />
+      {value && (
+        <button type="button" aria-label="Clear search" onClick={() => onChange("")} className="text-slate-400 hover:text-slate-700">
+          <Icon name="close" className="h-3 w-3" />
+        </button>
+      )}
+    </label>
   );
 }
 
