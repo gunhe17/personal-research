@@ -271,6 +271,14 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if not self.identify(path=path, reading=False):
             return
+        if path.startswith("/api/users/"):
+            if self.account.get("role") != "admin" or not self.trusted():
+                return self.reply(code=403, payload={"error": "관리자만 사용자를 지울 수 있습니다."})
+            try:
+                account.remove(user_id=path.removeprefix("/api/users/"), by=self.account["id"])
+            except ValueError as error:
+                return self.reply(code=400, payload={"error": str(error)})
+            return self.reply(code=200, payload={"ok": True})
         if path == "/api/login":
             if not self.trusted():
                 return self.reply(code=403, payload={"error": "forbidden"})

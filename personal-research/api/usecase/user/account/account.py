@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import re
 import secrets
+import shutil
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -44,6 +45,19 @@ def listed() -> list[dict]:
     return [
         {"id": id, "name": name, "email": email, "role": role, "created_at": created_at} for id, name, email, role, created_at in rows
     ]
+
+
+def remove(*, user_id: str, by: str) -> None:
+    if user_id == by:
+        raise ValueError("자기 계정은 지울 수 없습니다.")
+    with store.session() as connection:
+        removed = connection.execute("DELETE FROM user WHERE id = ? AND password != ''", (user_id,)).rowcount
+        if not removed:
+            raise ValueError("없는 사용자입니다.")
+        connection.execute("DELETE FROM user_session WHERE user_id = ?", (user_id,))
+        connection.execute("DELETE FROM user_meta WHERE user_id = ?", (user_id,))
+    for runner in ("codex", "grok"):
+        shutil.rmtree(store.API / "data" / "cli" / runner / user_id, ignore_errors=True)
 
 
 def change(*, user_id: str, password: str) -> None:
@@ -169,4 +183,13 @@ if __name__ == "__main__":
     end(token=token)
     assert resolve(token=token) is None
     assert [u["email"] for u in listed()] == ["gunhee@example.com", "friend@example.com", "new@example.com"]
+    for user_id in (store.USER, "missing"):
+        try:
+            remove(user_id=user_id, by=store.USER)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(user_id)
+    remove(user_id=issued["id"], by=store.USER)
+    assert verify(email="new@example.com", password="my own pass") is None
     print("ok")
