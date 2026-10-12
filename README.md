@@ -1,4 +1,4 @@
-# research
+# Personal Research
 
 AI 모델과 에이전트에 관한 외부 문서를 원문 그대로 모으고 한국어 번역본을 나란히 두는 저장소다. 화면(`wui`), 서버(`api`), 모델 실행기(`agent`) 셋을 Docker 로 띄운다.
 
