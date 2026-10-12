@@ -74,8 +74,8 @@ export default function Sidebar() {
     <nav className="flex flex-col gap-1 px-2 pt-2 pb-2">
       <TreeRow variant="nav" label="Home" icon="home" active={pathname === "/"} onClick={() => router.push("/")} />
       <TreeRow variant="nav" label="Agent" icon="agent" onClick={() => toggle("agents")} />
-      <Fold open={isOpen("agents")} className="mt-1 ml-3 border-l border-slate-100 pl-1">
-        {agents && !agents.length && <div className="px-2 py-1.5 text-xs text-slate-400">Nothing yet</div>}
+      <Fold open={isOpen("agents")} className="ml-3 flex flex-col gap-1 border-l border-slate-100 pl-1">
+        {agents && !agents.length && <div className="flex h-8 items-center px-2 text-xs text-slate-400">Nothing yet</div>}
         {(agents || []).map((conversation) => (
           <Leaf
             key={conversation.id}
@@ -90,8 +90,8 @@ export default function Sidebar() {
         <TreeRow variant="nav" label="Space" icon="grid" onClick={() => toggle("spaces")} />
         <IconButton icon="collapse" size="sm" label="Collapse all" onClick={collapse} className="absolute top-1/2 right-1.5 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100" />
       </div>
-      <Fold open={isOpen("spaces")} className="mt-1 ml-3 border-l border-slate-100 pl-1">
-        <label className="mb-1 ml-1 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-slate-400 transition focus-within:border-apple focus-within:bg-white">
+      <Fold open={isOpen("spaces")} className="ml-3 flex flex-col gap-1 border-l border-slate-100 pl-1">
+        <label className="ml-1 flex h-8 shrink-0 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2 text-slate-400 transition focus-within:border-apple focus-within:bg-white">
           <Icon name="search" className="h-3.5 w-3.5" />
           <input
             value={query}
@@ -111,9 +111,9 @@ export default function Sidebar() {
           <Results needle={needle} spaces={spaces || []} details={details} active={workbench.activeKey} onOpen={(item) => workbench.open(item)} onReveal={reveal} />
         ) : (
           <>
-            {spaces && !spaces.length && <div className="px-2 py-1.5 text-xs text-slate-400">Nothing yet</div>}
+            {spaces && !spaces.length && <div className="flex h-8 items-center px-2 text-xs text-slate-400">Nothing yet</div>}
             {(spaces || []).slice(0, 12).map((space) => (
-              <div key={space.id}>
+              <div key={space.id} className="flex flex-col gap-1">
                 <TreeRow
                   label={space.title}
                   icon={<Icon name="space" className={space.id === current ? "h-4 w-4 text-apple-link" : "h-4 w-4 text-slate-500"} />}
@@ -121,7 +121,7 @@ export default function Sidebar() {
                   strong={space.id === current}
                   onClick={() => toggle(space.id, space.id === current)}
                 />
-                <Fold open={isOpen(space.id, space.id === current) && Boolean(details[space.id])} className="mb-1 ml-3 border-l border-slate-100 pl-1">
+                <Fold open={isOpen(space.id, space.id === current) && Boolean(details[space.id])} className="ml-3 flex flex-col gap-1 border-l border-slate-100 pl-1">
                   {details[space.id] && <Folders space={details[space.id]} isOpen={isOpen} toggle={toggle} active={workbench.activeKey} onOpen={(item) => workbench.open(item)} />}
                 </Fold>
               </div>
@@ -139,10 +139,10 @@ function Folders({ space, isOpen, toggle, active, onOpen }: { space: Space; isOp
       {sections(space).map(([key, name, rows]) => {
         const id = `${space.id}:${key}`;
         return (
-          <div key={key}>
+          <div key={key} className="flex flex-col gap-1">
             <TreeRow small label={name} icon={<Icon name={key} className="h-3.5 w-3.5 text-apple-link" />} open={isOpen(id)} count={key === "conversations" ? space.conversations.length : rows.length} onClick={() => toggle(id)} />
-            <Fold open={isOpen(id)}>
-              {!rows.length && <div className="pr-2 pb-1 pl-9 text-[11px] text-slate-400">비어 있음</div>}
+            <Fold open={isOpen(id)} className="flex flex-col gap-1">
+              {!rows.length && <div className="flex h-8 items-center pr-2 pl-9 text-[11px] text-slate-400">비어 있음</div>}
               {rows.map((row) => <Leaf key={itemKey(row[0])} row={row} active={active} onOpen={onOpen} />)}
             </Fold>
           </div>
@@ -158,11 +158,11 @@ function Results({ needle, spaces, details, active, onOpen, onReveal }: { needle
     const hits = rows.filter(([item, , label]) => `${label} ${item.kind === "doc" ? item.path || "" : ""}`.toLowerCase().includes(needle));
     return space.title.toLowerCase().includes(needle) || hits.length ? [{ space, hits }] : [];
   });
-  if (!found.length) return <div className="px-2 py-1.5 text-[12px] text-slate-400">No matches</div>;
+  if (!found.length) return <div className="flex h-8 items-center px-2 text-[12px] text-slate-400">No matches</div>;
   return (
     <>
       {found.map(({ space, hits }) => (
-        <div key={space.id}>
+        <div key={space.id} className="flex flex-col gap-1">
           <TreeRow label={space.title} icon={<Icon name="space" className="h-4 w-4 text-slate-500" />} onClick={() => onReveal(space.id)} />
           {hits.map((row) => <Leaf key={itemKey(row[0])} row={row} active={active} onOpen={onOpen} />)}
         </div>

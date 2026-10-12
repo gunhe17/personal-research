@@ -31,10 +31,10 @@ export default function TreeRow({ label, icon, variant = "folder", open = false,
       onDragStart={onDragStart}
       onClick={onClick}
       className={cx(
-        "flex w-full items-center rounded-lg text-left transition duration-150",
-        variant === "nav" && cx("gap-2 px-2 py-1.5 text-sm", active ? "bg-apple font-medium text-white" : "text-slate-600 hover:bg-slate-50"),
-        variant === "folder" && cx("gap-1.5 pr-2 pl-1 hover:bg-slate-50", small ? "py-1 text-[12px]" : "py-1.5 text-sm", strong ? "font-semibold text-slate-900" : "text-slate-700"),
-        variant === "leaf" && cx("gap-1.5 pr-2", flat ? "py-1.5 pl-2 text-[13px]" : "py-1 pl-9 text-[12px]", active ? "bg-ice text-apple-link" : "text-slate-600 hover:bg-slate-50"),
+        "flex h-8 w-full shrink-0 items-center rounded-lg text-left transition duration-150",
+        variant === "nav" && cx("gap-2 px-2 text-sm", active ? "bg-apple font-medium text-white" : "text-slate-600 hover:bg-slate-50"),
+        variant === "folder" && cx("gap-1.5 pr-2 pl-1 hover:bg-slate-50", small ? "text-[12px]" : "text-sm", strong ? "font-semibold text-slate-900" : "text-slate-700"),
+        variant === "leaf" && cx("gap-1.5 pr-2", flat ? "pl-2 text-[13px]" : "pl-9 text-[12px]", active ? "bg-ice text-apple-link" : "text-slate-600 hover:bg-slate-50"),
       )}
     >
       {variant === "folder" && <Chevron open={open} />}
