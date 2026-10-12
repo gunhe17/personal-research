@@ -96,6 +96,16 @@ docker compose --env-file .env/.env.production -f .docker/docker-compose.product
 
 무엇이 수집돼 있는지는 `python3 personal-research/api/bin/collect.py list` 로 본다.
 
+## 사용자와 권한
+
+로그인한 사용자만 쓴다. 역할은 `admin` 과 `user` 둘이다(`user.role`). 관리자는 서버에서 `bin/user.py add` 로 만들고, 일반 사용자는 관리자가 설정의 Users 화면(`POST /api/users`)에서 이름과 이메일로 추가한다. 이때 서버가 무작위 비밀번호를 만들어 응답에 한 번만 담고 해시만 저장하므로 다시 볼 수 없다. 사용자는 Account 화면(`POST /api/auth/password`)에서 현재 비밀번호를 확인한 뒤 자기 비밀번호만 바꾼다. 가입 화면은 없고, 비밀번호는 scrypt 해시로 `user.password` 에 둔다. 로그인하면 `user_session` 에 토큰의 SHA-256 을 30일 동안 두고 브라우저에는 `HttpOnly` `SameSite=Lax` 쿠키 `session` 을 준다. `/api/health` 와 `/api/auth/login` 을 뺀 모든 `/api/*` 는 세션이 없으면 401 이다.
+
+사용자를 나누는 목적은 AI 사용의 격리다. 수집물, space, 자료는 모두가 함께 본다. 대화(`space_conversation` `agent_conversation`)는 `user_id` 로 주인을 가지고 주인만 보고 이어 간다. 제공사 설정, 요금제 토큰, API 키는 `user_meta` 에 사용자별로 있고, codex·grok 의 로그인 폴더도 `data/cli/{codex,grok}/{사용자}/{수단}` 으로 나뉜다. 답변은 대화 주인의, 번역은 수집을 요청한 사람의 인증만 쓴다. 저장된 토큰이나 키가 없는 수단은 실행하지 않으므로 서버 쪽 CLI 자체 로그인으로 넘어가지 않는다. 모델 호출 기록 `llm` 에도 `user_id` 가 남아 사용량을 사람마다 센다.
+
+서버는 요청마다 `store.CURRENT` 에 사용자를 정하고, 답변·수집·로그인의 백그라운드 스레드는 시작할 때의 사용자를 이어받는다(`contextvars.copy_context`). 처음 만드는 계정은 그 전까지의 `default` 사용자를 넘겨받아 기존 설정과 대화가 그 계정 것이 된다.
+
+agent 안의 MCP 서버는 쿠키가 없으므로, api 가 시작할 때마다 만드는 토큰(`agent.TOKEN`)을 실행 인자로 받아 `Authorization: Bearer` 로 보낸다. 이 토큰은 공유 수집물 조회(`/api/search` `/api/file` `/api/tree`)에만 통한다.
+
 ## 수집 요청
 
 URL 이나 식별자를 주고 `/collect` 를 부른다. `collect.py` 가 유형을 가려 원문을 받고, 번역 에이전트가 한국어판을 만든다. 스킬 없이 받을 때는 `python3 personal-research/api/bin/collect.py auto <입력>` 을 쓰고, 명령 목록은 `--help` 로 본다.

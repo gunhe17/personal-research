@@ -42,7 +42,7 @@ wui/
   features/<이름>/         한 화면 영역의 컴포넌트 묶음
   ui/                     어디서나 쓰는 모양 부품
   lib/                    React 가 없는 함수(api, cx, storage, time, markdown, events, collect)
-  check/                  화면 점검 스크립트(smoke, workbench, chat, flows, panes, settings, search, collect, persist)
+  check/                  화면 점검 스크립트(smoke, workbench, chat, flows, panes, settings, search, collect, persist, auth)
   design/                 디자인 랩. 앱이 가져오지 않는다
 ```
 
@@ -59,14 +59,14 @@ wui/
 
 | feature | 맡는 것 |
 |---|---|
-| `shell` | 헤더, 사이드바(Home, Agent 대화 목록, Space 트리와 검색), 사이드바 폭 조절 |
+| `shell` | 헤더, 로그인 화면, 사이드바(Home, Agent 대화 목록, Space 트리와 검색), 사이드바 폭 조절 |
 | `home` | 홈 입력창, ask/collect 모드, 백그라운드 수집 작업의 진행 표시 |
 | `workbench` | 그룹(최대 4), 좌우 분할, 드롭 구역, 패널 바, 작업대 Context |
 | `chat` | 대화 패널, 질문과 답변(모델 답변, 수집 카드), 입력창(명령어, 제공사·모델), 인용, 주석 |
 | `doc` | 문서 패널, 언어 전환, 내려받기, 선택 막대 |
 | `material` | 자료 패널 |
 | `blocks` | 답변·수업 블록 렌더러, 그래프 실험(Playground) |
-| `settings` | 설정 모달(General·Font, Models·제공사, Agent·Function), 로그인 시트 |
+| `settings` | 설정 모달(General·Font·Account·Users(관리자만), Models·제공사, Agent·Function), 요금제 로그인 시트 |
 
 ## 공용 부품
 
@@ -116,7 +116,7 @@ wui/
 ## 상태와 데이터
 
 - 화면 상태는 그 컴포넌트의 `useState` 에 둔다. 전역 Context 는 작업대(`WorkbenchProvider`) 하나뿐이다. 패널 사이의 일(근거 문서 열기 `open`, 인용 보내기 `sendQuote`, 지금 문서 `doc`, 포커스)은 모두 이 Context 를 거친다.
-- 기능 사이의 짧은 신호는 `lib/events.ts` 의 이름 있는 이벤트로 보낸다: `spaces`(space 목록이 바뀜), `settings`(제공사 설정이 바뀜), `zoom`(글자 크기가 바뀜), `agents`(홈 대화가 생기거나 바뀜). 새 신호도 여기에 이름을 더한다.
+- 기능 사이의 짧은 신호는 `lib/events.ts` 의 이름 있는 이벤트로 보낸다: `spaces`(space 목록이 바뀜), `settings`(제공사 설정이 바뀜), `zoom`(글자 크기가 바뀜), `agents`(홈 대화가 생기거나 바뀜), `auth`(어떤 요청이 401 을 받음. Shell 이 로그인 화면으로 바꾼다). 새 신호도 여기에 이름을 더한다.
 - `fetch` 는 `lib/api.ts` 에서만 부른다. 엔드포인트마다 함수 하나, 응답 타입을 함께 둔다. 실패하면 서버의 `error` 문장으로 `ApiError` 를 던지고, 화면이 그 문장을 보여 준다.
 - 브라우저 저장은 `lib/storage.ts` 의 `load` `save` 만 쓴다. 오래 남길 취향은 localStorage: `workbench` `sidebarWidth` `sidebarOpen` `spaceExpanded` `docZoom` `chatZoom` `docLang` `dlFmt` `homeMode` `lastDoc` `model` `space-draft:<그룹>` `pg:<key>`. 새로고침에만 이어지면 되는 화면 상태는 세 번째 인자 `true` 로 sessionStorage: `settingsOpen` `settingsTab` `sidebarScroll` `chatScroll:<그룹>` `docScroll:<경로>`.
 - 문서와 대화 글자 크기는 `<html>` 의 CSS 변수 `--doc-zoom` `--chat-zoom` 으로 퍼뜨린다.
@@ -135,5 +135,5 @@ wui/
 ## 검증
 
 - 바꾼 뒤에는 `npm run build` 가 경고 없이 끝나야 한다.
-- 화면 흐름은 `check/` 의 Playwright 스크립트로 눌러 본다(`uv run --with playwright python check/<이름>.py <스크린샷 폴더>`). api(8768) 와 `npm run dev`(3000) 가 떠 있어야 한다. 다른 주소는 `WUI_URL`, 창을 보려면 `HEADED=1`.
+- 화면 흐름은 `check/` 의 Playwright 스크립트로 눌러 본다(`uv run --with playwright python check/<이름>.py <스크린샷 폴더>`). api(8768) 와 `npm run dev`(3000) 가 떠 있어야 하고, 점검용 계정을 `WUI_EMAIL` `WUI_PASSWORD` 로 넘긴다(`check/account.py` 가 로그인한다). 다른 주소는 `WUI_URL`, 창을 보려면 `HEADED=1`.
 - 새 화면 흐름을 만들면 그 흐름의 점검 스크립트도 하나 둔다.

@@ -16,11 +16,13 @@ openssl rand -base64 32 | tr '+/' '-_'
 
 두 번째 줄의 출력을 `.env/.env.develop` 의 `ENCRYPTION_KEY=` 뒤에 붙인다. 저장한 로그인 정보와 API 키를 이 값으로 암호화하므로 잃지 않게 둔다.
 
-처음 한 번은 빈 DB 를 만든다.
+처음 한 번 관리자 계정을 만든다. 비밀번호를 두 번 묻고, DB 가 없으면 함께 만든다.
 
 ```sh
-python3 personal-research/api/bin/collect.py list
+python3 personal-research/api/bin/user.py add <이메일> --name <이름>
 ```
+
+함께 쓸 사람은 관리자가 화면에서 추가한다. 톱니바퀴 → General → Users 에서 이름과 이메일을 넣으면 무작위 비밀번호가 한 번만 나오므로 복사해 전한다. 받은 사람은 Account 에서 자기 비밀번호로 바꾼다. 수집한 문서는 모두가 함께 보고, 대화와 모델 로그인·API 키는 사람마다 따로다. 각자 자기 계정에 저장한 요금제나 API 키로만 답변과 번역을 받는다. 관리자 비밀번호를 잊으면 `user.py reset <이메일>` 으로 바꾼다.
 
 ## 실행
 
@@ -34,7 +36,7 @@ docker compose --env-file .env/.env.develop -f .docker/docker-compose.develop.ym
 
 ## 로그인
 
-오른쪽 위 톱니바퀴 → Models → 제공사(OpenAI, Anthropic, xAI) → `Log in`. 화면의 안내대로 브라우저에서 승인하면 끝난다. ChatGPT 계정은 `gpt-6-luna` 모델만 쓸 수 있다.
+화면의 로그인 창에 만든 이메일과 비밀번호로 들어간다. 그다음 모델 요금제를 연결한다. 오른쪽 위 톱니바퀴 → Models → 제공사(OpenAI, Anthropic, xAI) → `Log in`. 화면의 안내대로 브라우저에서 승인하면 끝난다. ChatGPT 계정은 `gpt-6-luna` 모델만 쓸 수 있다.
 
 ## 쓰기
 
