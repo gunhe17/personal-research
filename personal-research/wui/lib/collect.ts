@@ -3,6 +3,10 @@ import type { CollectEvent, CollectJob } from "./api";
 export type Step = { key: string; text: string; state: string; at: number; took: number | null };
 export type Progress = { input: string; steps: Step[]; content: string; sources: { id: string; path: string }[]; streaming: boolean };
 
+export function stepsOf(events: CollectEvent[]): Step[] {
+  return events.reduce(apply, { input: "", steps: [], content: "", sources: [], streaming: false }).steps;
+}
+
 export function progress(job: CollectJob): Progress {
   const waiting = job.state === "queued" ? [{ key: "queue", text: "Waiting for the collection ahead", state: "running", at: 0, took: null }] : [];
   const built = job.events.reduce(apply, { input: job.input, steps: waiting, content: "", sources: [], streaming: false });

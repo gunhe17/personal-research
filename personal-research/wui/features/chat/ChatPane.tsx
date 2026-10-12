@@ -10,6 +10,7 @@ import PaneBar from "@/features/workbench/PaneBar";
 import { itemKey, type Group, type Item } from "@/features/workbench/items";
 import { useWorkbench } from "@/features/workbench/WorkbenchProvider";
 import AnnotationLayer, { capture, useAnnotations } from "./Annotations";
+import CollectLive from "./CollectLive";
 import Answer from "./Answer";
 import Composer, { commanded } from "./Composer";
 import Exchange from "./Exchange";
@@ -272,6 +273,7 @@ export default function ChatPane({ group }: { group: Group }) {
                     onOpen={(source) => workbench.open({ kind: "doc", id: source.id, path: source.path }, { beside: group.id })}
                   />
                 ))}
+                {question.kind === "collect" && !answers.length && chat && <CollectLive conversation={chat.id} onDone={() => refresh(chat.domain, chat.id)} />}
               </Exchange>
             ))}
             <AnnotationLayer scope={thread} notes={notes} version={chat} />

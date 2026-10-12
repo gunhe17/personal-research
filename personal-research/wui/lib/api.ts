@@ -75,6 +75,7 @@ export type MessageContext = {
   learning_rate?: number;
   view?: string;
   key?: string;
+  steps?: CollectEvent[];
 };
 
 export type Message = {

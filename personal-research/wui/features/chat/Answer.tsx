@@ -3,7 +3,10 @@
 import type { Message, MessageContext } from "@/lib/api";
 import { chatHtml } from "@/lib/markdown";
 import Button from "@/ui/Button";
+import Icon from "@/ui/Icon";
 import Logo from "@/ui/Logo";
+import Steps from "@/ui/Steps";
+import { stepsOf } from "@/lib/collect";
 import Blocks, { type Scene } from "@/features/blocks/Blocks";
 
 type Props = {
@@ -20,10 +23,8 @@ type Props = {
 export default function Answer({ message, label, provider, scene, onContext, onAsk, onCopy, onOpen }: Props) {
   return (
     <article data-answer-id={message.id} className="mb-10">
-      <div className="mb-4 flex items-center gap-2 text-[12px] text-slate-500">
-        <span className="grid h-5 w-5 place-items-center rounded-full border border-slate-200 font-serif text-[14px] text-slate-800">{provider ? <Logo provider={provider} className="h-3 w-3" /> : "↓"}</span>
-        <span>{label}</span>
-      </div>
+      <Profile provider={provider} label={label} />
+      {message.context?.steps && <Steps steps={stepsOf(message.context.steps)} className="mb-4" />}
       <div data-article className="article">
         {message.rich ? (
           <Blocks rich={message.rich} id={message.id} onContext={onContext} scene={scene} />
@@ -46,5 +47,16 @@ export default function Answer({ message, label, provider, scene, onContext, onA
         <Button tone="link" onClick={onCopy}>복사</Button>
       </div>
     </article>
+  );
+}
+
+export function Profile({ provider, label }: { provider: string | null; label: string }) {
+  return (
+    <div className="mb-4 flex items-center gap-2 text-[12px] text-slate-500">
+      <span className="grid h-5 w-5 place-items-center rounded-full border border-slate-200 text-slate-800">
+        {provider ? <Logo provider={provider} className="h-3 w-3" /> : <Icon name="collected" className="h-3 w-3" />}
+      </span>
+      <span>{label}</span>
+    </div>
   );
 }

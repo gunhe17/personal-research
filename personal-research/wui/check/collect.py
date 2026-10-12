@@ -34,6 +34,10 @@ with sync_playwright() as p:
     page.wait_for_timeout(500)
     print("3 settings cards:", dialog.locator("li", has_text="collect-check").count() >= len(jobs))
     page.screenshot(path=f"{OUT}/collect.png")
+    page.keyboard.press("Escape")
+    page.goto(f"{BASE}/collected?agent={jobs[0]['conversation_id']}")
+    page.wait_for_selector("[data-answer-id]")
+    print("4 conversation shows steps:", page.locator("[data-answer-id]", has_text="Detected").count())
     for job in jobs:
         page.evaluate("id => fetch(`/api/agent/conversations/${id}`, { method: 'DELETE' })", job["conversation_id"])
     print("errors:", errors[:5])
