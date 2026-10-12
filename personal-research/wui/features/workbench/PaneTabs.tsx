@@ -11,7 +11,8 @@ export default function PaneTabs() {
   const workbench = useWorkbench();
   const many = workbench.groups.length > 1;
   return (
-    <div role="tablist" className="flex h-[34px] shrink-0 overflow-x-auto overflow-y-hidden border-b border-slate-200 bg-slate-50 whitespace-nowrap [scrollbar-width:none] md:hidden [&::-webkit-scrollbar]:hidden">
+    <div className="relative shrink-0 md:hidden">
+      <div role="tablist" className="flex h-9 overflow-x-auto overflow-y-hidden border-b border-slate-200 bg-slate-50 whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {workbench.groups.map((group, index) => {
         const active = index === workbench.focus;
         const name = nameOf(group.item);
@@ -19,17 +20,19 @@ export default function PaneTabs() {
           <div key={group.id} className={cx("flex max-w-full flex-1 shrink-0 items-center gap-1.5 border-r pr-1 pl-2.5 transition-colors duration-200", active ? "border-slate-100 bg-white" : "border-slate-200 bg-slate-50")}>
             <button type="button" role="tab" aria-selected={active} title={name} onClick={() => workbench.focusGroup(group.id)} className="flex min-w-0 items-center gap-1.5 self-stretch focus:outline-none">
               {many && active && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-apple" />}
-              <span className={cx("text-[12px]", active ? "text-slate-400" : "text-slate-300")}>{kindLabel(group.item)}</span>
-              <span className="text-[12px] text-slate-200">/</span>
-              <span className={cx("min-w-0 truncate text-[12px]", active ? "text-slate-900" : "text-slate-500")}>{name}</span>
+              <span className={cx("text-[13px]", active ? "text-slate-400" : "text-slate-300")}>{kindLabel(group.item)}</span>
+              <span className="text-[13px] text-slate-200">/</span>
+              <span className={cx("min-w-0 truncate text-[13px]", active ? "text-slate-900" : "text-slate-500")}>{name}</span>
             </button>
             <div className="ml-auto flex items-center">
               {active && <span id={`tab-actions-${group.id}`} className="flex items-center empty:hidden" />}
-              <IconButton icon="close" size="sm" label="닫기" onClick={() => workbench.close(group.id)} />
+              <IconButton icon="close" label="닫기" onClick={() => workbench.close(group.id)} />
             </div>
           </div>
         );
       })}
+      </div>
+      <div id="tab-menu" className="absolute top-full right-1 z-30" />
     </div>
   );
 }

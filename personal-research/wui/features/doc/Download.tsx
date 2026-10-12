@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { createPortal } from "react-dom";
 import { api } from "@/lib/api";
 import { bilingualMarkdown } from "@/lib/markdown";
 import { load, save } from "@/lib/storage";
@@ -30,6 +31,10 @@ export default function Download({ id, path, paired, html, lang, texts, content,
   const [choice, setChoice] = useState<Lang>("orig");
   const [format, setFormat] = useState<"md" | "pdf">("md");
   const box = useRef<HTMLDivElement>(null);
+  const sheet = useRef<HTMLDivElement>(null);
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const [tabbed, setTabbed] = useState(false);
+  useEffect(() => setTabbed(Boolean(box.current?.closest("[role=tablist]"))), []);
 
   useEffect(() => setFormat(load<"md" | "pdf">("dlFmt", "md")), []);
 
@@ -38,7 +43,7 @@ export default function Download({ id, path, paired, html, lang, texts, content,
   }, [open, paired, lang]);
 
   const close = useCallback(() => setOpen(false), []);
-  useOutside(box, close, open);
+  useOutside([box, sheet], close, open);
   useEscape(close, { when: open });
 
   const name = path.split("/").pop() || "document";
@@ -66,40 +71,49 @@ export default function Download({ id, path, paired, html, lang, texts, content,
     toast(`${name} downloaded`);
   };
 
+  useEffect(() => {
+    const slot = document.getElementById("tab-menu");
+    setAnchor(open && slot && slot.getClientRects().length ? slot : null);
+  }, [open]);
+
+  const menu = (
+    <div ref={sheet} className="contents">
+      <Menu label="Download" className="absolute top-full right-0 mt-1 w-64 p-3">
+        <SectionHeader title="Language" size="sm" />
+        <Segmented
+          label="Language"
+          value={choice}
+          onChange={setChoice}
+          className="mb-2 self-start"
+          options={[
+            { value: "orig", label: "Eng" },
+            { value: "trans", label: "Korean", disabled: !paired, title: paired ? "" : "This document has no translation" },
+            { value: "both", label: "Line by line", disabled: !paired, title: paired ? "" : "This document has no translation" },
+          ]}
+        />
+        <SectionHeader title="Format" size="sm" />
+        <Segmented
+          label="Format"
+          value={output}
+          onChange={(next) => {
+            setFormat(next);
+            save("dlFmt", next);
+          }}
+          className="mb-2 self-start"
+          options={[
+            { value: "md", label: html ? "HTML" : "Markdown" },
+            { value: "pdf", label: "PDF", disabled: html, title: html ? "Open the original and print from the new tab" : "" },
+          ]}
+        />
+        <Button tone="fill" className="w-full" onClick={run}>Download</Button>
+      </Menu>
+    </div>
+  );
+
   return (
     <div ref={box} className="relative flex">
-      <IconButton icon="download" size="sm" label="Download" active={open} aria-expanded={open} onClick={() => setOpen(!open)} />
-      {open && (
-        <Menu label="Download" className="absolute top-full right-0 mt-1 w-64 p-3">
-          <SectionHeader title="Language" size="sm" />
-          <Segmented
-            label="Language"
-            value={choice}
-            onChange={setChoice}
-            className="mb-2 self-start"
-            options={[
-              { value: "orig", label: "Eng" },
-              { value: "trans", label: "Korean", disabled: !paired, title: paired ? "" : "This document has no translation" },
-              { value: "both", label: "Line by line", disabled: !paired, title: paired ? "" : "This document has no translation" },
-            ]}
-          />
-          <SectionHeader title="Format" size="sm" />
-          <Segmented
-            label="Format"
-            value={output}
-            onChange={(next) => {
-              setFormat(next);
-              save("dlFmt", next);
-            }}
-            className="mb-2 self-start"
-            options={[
-              { value: "md", label: html ? "HTML" : "Markdown" },
-              { value: "pdf", label: "PDF", disabled: html, title: html ? "Open the original and print from the new tab" : "" },
-            ]}
-          />
-          <Button tone="fill" className="w-full" onClick={run}>Download</Button>
-        </Menu>
-      )}
+      <IconButton icon="download" size={tabbed ? "md" : "sm"} label="Download" active={open} aria-expanded={open} onClick={() => setOpen(!open)} />
+      {open && (anchor ? createPortal(menu, anchor) : menu)}
     </div>
   );
 }
