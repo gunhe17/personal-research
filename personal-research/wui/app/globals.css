@@ -63,6 +63,11 @@
   animation: sweep 2.2s linear infinite;
 }
 
+@media (pointer: coarse) {
+  .touch:not(.absolute) { position: relative; }
+  .touch::before { content: ""; position: absolute; inset: -8px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition-duration: 1ms !important; }
   .sweep { color: #1d1d1f; }

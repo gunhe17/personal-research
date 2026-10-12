@@ -12,7 +12,7 @@ export default function Exchange({ question, canRetry, children, onScene, onActi
   const quote = "mb-2 border-l-2 border-slate-200 pl-2.5 text-slate-500";
   return (
     <section className="mt-12 first:mt-0">
-      <div className="mb-8 ml-auto w-fit max-w-[85%] rounded-lg border border-slate-100 bg-white px-4 py-3 leading-[1.7] whitespace-pre-wrap" style={{ fontSize: "calc(14px * var(--chat-zoom))" }}>
+      <div className="mb-8 ml-auto w-fit max-w-[85%] rounded-lg border border-slate-100 bg-white px-4 py-3 leading-[1.7] break-words whitespace-pre-wrap" style={{ fontSize: "calc(14px * var(--chat-zoom))" }}>
         <div className="mb-1 text-[11px] text-slate-500">나</div>
         {context.selected_text && <blockquote className={quote}>{context.selected_text}</blockquote>}
         {(context.citations || []).map((cite, i) => <blockquote key={i} className={quote}>{cite.text}</blockquote>)}

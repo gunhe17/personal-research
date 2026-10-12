@@ -36,7 +36,7 @@ export default function Workbench() {
     );
   }
   return (
-    <div className="grid min-h-0 min-w-0 flex-1 gap-px bg-slate-100" style={{ gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))` }}>
+    <div className="grid min-h-0 min-w-0 flex-1 gap-px bg-slate-100 max-md:grid-cols-1!" style={{ gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))` }}>
       {workbench.groups.map((group, index) => (
         <section
           key={group.id}

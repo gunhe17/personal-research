@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { emit } from "@/lib/events";
 import { load, save } from "@/lib/storage";
 import TreeRow from "@/ui/TreeRow";
 import AgentSection from "./AgentSection";
@@ -28,7 +29,16 @@ export default function Sidebar() {
 
   return (
     <nav className="flex flex-col gap-1 px-2 pt-2 pb-2">
-      <TreeRow variant="nav" label="Home" icon="home" active={pathname === "/"} onClick={() => router.push("/")} />
+      <TreeRow
+        variant="nav"
+        label="Home"
+        icon="home"
+        active={pathname === "/"}
+        onClick={() => {
+          router.push("/");
+          emit("sidebar");
+        }}
+      />
       <AgentSection open={isOpen("agents")} onToggle={() => toggle("agents")} />
       <CollectedSection expanded={expanded} isOpen={isOpen} onToggle={toggle} onClose={close} />
       <SpaceSection isOpen={isOpen} onToggle={toggle} onClose={close} onReveal={reveal} />

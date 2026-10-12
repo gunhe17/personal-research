@@ -11,6 +11,8 @@ import Header from "./Header";
 import LoginScreen from "./LoginScreen";
 import Sidebar from "./Sidebar";
 
+const OVERLAY = "(max-width: 767px)";
+
 const clampWidth = (px: number) => Math.min(480, Math.max(200, Math.round(px)));
 
 export default function Shell({ children }: { children: ReactNode }) {
@@ -25,6 +27,16 @@ export default function Shell({ children }: { children: ReactNode }) {
     api.me().then(setAccount, () => setAccount(null));
     return listen("auth", () => setAccount(null));
   }, []);
+
+  useEffect(
+    () =>
+      listen("sidebar", () => {
+        if (!window.matchMedia(OVERLAY).matches) return;
+        setSidebar(false);
+        save("sidebarOpen", false);
+      }),
+    [],
+  );
 
   const showSidebar = (next: boolean) => {
     setSidebar(next);

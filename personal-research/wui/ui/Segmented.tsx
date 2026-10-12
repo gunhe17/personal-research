@@ -13,7 +13,7 @@ export default function Segmented<T extends string>({ options, value, onChange, 
           disabled={option.disabled}
           title={option.title}
           onClick={() => onChange(option.value)}
-          className="rounded-full px-3 py-1 text-[12px] text-slate-600 transition duration-150 hover:text-slate-900 disabled:opacity-40 aria-selected:bg-white aria-selected:font-medium aria-selected:text-slate-900"
+          className="rounded-full px-3 py-1 text-[12px] whitespace-nowrap text-slate-600 transition duration-150 hover:text-slate-900 disabled:opacity-40 aria-selected:bg-white aria-selected:font-medium aria-selected:text-slate-900"
         >
           {option.label}
         </button>

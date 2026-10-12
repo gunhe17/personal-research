@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { cx } from "@/lib/cx";
 import Icon from "./Icon";
 import Menu from "./Menu";
@@ -10,8 +10,15 @@ type Props = { label: string; name: string; open: boolean; onToggle: () => void;
 
 export default function MenuButton({ label, name, open, onToggle, onClose, up, children }: Props) {
   const box = useRef<HTMLDivElement>(null);
+  const [flip, setFlip] = useState(false);
 
   useOutside(box, onClose, open);
+
+  useLayoutEffect(() => {
+    if (!open) return setFlip(false);
+    const menu = box.current?.querySelector("[role=menu]");
+    if (menu && menu.getBoundingClientRect().left < 8) setFlip(true);
+  }, [open]);
 
   return (
     <div ref={box} className="relative shrink-0 self-center">
@@ -26,7 +33,7 @@ export default function MenuButton({ label, name, open, onToggle, onClose, up, c
         {label}
         <Icon name="down" className="h-3.5 w-3.5 text-slate-400" />
       </button>
-      {open && <Menu label={name} className={cx("absolute right-0 w-56", up ? "bottom-full mb-2" : "top-full mt-2")}>{children}</Menu>}
+      {open && <Menu label={name} className={cx("absolute w-56 max-w-[calc(100vw-32px)]", flip ? "left-0" : "right-0", up ? "bottom-full mb-2" : "top-full mt-2")}>{children}</Menu>}
     </div>
   );
 }
