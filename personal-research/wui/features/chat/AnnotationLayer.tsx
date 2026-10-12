@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useState, type RefObject } from "react";
 import type { Annotation } from "@/lib/api";
 import Button from "@/ui/Button";
+import { uuid } from "@/lib/id";
 
 export type Notes = ReturnType<typeof useAnnotations>;
 
@@ -19,7 +20,7 @@ export function useAnnotations(initial: Annotation[], onChange: (items: Annotati
     const found = items.find((a) => a.source_id === candidate.source_id && a.start === candidate.start && a.end === candidate.end);
     if (found) return setEditing({ id: found.id, original: found.comment });
     if (items.length >= 10) return;
-    const item = { ...candidate, id: crypto.randomUUID() };
+    const item = { ...candidate, id: uuid() };
     commit([...items, item]);
     setEditing({ id: item.id, original: null });
   };

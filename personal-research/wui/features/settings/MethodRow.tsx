@@ -42,8 +42,8 @@ export default function MethodRow({ provider, method, status, rank, first, expan
   const [removing, setRemoving] = useState(false);
   return (
     <div>
-      <div className="group flex items-center gap-1.5 rounded-lg py-1.5 pr-1.5 pl-1 text-sm transition duration-150 hover:bg-slate-50 max-sm:flex-wrap">
-        <button type="button" aria-expanded={expanded} onClick={onToggle} className="flex min-w-0 flex-1 items-center gap-1.5 text-left max-sm:basis-full">
+      <div className="group flex items-center gap-1.5 rounded-lg py-1.5 pr-1.5 pl-1 text-sm transition duration-150 hover:bg-slate-50">
+        <button type="button" aria-expanded={expanded} onClick={onToggle} className="flex min-w-0 flex-1 items-center gap-1.5 text-left">
           <Chevron open={expanded} />
           <Icon name={plan(method) ? "person" : "key"} className={cx("h-3.5 w-3.5", method.enabled ? "text-slate-500" : "text-slate-300")} />
           <span className={cx("w-4 shrink-0 text-center text-[11px] font-semibold", first ? "text-apple" : "text-slate-400")}>
@@ -57,7 +57,7 @@ export default function MethodRow({ provider, method, status, rank, first, expan
             {method.enabled && plan(method) && !status ? "…" : usable(method, status) ? "On" : "Off"}
           </span>
         </button>
-        <span className="flex shrink-0 items-center text-slate-400 opacity-60 transition group-hover:opacity-100 max-sm:ml-auto">
+        <span className="flex shrink-0 items-center text-slate-400 opacity-60 transition group-hover:opacity-100">
           <Arrow label="Move up" path="M4 10l4-4 4 4" disabled={saving || !canMoveUp} onClick={() => onShift(-1)} />
           <Arrow label="Move down" path="M4 6l4 4 4-4" disabled={saving || !canMoveDown} onClick={() => onShift(1)} />
         </span>

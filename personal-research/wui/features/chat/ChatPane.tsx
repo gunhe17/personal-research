@@ -20,6 +20,7 @@ import useChatScroll from "./useChatScroll";
 import useConversation from "./useConversation";
 import useDraft, { type Payload, type Quote } from "./useDraft";
 import useThreadSelection from "./useThreadSelection";
+import { uuid } from "@/lib/id";
 
 export default function ChatPane({ group }: { group: Group }) {
   const workbench = useWorkbench();
@@ -78,7 +79,7 @@ export default function ChatPane({ group }: { group: Group }) {
     const content = text.trim() || (notes.items.length ? "첨부한 주석을 확인하고 설명해줘." : "");
     if (!content || sending) return;
     const payload: Payload = retry?.content === content ? retry : {
-      client_id: crypto.randomUUID(),
+      client_id: uuid(),
       content,
       kind: commanded(content)?.kind || (/^(next|go|다음)$/i.test(content) ? "next" : /인출/.test(content) ? "retrieval" : "question"),
       context: { ...(context || {}), model: choice || undefined, selected_text: quote?.text || "", source_path: quote?.path || "", annotations: notes.items.map((a) => ({ ...a })) },
