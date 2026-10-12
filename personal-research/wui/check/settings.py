@@ -15,7 +15,6 @@ with sync_playwright() as p:
     errors = []
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.on("console", lambda m: m.type == "error" and errors.append(m.text))
-    page.on("dialog", lambda d: d.accept())
     page.set_default_timeout(15000)
     sign_in(page, BASE)
     page.goto(BASE + "/")
@@ -52,7 +51,7 @@ with sync_playwright() as p:
     page.screenshot(path=f"{OUT}/sidebar.png")
 
     page.get_by_label("Settings").click()
-    dialog = page.get_by_role("dialog")
+    dialog = page.get_by_role("dialog", name="Settings")
     dialog.get_by_role("button", name="Anthropic", exact=True).click()
     before = [m["id"] for m in page.evaluate("fetch('/api/settings').then(r => r.json())")["providers"][1]["methods"]]
     dialog.get_by_role("button", name="+ API key").click()
@@ -70,9 +69,11 @@ with sync_playwright() as p:
     row.get_by_role("button", name="Replace").click()
     row.get_by_role("button", name="Cancel").click()
     row.get_by_role("button", name="Remove", exact=True).click()
+    page.get_by_role("dialog", name="Remove key").get_by_role("button", name="Remove").click()
     page.wait_for_timeout(600)
     print("6 key removed, input back:", row.get_by_placeholder("Anthropic API key").count())
     row.get_by_role("button", name=f"Remove {added['label']}", exact=True).click()
+    page.get_by_role("dialog", name="Remove key").get_by_role("button", name="Remove").click()
     page.wait_for_timeout(600)
     after = page.evaluate("fetch('/api/settings').then(r => r.json())")["providers"][1]["methods"]
     print("7 method removed:", [m["id"] for m in after])
