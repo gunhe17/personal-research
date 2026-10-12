@@ -67,7 +67,7 @@ export default function Download({ id, path, paired, html, lang, texts, content,
   };
 
   return (
-    <div ref={box} className="relative">
+    <div ref={box} className="relative flex">
       <IconButton icon="download" size="sm" label="Download" active={open} aria-expanded={open} onClick={() => setOpen(!open)} />
       {open && (
         <Menu label="Download" className="absolute top-full right-0 mt-1 w-64 p-3">

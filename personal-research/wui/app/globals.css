@@ -65,7 +65,7 @@
 
 @media (pointer: coarse) {
   .touch:not(.absolute) { position: relative; }
-  .touch::before { content: ""; position: absolute; inset: -8px; }
+  .touch::before { content: ""; position: absolute; inset: -5px -8px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

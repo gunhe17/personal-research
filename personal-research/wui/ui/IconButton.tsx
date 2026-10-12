@@ -18,7 +18,7 @@ export default function IconButton({ icon, label, active, size = "md", className
       )}
       {...rest}
     >
-      {icon === "close" && size === "sm" ? <span className="text-[15px] leading-none">×</span> : <Icon name={icon} className={size === "md" ? "h-[18px] w-[18px]" : "h-[15px] w-[15px]"} />}
+      <Icon name={icon} className={size === "md" ? "h-[18px] w-[18px]" : "h-[14px] w-[14px]"} />
     </button>
   );
 }
