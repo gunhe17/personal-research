@@ -104,7 +104,9 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
         <div className="mb-2 px-2 text-sm font-semibold text-slate-900">Settings</div>
         <Group icon="gear" label="General">
           <TreeRow variant="nav" label="Font" active={tab === "font"} onClick={() => setTab("font")} />
-          <TreeRow variant="nav" label="Account" active={tab === "account"} onClick={() => setTab("account")} />
+        </Group>
+        <Group icon="person" label="Account">
+          <TreeRow variant="nav" label="Profile" active={tab === "account"} onClick={() => setTab("account")} />
           {account?.role === "admin" && <TreeRow variant="nav" label="Users" active={tab === "users"} onClick={() => setTab("users")} />}
         </Group>
         <Group icon="chip" label="Models">
