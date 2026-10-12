@@ -6,11 +6,16 @@ const doc = new Marked({ gfm: true, breaks: false });
 const BLOCKED = "script,iframe,frame,object,embed,style,link,meta,base,form,animate,set";
 const UNSAFE = /^\s*(javascript|vbscript|data):/i;
 
-function clean(html: string): string {
+function clean(html: string, base?: string): string {
   if (typeof document === "undefined") return html;
   const box = document.createElement("template");
   box.innerHTML = html;
   box.content.querySelectorAll(BLOCKED).forEach((node) => node.remove());
+  box.content.querySelectorAll("img").forEach((image) => {
+    image.setAttribute("src", located(image.getAttribute("src") || "", base));
+    image.setAttribute("referrerpolicy", "no-referrer");
+    image.setAttribute("loading", "lazy");
+  });
   box.content.querySelectorAll("*").forEach((node) => {
     for (const { name, value } of [...node.attributes]) {
       const link = /^(href|src|xlink:href|action|formaction|srcdoc)$/.test(name);
@@ -24,8 +29,20 @@ export function chatHtml(source: string): string {
   return clean((chat.parse(source || "") as string).replace(/<p>\s*<\/p>/g, ""));
 }
 
-export function docHtml(source: string): string {
-  return clean(doc.parse(source || "") as string);
+export function docHtml(source: string, base?: string): string {
+  return clean(doc.parse(source || "") as string, base);
+}
+
+function located(source: string, base?: string): string {
+  let url: URL;
+  try {
+    url = new URL(source, base);
+  } catch {
+    return source;
+  }
+  const blob = url.host === "github.com" ? url.pathname.match(/^\/([^/]+)\/([^/]+)\/blob\/(.+)$/) : null;
+
+  return blob ? `https://raw.githubusercontent.com/${blob[1]}/${blob[2]}/${blob[3]}` : url.href;
 }
 
 function blocks(source: string): Token[] {
@@ -43,7 +60,7 @@ function paired(a: Token | undefined, b: Token | undefined): [string[], string[]
   return left.length === right.length ? [left, right] : null;
 }
 
-export function interleavedHtml(original: string, translation: string): string {
+export function interleavedHtml(original: string, translation: string, base?: string): string {
   const a = blocks(original);
   const b = blocks(translation);
   let html = "";
@@ -56,7 +73,7 @@ export function interleavedHtml(original: string, translation: string): string {
     if (a[i]) html += `<div class="original-block">${doc.parser([a[i]])}</div>`;
     if (b[i] && (!a[i] || b[i].raw.trim() !== a[i].raw.trim())) html += `<div class="translation-block">${doc.parser([b[i]])}</div>`;
   }
-  return clean(html);
+  return clean(html, base);
 }
 
 export function bilingualMarkdown(original: string, translation: string): string {

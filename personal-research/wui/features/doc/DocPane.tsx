@@ -108,7 +108,8 @@ export default function DocPane({ group, id }: { group: Group; id: string }) {
     }
     if (!markdown) return <pre className="enter-fade rounded-xl bg-white p-4 font-mono text-[0.92em] whitespace-pre-wrap text-slate-800">{texts.orig}</pre>;
     if (shown !== "orig" && texts.trans === null) return <p className="py-24 text-center text-[14px] text-slate-400">Loading…</p>;
-    const source = shown === "trans" ? docHtml(texts.trans!) : shown === "both" ? interleavedHtml(texts.orig, texts.trans!) : docHtml(texts.orig);
+    const base = meta?.url;
+    const source = shown === "trans" ? docHtml(texts.trans!, base) : shown === "both" ? interleavedHtml(texts.orig, texts.trans!, base) : docHtml(texts.orig, base);
     return <div className="prose-doc enter-fade" dangerouslySetInnerHTML={{ __html: source }} />;
   };
 
