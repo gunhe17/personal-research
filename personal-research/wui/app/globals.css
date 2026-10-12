@@ -146,5 +146,14 @@
 }
 
 @media (max-width: 767px) {
+  body { zoom: 1.025; height: calc(100dvh / 1.025); }
+}
+@media (max-width: 639px) {
+  body { zoom: 1.05; height: calc(100dvh / 1.05); }
+}
+@media (max-width: 539px) {
+  body { zoom: 1.075; height: calc(100dvh / 1.075); }
+}
+@media (max-width: 479px) {
   body { zoom: 1.1; height: calc(100dvh / 1.1); }
 }
