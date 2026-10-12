@@ -45,5 +45,11 @@ with sync_playwright() as p:
     nav.get_by_label("Collapse all").click()
     page.wait_for_timeout(500)
     print("6 collapse all:", nav.locator("button[aria-expanded=true]").count() == 0)
+    agents = page.evaluate("fetch('/api/agent/conversations').then(r => r.json())")["items"]
+    if agents:
+        row = nav.get_by_role("button", name=agents[0]["title"]).first
+        row.click()
+        page.wait_for_selector("[data-answer-id]")
+        print("7 agent row opens chat:", row.get_attribute("aria-selected"))
     print("errors:", errors[:5])
     browser.close()

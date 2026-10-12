@@ -37,6 +37,7 @@ export default function HomePage() {
     if (mode === "ask") {
       try {
         const created = await api.startAgent(text);
+        emit("agents");
         router.push(`/collected?agent=${encodeURIComponent(created.id)}`);
         return true;
       } catch (error) {
@@ -76,6 +77,7 @@ export default function HomePage() {
     }
     emit("spaces");
     emit("collect");
+    emit("agents");
   };
 
   const empty = !replies.length;

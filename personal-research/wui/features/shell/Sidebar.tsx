@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
-import { api, type Space, type SpaceItem } from "@/lib/api";
+import { api, type ConversationItem, type Space, type SpaceItem } from "@/lib/api";
 import { listen } from "@/lib/events";
 import { load, save } from "@/lib/storage";
 import Fold from "@/ui/Fold";
@@ -22,6 +22,7 @@ export default function Sidebar() {
   const [details, setDetails] = useState<Record<string, Space>>({});
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [query, setQuery] = useState("");
+  const [agents, setAgents] = useState<ConversationItem[] | null>(null);
   const requested = useRef(new Set<string>());
 
   const refresh = useCallback(() => {
@@ -35,6 +36,12 @@ export default function Sidebar() {
     refresh();
     return listen("spaces", refresh);
   }, [refresh]);
+
+  useEffect(() => {
+    const reload = () => api.agents().then((data) => setAgents(data.items), () => setAgents([]));
+    reload();
+    return listen("agents", reload);
+  }, []);
 
   const current = workbench.activeSpace;
   const needle = query.trim().toLowerCase();
@@ -109,6 +116,19 @@ export default function Sidebar() {
           </>
         )}
       </Fold>
+      <TreeRow variant="nav" label="Agent" icon="chat" onClick={() => toggle("agents")} />
+      <Fold open={isOpen("agents")} className="mt-1 ml-3 border-l border-slate-100 pl-1">
+        {agents && !agents.length && <div className="px-2 py-1.5 text-xs text-slate-400">Nothing yet</div>}
+        {(agents || []).map((conversation) => (
+          <Leaf
+            key={conversation.id}
+            row={[{ kind: "agent", agent: conversation.id, title: conversation.title }, conversation.collected_id ? "collected" : "chat", conversation.title || "새 대화"]}
+            active={workbench.activeKey}
+            onOpen={(item) => workbench.open(item)}
+            flat
+          />
+        ))}
+      </Fold>
     </nav>
   );
 }
@@ -151,10 +171,11 @@ function Results({ needle, spaces, details, active, onOpen, onReveal }: { needle
   );
 }
 
-function Leaf({ row: [item, icon, label], active, onOpen }: { row: Row; active: string; onOpen: (item: Item) => void }) {
+function Leaf({ row: [item, icon, label], active, onOpen, flat }: { row: Row; active: string; onOpen: (item: Item) => void; flat?: boolean }) {
   return (
     <TreeRow
       variant="leaf"
+      flat={flat}
       label={label}
       icon={icon}
       active={active === itemKey(item)}

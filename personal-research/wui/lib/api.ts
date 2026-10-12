@@ -162,6 +162,7 @@ export const api = {
   material: (id: string) => request<Material>(`/api/materials/${encodeURIComponent(id)}`),
 
   conversation: (domain: Domain, id: string) => request<Conversation>(`/api/${domain}/conversations/${encodeURIComponent(id)}`),
+  agents: () => request<{ items: ConversationItem[] }>("/api/agent/conversations"),
   startAgent: (question: string) => send<{ id: string }>("/api/agent/conversations", { question, client_id: crypto.randomUUID() }),
   startSpace: (space: string, collected: string) => send<{ id: string }>("/api/space/conversations", { space_id: space, collected_id: collected }),
   ask: (domain: Domain, id: string, payload: unknown) => send<Message>(`/api/${domain}/conversations/${encodeURIComponent(id)}/messages`, payload),
