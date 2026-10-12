@@ -6,7 +6,7 @@ import { cx } from "@/lib/cx";
 import ChatPane from "@/features/chat/ChatPane";
 import DocPane from "@/features/doc/DocPane";
 import MaterialPane from "@/features/material/MaterialPane";
-import { fromQuery, itemKey, LIMIT, type Group, type Item, type Side } from "./items";
+import { fromQuery, itemKey, LIMIT, type Group, type Item, type Side } from "@/lib/items";
 import { useWorkbench } from "./WorkbenchProvider";
 
 const SIDES: Record<Side, string> = { left: "inset-y-0 left-0 right-1/2", right: "inset-y-0 left-1/2 right-0", center: "inset-0" };

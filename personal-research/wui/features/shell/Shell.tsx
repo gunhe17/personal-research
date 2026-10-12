@@ -6,7 +6,7 @@ import { api, type Account } from "@/lib/api";
 import { listen } from "@/lib/events";
 import { load, save } from "@/lib/storage";
 import SettingsModal from "@/features/settings/SettingsModal";
-import { applyZoom, readZoom } from "@/features/settings/zoom";
+import { applyZoom, readZoom } from "@/lib/zoom";
 import Header from "./Header";
 import LoginScreen from "./LoginScreen";
 import Sidebar from "./Sidebar";

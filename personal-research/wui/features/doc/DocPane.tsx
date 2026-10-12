@@ -8,7 +8,7 @@ import Button from "@/ui/Button";
 import Segmented from "@/ui/Segmented";
 import { toast } from "@/ui/Toaster";
 import PaneBar from "@/features/workbench/PaneBar";
-import type { Group } from "@/features/workbench/items";
+import type { Group } from "@/lib/items";
 import { useWorkbench } from "@/features/workbench/WorkbenchProvider";
 import Download from "./Download";
 import SelectionBar from "./SelectionBar";

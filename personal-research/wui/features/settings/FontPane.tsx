@@ -5,7 +5,7 @@ import { listen } from "@/lib/events";
 import Button from "@/ui/Button";
 import KeyValue from "@/ui/KeyValue";
 import SectionHeader from "@/ui/SectionHeader";
-import { applyZoom, MAX, MIN, readZoom, type Zoom } from "./zoom";
+import { applyZoom, MAX, MIN, readZoom, type Zoom } from "@/lib/zoom";
 
 export default function FontPane() {
   return (

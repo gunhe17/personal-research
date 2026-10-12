@@ -4,7 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { load, save } from "@/lib/storage";
 import { toast } from "@/ui/Toaster";
-import { itemKey, legacy, LIMIT, type Group, type Item, type Side } from "./items";
+import { itemKey, legacy, LIMIT, type Group, type Item, type Side } from "@/lib/items";
 
 type Doc = { id: string; path: string };
 type Quote = { target: string; text: string; path: string; id: string; nonce: number };

@@ -2,8 +2,8 @@
 
 import type { ReactNode } from "react";
 import type { Message, MessageContext } from "@/lib/api";
+import { format } from "@/lib/number";
 import Button from "@/ui/Button";
-import { format } from "@/features/blocks/Playground";
 
 type Props = { question: Message; canRetry: boolean; children: ReactNode; onScene: (context: MessageContext) => void; onAction: (action: "retry" | "cancel") => void };
 

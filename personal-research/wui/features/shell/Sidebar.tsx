@@ -10,7 +10,7 @@ import Fold from "@/ui/Fold";
 import Icon from "@/ui/Icon";
 import IconButton from "@/ui/IconButton";
 import TreeRow from "@/ui/TreeRow";
-import { itemKey, type Item } from "@/features/workbench/items";
+import { itemKey, type Item } from "@/lib/items";
 import { useWorkbench } from "@/features/workbench/WorkbenchProvider";
 
 type Row = [Item, string, string];

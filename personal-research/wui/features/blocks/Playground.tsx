@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import type { MessageContext, PlaygroundConfig } from "@/lib/api";
+import { format } from "@/lib/number";
 import { load, save } from "@/lib/storage";
 import Button from "@/ui/Button";
 import type { Scene } from "./Blocks";

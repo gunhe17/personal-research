@@ -5,7 +5,7 @@ import { api, type Material, type Rich } from "@/lib/api";
 import { chatHtml } from "@/lib/markdown";
 import Blocks from "@/features/blocks/Blocks";
 import PaneBar from "@/features/workbench/PaneBar";
-import type { Group } from "@/features/workbench/items";
+import type { Group } from "@/lib/items";
 
 const KIND: Record<string, string> = { lesson: "수업", note: "노트", log: "기록", plan: "목적" };
 

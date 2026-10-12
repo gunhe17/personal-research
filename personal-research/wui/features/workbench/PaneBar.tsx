@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { cx } from "@/lib/cx";
 import IconButton from "@/ui/IconButton";
-import { kindLabel, type Group } from "./items";
+import { kindLabel, type Group } from "@/lib/items";
 import { useWorkbench } from "./WorkbenchProvider";
 
 export default function PaneBar({ group, name, title, actions }: { group: Group; name: string; title?: string; actions?: ReactNode }) {

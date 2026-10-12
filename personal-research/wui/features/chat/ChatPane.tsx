@@ -7,7 +7,7 @@ import { load, save } from "@/lib/storage";
 import Button from "@/ui/Button";
 import type { Scene } from "@/features/blocks/Blocks";
 import PaneBar from "@/features/workbench/PaneBar";
-import { itemKey, type Group, type Item } from "@/features/workbench/items";
+import { itemKey, type Group, type Item } from "@/lib/items";
 import { useWorkbench } from "@/features/workbench/WorkbenchProvider";
 import AnnotationLayer, { capture, useAnnotations } from "./Annotations";
 import CollectCard from "./CollectCard";
