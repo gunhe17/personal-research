@@ -13,6 +13,8 @@ from pathlib import Path
 
 API = Path(__file__).resolve().parents[2]
 DATABASE = API / (os.environ.get("DATABASE_PATH") or "database/research.db")
+CLI = API / "data" / "cli"
+IDENTIFIER = r"[a-zA-Z0-9_-]+"
 LANGUAGES = ("eng", "kor")
 RENAMED = {"docs": "document", "papers": "paper", "repos": "repository", "videos": "video"}
 DOCUMENT_SUFFIX = (".md", ".html")
@@ -23,6 +25,13 @@ MESSAGE = (
     "id", "conversation_id", "role", "kind", "content", "context", "rich", "sources",
     "question_id", "client_id", "status", "error", "created_at",
 )
+LATEST = """FROM collected_content AS c
+JOIN collected ON collected.id = c.collected_id
+JOIN (SELECT collected_id, language, MAX(version) AS version
+      FROM collected_content GROUP BY collected_id, language) AS top
+  ON top.collected_id = c.collected_id
+ AND top.language = c.language
+ AND top.version = c.version"""
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS collected (
     id   TEXT PRIMARY KEY,
@@ -399,13 +408,7 @@ def export(*, folder: Path) -> str:
     with session() as connection:
         connection.row_factory = sqlite3.Row
         for row in connection.execute(
-            """SELECT collected.path, c.language, c.content FROM collected_content AS c
-               JOIN collected ON collected.id = c.collected_id
-               JOIN (SELECT collected_id, language, MAX(version) AS version
-                     FROM collected_content GROUP BY collected_id, language) AS top
-                 ON top.collected_id = c.collected_id
-                AND top.language = c.language
-                AND top.version = c.version"""
+            f"SELECT collected.path, c.language, c.content {LATEST}"
         ):
             write_file(path=folder / row["language"] / row["path"], text=row["content"])
             documents += 1
@@ -418,6 +421,10 @@ def export(*, folder: Path) -> str:
             records += 1
 
     return f"{documents} documents and {records} metadata rows exported to {folder}"
+
+
+def subtree(*, root: str, node: str) -> str:
+    return f"({node}.id = {root}.id OR {node}.path LIKE {root}.path || '/%')"
 
 
 def write_file(*, path: Path, text: str) -> None:
@@ -537,10 +544,14 @@ def conversation(*, connection, domain: str, row: dict, messages: list[dict]) ->
         tuple(values[f] for f in fields),
     )
     for message in messages:
-        connection.execute(
-            f"INSERT OR IGNORE INTO {domain}_message ({', '.join(MESSAGE)}) VALUES ({', '.join('?' * len(MESSAGE))})",
-            stored(message=message, conversation_id=row["id"]),
-        )
+        insert_message(connection=connection, domain=domain, message=message, conversation_id=row["id"], ignore=True)
+
+
+def insert_message(*, connection, domain: str, message: dict, conversation_id: str, ignore: bool = False) -> None:
+    connection.execute(
+        f"INSERT {'OR IGNORE ' if ignore else ''}INTO {domain}_message ({', '.join(MESSAGE)}) VALUES ({', '.join('?' * len(MESSAGE))})",
+        stored(message=message, conversation_id=conversation_id),
+    )
 
 
 def stored(*, message: dict, conversation_id: str) -> tuple:

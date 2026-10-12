@@ -38,12 +38,12 @@ def listed(*, domain: str, space_id: str = "") -> list[dict]:
 def find(*, collected_id: str) -> list[dict]:
     with store.session() as connection:
         rows = connection.execute(
-            """SELECT c.id, c.space_id, c.title
-               FROM space_conversation AS c
-               JOIN collected AS root ON root.id = c.collected_id
-               JOIN collected AS wanted ON wanted.id = ?
-               WHERE c.user_id = ? AND (root.id = wanted.id OR wanted.path LIKE root.path || '/%')
-               ORDER BY c.updated_at DESC""",
+            f"""SELECT c.id, c.space_id, c.title
+                FROM space_conversation AS c
+                JOIN collected AS root ON root.id = c.collected_id
+                JOIN collected AS wanted ON wanted.id = ?
+                WHERE c.user_id = ? AND {store.subtree(root="root", node="wanted")}
+                ORDER BY c.updated_at DESC""",
             (collected_id, store.user()),
         ).fetchall()
 
@@ -55,7 +55,7 @@ def find(*, collected_id: str) -> list[dict]:
 
 def get(*, domain: str, id: str) -> dict | None:
     assert domain in DOMAINS
-    if not IDENTIFIER.fullmatch(id or ""):
+    if not re.fullmatch(store.IDENTIFIER, id or ""):
         return None
     with store.session() as connection:
         connection.row_factory = sqlite3.Row
@@ -89,11 +89,11 @@ def documents(*, collected_id: str) -> list[dict]:
         return []
     with store.session() as connection:
         rows = connection.execute(
-            """SELECT document.id, document.path, document.url
-               FROM collected AS root
-               JOIN collected AS document ON document.id = root.id OR document.path LIKE root.path || '/%'
-               WHERE root.id = ?
-               ORDER BY document.path""",
+            f"""SELECT document.id, document.path, document.url
+                FROM collected AS root
+                JOIN collected AS document ON {store.subtree(root="root", node="document")}
+                WHERE root.id = ?
+                ORDER BY document.path""",
             (collected_id,),
         ).fetchall()
 
@@ -209,10 +209,7 @@ def ask(*, domain: str, id: str, data: dict) -> dict:
 def add(*, domain: str, id: str, message: dict) -> None:
     assert domain in DOMAINS
     with store.session() as connection:
-        connection.execute(
-            f"INSERT INTO {domain}_message ({', '.join(store.MESSAGE)}) VALUES ({', '.join('?' * len(store.MESSAGE))})",
-            store.stored(message=message, conversation_id=id),
-        )
+        store.insert_message(connection=connection, domain=domain, message=message, conversation_id=id)
         connection.execute(f"UPDATE {domain}_conversation SET updated_at = ? WHERE id = ?", (store.now(), id))
 
 

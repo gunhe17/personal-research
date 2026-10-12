@@ -17,7 +17,7 @@ def run(*, terms: list[str], limit: int = 8) -> list[dict]:
     clause = " AND ".join(["LOWER(c.content) LIKE ?"] * len(wanted))
     with store.session() as connection:
         rows = connection.execute(
-            f"{LATEST} WHERE {clause}",
+            f"SELECT collected.id, collected.path, collected.url, c.language, c.content {store.LATEST} WHERE {clause}",
             tuple(f"%{t}%" for t in wanted),
         ).fetchall()
     scored = []

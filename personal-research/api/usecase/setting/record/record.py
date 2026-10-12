@@ -15,8 +15,8 @@ from usecase.common import store
 
 KEY_FILE = store.API / "database" / "encryption.key"
 HOMES = {
-    "openai": ("CODEX_HOME", store.API / "data" / "cli" / "codex"),
-    "xai": ("GROK_HOME", store.API / "data" / "cli" / "grok"),
+    "openai": ("CODEX_HOME", store.CLI / "codex"),
+    "xai": ("GROK_HOME", store.CLI / "grok"),
 }
 MIGRATED = False
 PROVIDERS = {

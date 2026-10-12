@@ -29,13 +29,17 @@ from usecase.collected.search import search
 
 HOST = os.environ.get("HOST") or "127.0.0.1"
 PORT = int(os.environ.get("PORT") or 8765)
-SPACE = re.compile(r"/api/spaces/([a-zA-Z0-9_-]+)")
+SPACE = re.compile(rf"/api/spaces/({store.IDENTIFIER})")
 PUBLIC = {"/api/health", "/api/auth/login"}
 SHARED = {"/api/search", "/api/file", "/api/tree"}
-MATERIALS = re.compile(r"/api/spaces/([a-zA-Z0-9_-]+)/materials")
-MATERIAL = re.compile(r"/api/materials/([a-zA-Z0-9_-]+)")
+MATERIALS = re.compile(rf"/api/spaces/({store.IDENTIFIER})/materials")
+MATERIAL = re.compile(rf"/api/materials/({store.IDENTIFIER})")
 CONVERSATIONS = re.compile(r"/api/(space|agent)/conversations")
-CONVERSATION = re.compile(r"/api/(space|agent)/conversations/([a-zA-Z0-9_-]+)(?:/(messages|retry|cancel))?")
+CONVERSATION = re.compile(rf"/api/(space|agent)/conversations/({store.IDENTIFIER})(?:/(messages|retry|cancel))?")
+
+
+def argument(*, query: dict, name: str, default: str = "") -> str:
+    return (query.get(name) or [default])[0]
 
 
 def load_dotenv(*, path: Path) -> None:
@@ -88,7 +92,7 @@ class Handler(BaseHTTPRequestHandler):
             if not self.trusted():
                 return self.reply(code=403, payload={"error": "권한이 없습니다."})
             try:
-                return self.reply(code=200, payload=login.status(provider=(query.get("provider") or [""])[0], method=(query.get("method") or ["plan_key"])[0]))
+                return self.reply(code=200, payload=login.status(provider=argument(query=query, name="provider"), method=argument(query=query, name="method", default="plan_key")))
             except ValueError as error:
                 return self.reply(code=400, payload={"error": str(error)})
         if path == "/api/models":
@@ -115,8 +119,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(code=200, payload={"root": "collected", "tree": read.tree()})
         if path == "/api/raw":
             found = read.document(
-                reference=(query.get("id") or [""])[0],
-                language=(query.get("language") or ["eng"])[0],
+                reference=argument(query=query, name="id"),
+                language=argument(query=query, name="language", default="eng"),
             )
             if found is None:
                 return self.send(code=404, data="찾을 수 없습니다.".encode("utf-8"), content_type="text/plain; charset=utf-8")
@@ -128,27 +132,27 @@ class Handler(BaseHTTPRequestHandler):
             )
         if path == "/api/file":
             found = read.document(
-                reference=(query.get("id") or [""])[0],
-                language=(query.get("language") or ["eng"])[0],
+                reference=argument(query=query, name="id"),
+                language=argument(query=query, name="language", default="eng"),
             )
             if found is None:
                 return self.reply(code=404, payload={"error": "찾을 수 없습니다."})
             return self.reply(code=200, payload=found)
         if path == "/api/meta":
-            found = read.meta(reference=(query.get("id") or [""])[0])
+            found = read.meta(reference=argument(query=query, name="id"))
             if found is None:
                 return self.reply(code=404, payload={"error": "찾을 수 없습니다."})
             return self.reply(code=200, payload=found)
         if path == "/api/search":
-            terms = [t for t in (query.get("q") or [""])[0].split() if t]
+            terms = [t for t in argument(query=query, name="q").split() if t]
             return self.reply(code=200, payload={"items": search.run(terms=terms)})
         if path == "/api/spaces":
             return self.reply(code=200, payload={"items": spaces.listed()})
         if path == "/api/conversations":
-            return self.reply(code=200, payload={"items": record.find(collected_id=(query.get("collected_id") or [""])[0])})
+            return self.reply(code=200, payload={"items": record.find(collected_id=argument(query=query, name="collected_id"))})
         if CONVERSATIONS.fullmatch(path):
             domain = CONVERSATIONS.fullmatch(path).group(1)
-            return self.reply(code=200, payload={"items": record.listed(domain=domain, space_id=(query.get("space_id") or [""])[0])})
+            return self.reply(code=200, payload={"items": record.listed(domain=domain, space_id=argument(query=query, name="space_id"))})
 
         matched = MATERIAL.fullmatch(path)
         if matched:
@@ -283,8 +287,8 @@ class Handler(BaseHTTPRequestHandler):
             if not self.trusted():
                 return self.reply(code=403, payload={"error": "권한이 없습니다."})
             asked = parse_qs(urlparse(self.path).query)
-            provider = (asked.get("provider") or [""])[0]
-            method = (asked.get("method") or ["plan_key"])[0]
+            provider = argument(query=asked, name="provider")
+            method = argument(query=asked, name="method", default="plan_key")
             try:
                 if asked.get("signout"):
                     return self.reply(code=200, payload=login.signout(provider=provider, method=method))
@@ -392,7 +396,7 @@ class Handler(BaseHTTPRequestHandler):
             content_type="application/json; charset=utf-8",
         )
 
-    def send(self, *, code: int, data: bytes, content_type: str, no_store: bool = False, sandbox: bool = False) -> None:
+    def send(self, *, code: int, data: bytes, content_type: str, sandbox: bool = False) -> None:
         self.send_response(code)
         self.send_header("Content-Type", content_type)
         if sandbox:

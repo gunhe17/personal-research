@@ -14,6 +14,7 @@ import threading
 import time
 from pathlib import Path
 
+from usecase.common import agent
 from usecase.common import store
 from usecase.setting.record import record as setting
 
@@ -55,10 +56,11 @@ def signed(*, provider: str, method: str) -> dict:
     environment = setting.environment(provider=provider, method=method)
     if provider == "anthropic" and "CLAUDE_CODE_OAUTH_TOKEN" not in environment:
         return {"logged_in": False, "detail": ""}
+    executable = agent.binary(runner=setting.RUNNERS[provider])
     command = {
-        "openai": [binary(provider=provider), "login", "status"],
-        "anthropic": [binary(provider=provider), "auth", "status"],
-        "xai": [binary(provider=provider), "models"],
+        "openai": [executable, "login", "status"],
+        "anthropic": [executable, "auth", "status"],
+        "xai": [executable, "models"],
     }[provider]
     try:
         done = subprocess.run(command, capture_output=True, text=True, timeout=20, env=environment, stdin=subprocess.DEVNULL)
@@ -91,7 +93,7 @@ def start(*, provider: str, method: str) -> dict:
     environment = setting.environment(provider=provider, method=method)
     environment.update({"BROWSER": "true", "TERM": "xterm-256color", "COLUMNS": "4000"})
     process = subprocess.Popen(
-        [binary(provider=provider), *STARTS[provider]],
+        [agent.binary(runner=setting.RUNNERS[provider]), *STARTS[provider]],
         stdin=slave,
         stdout=slave,
         stderr=slave,
@@ -150,7 +152,7 @@ def signout(*, provider: str, method: str) -> dict:
     cancel(provider=provider, method=method)
     if provider != "anthropic":
         subprocess.run(
-            [binary(provider=provider), "logout"],
+            [agent.binary(runner=setting.RUNNERS[provider]), "logout"],
             capture_output=True,
             timeout=20,
             env=setting.environment(provider=provider, method=method),

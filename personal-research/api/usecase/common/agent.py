@@ -4,11 +4,13 @@ import importlib.util
 import json
 import secrets
 import os
+import shutil
 import signal
 import subprocess
 import tempfile
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 from usecase.common import store
 
@@ -17,6 +19,11 @@ HIDDEN = {"ENCRYPTION_KEY"}
 TOKEN = secrets.token_urlsafe(24)
 WORK = store.API / "data" / "work"
 RUNNING: dict[str, subprocess.Popen] = {}
+BINARIES = {
+    "codex": os.environ.get("CODEX_BIN") or shutil.which("codex") or "codex",
+    "claude": os.environ.get("CLAUDE_BIN") or shutil.which("claude") or str(Path.home() / ".local" / "bin" / "claude"),
+    "grok": os.environ.get("GROK_BIN") or shutil.which("grok") or str(Path.home() / ".grok" / "bin" / "grok"),
+}
 
 
 class Timeout(RuntimeError):
@@ -31,6 +38,12 @@ def run(*, id: str, command: list, cwd: str, env: dict, stdin: str, timeout: int
         return remote(id=id, command=command, cwd=cwd, env=env, stdin=stdin, timeout=timeout)
 
     return local(id=id, command=command, cwd=cwd, env=env, stdin=stdin, timeout=timeout)
+
+
+def binary(*, runner: str) -> str:
+    found = BINARIES[runner]
+
+    return found if Path(found).exists() else runner
 
 
 def workspace(*, prefix: str) -> tempfile.TemporaryDirectory:

@@ -50,7 +50,7 @@ def inject(*, reference: str, segments: str, language: str) -> str:
 # #
 # agent
 
-CLAUDE = os.environ.get("CLAUDE_BIN") or shutil.which("claude") or str(Path.home() / ".local" / "bin" / "claude")
+CLAUDE = agent.BINARIES["claude"]
 RULES = store.API.parent.parent / ".claude" / "agents" / "translator.md"
 
 
@@ -75,7 +75,7 @@ def korean(*, id: str) -> str:
         (work / "doc.md").write_text(body, encoding="utf-8")
         request = f"{rules()}\n\n번역: {work / 'doc.md'} → {work / 'doc.ko.md'}"
         command = [
-            CLAUDE if Path(CLAUDE).exists() else "claude",
+            agent.binary(runner="claude"),
             "-p", request,
             "--allowed-tools", "Read,Write",
             "--permission-mode", "acceptEdits",

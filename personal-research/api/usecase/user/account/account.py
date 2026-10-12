@@ -56,8 +56,8 @@ def remove(*, user_id: str, by: str) -> None:
             raise ValueError("없는 사용자입니다.")
         connection.execute("DELETE FROM user_session WHERE user_id = ?", (user_id,))
         connection.execute("DELETE FROM user_meta WHERE user_id = ?", (user_id,))
-    for runner in ("codex", "grok"):
-        shutil.rmtree(store.API / "data" / "cli" / runner / user_id, ignore_errors=True)
+    for home in store.CLI.glob("*"):
+        shutil.rmtree(home / user_id, ignore_errors=True)
 
 
 def change(*, user_id: str, password: str) -> None:

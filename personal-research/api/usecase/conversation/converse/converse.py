@@ -17,9 +17,7 @@ from usecase.conversation.record import record
 from usecase.setting.record import record as setting
 from usecase.space.record import record as spaces
 
-BIN = os.environ.get("CODEX_BIN") or shutil.which("codex") or "codex"
-CLAUDE = os.environ.get("CLAUDE_BIN") or shutil.which("claude") or str(Path.home() / ".local" / "bin" / "claude")
-GROK = os.environ.get("GROK_BIN") or shutil.which("grok") or str(Path.home() / ".grok" / "bin" / "grok")
+BIN = agent.BINARIES["codex"]
 MISSING = re.compile(r"no conversation found|session not found|thread not found|no session|not found.*session|unknown (session|thread)", re.IGNORECASE)
 GROK_RESEARCH = "지금은 답하지 말고 조사만 하세요. search_collected 도구로 관련 문서를 찾고 read_document 도구로 읽어, 답에 쓸 내용과 근거 path 를 짧게 정리해 두세요. 답변 JSON 은 다음 요청에서 만듭니다."
 GROK_ANSWER = "앞에서 조사한 내용으로 처음 요청에 대한 최종 답변을 요청된 JSON 하나로 만드세요. 근거로 쓴 문서의 path 를 sources 에 적으세요."
@@ -210,11 +208,11 @@ def codex(*, conversation: dict, question: dict, request: str, model: str, metho
             "-c", "features.shell_tool=false",
             "-c", "features.unified_exec=false",
             "-c", 'mcp_servers.research.command="python3"',
-            "-c", f"mcp_servers.research.args={json.dumps([str(MCP), API_URL, agent.TOKEN])}",
+            "-c", f"mcp_servers.research.args={json.dumps(research())}",
         ]
         command += ["resume", thread_id] if thread_id else []
         command += ["-"]
-        exit_code, stdout, stderr = call(command=command, request=request, conversation=conversation, question=question, provider="codex", model=model, method=method)
+        exit_code, stdout, stderr = call(command=command, request=request, conversation=conversation, question=question, provider="openai", model=model, method=method)
         parsed = events(stdout=stdout)
         started = next((e for e in parsed if e.get("type") == "thread.started"), None)
         if exit_code != 0 or not output.is_file():
@@ -230,21 +228,18 @@ def codex(*, conversation: dict, question: dict, request: str, model: str, metho
 def claude(*, conversation: dict, question: dict, request: str, model: str, method: str, fresh: bool) -> dict:
     session_id = None if fresh else conversation["meta"].get("claude", {}).get("session_id")
     command = [
-        CLAUDE if Path(CLAUDE).exists() else "claude", "-p",
+        agent.binary(runner="claude"), "-p",
         "--output-format", "json",
         "--json-schema", json.dumps(SCHEMA),
         "--model", model,
         "--strict-mcp-config",
-        "--mcp-config", json.dumps({"mcpServers": {"research": {"command": "python3", "args": [str(MCP), API_URL, agent.TOKEN]}}}),
+        "--mcp-config", json.dumps({"mcpServers": {"research": {"command": "python3", "args": research()}}}),
         "--allowedTools", "Read", "Grep", "Glob", *TOOLS,
         "--disallowedTools", "Bash", "Edit", "Write", "WebFetch", "WebSearch",
     ]
     command += ["--resume", session_id] if session_id else []
-    exit_code, stdout, stderr = call(command=command, request=request, conversation=conversation, question=question, provider="claude", model=model, method=method)
-    try:
-        result = json.loads(stdout)
-    except json.JSONDecodeError:
-        result = {}
+    exit_code, stdout, stderr = call(command=command, request=request, conversation=conversation, question=question, provider="anthropic", model=model, method=method)
+    result = parsed_json(text=stdout)
     if exit_code != 0 or result.get("is_error") or not isinstance(result.get("structured_output"), dict):
         failed = str(result.get("result") or stderr or stdout)
         raise Unavailable(f"Claude 가 답하지 못했습니다 (exit {exit_code}). {failed.strip()[-300:]}")
@@ -258,7 +253,7 @@ def claude(*, conversation: dict, question: dict, request: str, model: str, meth
 def grok(*, conversation: dict, question: dict, request: str, model: str, method: str, fresh: bool) -> dict:
     session_id = None if fresh else conversation["meta"].get("grok", {}).get("session_id")
     base = [
-        GROK if Path(GROK).exists() else "grok",
+        agent.binary(runner="grok"),
         "--output-format", "json",
         "-m", model,
         "--tools", "read_file,grep,list_dir",
@@ -271,7 +266,7 @@ def grok(*, conversation: dict, question: dict, request: str, model: str, method
         research = Path(folder) / "research.txt"
         research.write_text(request + "\n\n" + GROK_RESEARCH, encoding="utf-8")
         command = [*base, "--prompt-file", str(research), *(["-r", session_id] if session_id else [])]
-        exit_code, stdout, stderr = call(command=command, request=request, conversation=conversation, question=question, provider="grok", model=model, method=method)
+        exit_code, stdout, stderr = call(command=command, request=request, conversation=conversation, question=question, provider="xai", model=model, method=method)
         studied = parsed_json(text=stdout)
         session_id = session_id or studied.get("sessionId")
         if exit_code != 0 or not session_id:
@@ -280,13 +275,17 @@ def grok(*, conversation: dict, question: dict, request: str, model: str, method
         answer = Path(folder) / "answer.txt"
         answer.write_text(GROK_ANSWER, encoding="utf-8")
         command = [*base, "--prompt-file", str(answer), "--json-schema", json.dumps(SCHEMA), "-r", session_id]
-        exit_code, stdout, stderr = call(command=command, request=GROK_ANSWER, conversation=conversation, question=question, provider="grok", model=model, method=method)
+        exit_code, stdout, stderr = call(command=command, request=GROK_ANSWER, conversation=conversation, question=question, provider="xai", model=model, method=method)
     result = parsed_json(text=stdout)
     if exit_code != 0 or not isinstance(result.get("structuredOutput"), dict):
         raise Unavailable(f"Grok 이 답하지 못했습니다 (exit {exit_code}). {str(result.get('text') or stderr or stdout).strip()[-300:]}")
     generated = validate(answer=result["structuredOutput"])
 
     return generated
+
+
+def research() -> list[str]:
+    return [str(MCP), API_URL, agent.TOKEN]
 
 
 def parsed_json(*, text: str) -> dict:
@@ -299,6 +298,7 @@ def parsed_json(*, text: str) -> dict:
 
 
 def call(*, command: list, request: str, conversation: dict, question: dict, provider: str, model: str, method: str) -> tuple[int, str, str]:
+    runner = setting.RUNNERS[provider]
     started_at = store.now()
     exit_code, stdout, stderr = -1, "", ""
     try:
@@ -306,7 +306,7 @@ def call(*, command: list, request: str, conversation: dict, question: dict, pro
             id=question["id"],
             command=command,
             cwd=str(CORPUS),
-            env=setting.environment(provider=next(k for k, v in setting.RUNNERS.items() if v == provider), method=method),
+            env=setting.environment(provider=provider, method=method),
             stdin=request,
             timeout=TIMEOUT,
         )
@@ -314,9 +314,9 @@ def call(*, command: list, request: str, conversation: dict, question: dict, pro
         raise RuntimeError("응답 시간이 길어 중단했습니다. 다시 시도해 주세요.")
     finally:
         if setting.kind(method=method) == "plan_key":
-            setting.sync(provider=next(k for k, v in setting.RUNNERS.items() if v == provider), method=method)
+            setting.sync(provider=provider, method=method)
         llm.record(
-            provider=provider,
+            provider=runner,
             model=model,
             purpose=f"{conversation['domain']}_answer",
             owner_id=question["id"],
@@ -372,7 +372,7 @@ def refresh() -> None:
     grok_config = CORPUS / ".grok" / "config.toml"
     grok_config.parent.mkdir(exist_ok=True)
     grok_config.write_text(
-        f"[mcp_servers.research]\ncommand = \"python3\"\nargs = {json.dumps([str(MCP), API_URL, agent.TOKEN])}\nenabled = true\n",
+        f"[mcp_servers.research]\ncommand = \"python3\"\nargs = {json.dumps(research())}\nenabled = true\n",
         encoding="utf-8",
     )
 

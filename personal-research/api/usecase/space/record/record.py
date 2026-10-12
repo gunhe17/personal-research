@@ -42,7 +42,7 @@ def listed() -> list[dict]:
 
 
 def get(*, id: str) -> dict | None:
-    if not IDENTIFIER.fullmatch(id or ""):
+    if not re.fullmatch(store.IDENTIFIER, id or ""):
         return None
     with store.session() as connection:
         row = connection.execute("SELECT id, title, created_at, updated_at FROM space WHERE id = ? AND user_id = ?", (id, store.user())).fetchone()
@@ -65,8 +65,7 @@ def get(*, id: str) -> dict | None:
 def collected(*, id: str) -> list[dict]:
     with store.session() as connection:
         rows = connection.execute(
-            """SELECT root.id, root.path, root.url, COUNT(DISTINCT c.id), MAX(c.updated_at),
-                      (SELECT COUNT(*) FROM collected AS d WHERE d.id = root.id OR d.path LIKE root.path || '/%')
+            """SELECT root.id, root.path, root.url, COUNT(DISTINCT c.id), MAX(c.updated_at)
                FROM space_conversation AS c
                JOIN collected AS root ON root.id = c.collected_id
                WHERE c.space_id = ? AND c.user_id = ?
@@ -74,18 +73,20 @@ def collected(*, id: str) -> list[dict]:
             (id, store.user()),
         ).fetchall()
 
-    return [
-        {
+    found = []
+    for r in rows:
+        documents = conversation.documents(collected_id=r[0])
+        found.append({
             "id": r[0],
             "path": r[1],
             "url": r[2],
             "conversation_count": r[3],
             "updated_at": r[4],
-            "document_count": r[5],
-            "documents": conversation.documents(collected_id=r[0]),
-        }
-        for r in rows
-    ]
+            "document_count": len(documents),
+            "documents": documents,
+        })
+
+    return found
 
 
 def listed_materials(*, space_id: str) -> list[dict]:
@@ -104,7 +105,7 @@ def listed_materials(*, space_id: str) -> list[dict]:
 
 
 def material(*, id: str) -> dict | None:
-    if not IDENTIFIER.fullmatch(id or ""):
+    if not re.fullmatch(store.IDENTIFIER, id or ""):
         return None
     with store.session() as connection:
         row = connection.execute(
