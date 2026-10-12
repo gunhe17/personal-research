@@ -46,14 +46,11 @@ def listed() -> list[dict]:
     ]
 
 
-def change(*, user_id: str, current: str, password: str) -> None:
+def change(*, user_id: str, password: str) -> None:
     if len(password) < 8:
         raise ValueError("새 비밀번호는 8자 이상이어야 합니다.")
     with store.session() as connection:
-        row = connection.execute("SELECT password FROM user WHERE id = ?", (user_id,)).fetchone()
-        if row is None or not matches(password=current, stored=row[0]):
-            raise ValueError("현재 비밀번호가 맞지 않습니다.")
-        connection.execute("UPDATE user SET password = ? WHERE id = ?", (hashed(password=password), user_id))
+        connection.execute("UPDATE user SET password = ? WHERE id = ? AND password != ''", (hashed(password=password), user_id))
 
 
 def reset(*, email: str, password: str) -> None:
@@ -147,14 +144,14 @@ if __name__ == "__main__":
     assert second["id"] != store.USER and second["role"] == "user"
     issued = create(email="new@example.com", name="New")
     assert len(issued["password"]) >= 16 and verify(email="new@example.com", password=issued["password"])["name"] == "New"
-    change(user_id=issued["id"], current=issued["password"], password="my own pass")
+    change(user_id=issued["id"], password="my own pass")
     assert verify(email="new@example.com", password="my own pass")
     try:
-        change(user_id=issued["id"], current="wrong current", password="another one")
+        change(user_id=issued["id"], password="short")
     except ValueError:
         pass
     else:
-        raise AssertionError("wrong current password")
+        raise AssertionError("short password")
     for email, password in (("friend@example.com", "whatever123"), ("not-an-email", "whatever123"), ("short@example.com", "short")):
         try:
             create(email=email, password=password)

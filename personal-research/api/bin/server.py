@@ -193,7 +193,7 @@ class Handler(BaseHTTPRequestHandler):
             if not self.trusted():
                 return self.reply(code=403, payload={"error": "forbidden"})
             try:
-                account.change(user_id=self.account["id"], current=str(body.get("current") or ""), password=str(body.get("password") or ""))
+                account.change(user_id=self.account["id"], password=str(body.get("password") or ""))
             except ValueError as error:
                 return self.reply(code=400, payload={"error": str(error)})
             return self.reply(code=200, payload={"ok": True})
