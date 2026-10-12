@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { api, type Member } from "@/lib/api";
 import Button from "@/ui/Button";
+import IconButton from "@/ui/IconButton";
 import KeyValue from "@/ui/KeyValue";
 import SectionHeader from "@/ui/SectionHeader";
 import { toast } from "@/ui/Toaster";
@@ -87,16 +88,36 @@ export default function UsersPane({ me }: { me: string }) {
           </div>
         </div>
         {error && <p className="mt-1 text-[12px] text-red-600">{error}</p>}
-        {issued && (
-          <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
-            <div className="text-[12px] text-slate-500">{issued.email} 의 비밀번호. 이 창을 닫으면 다시 볼 수 없습니다.</div>
-            <div className="mt-2 flex items-center gap-2">
-              <code className="min-w-0 flex-1 truncate rounded-lg bg-slate-50 px-2.5 py-1 font-mono text-[13px] text-slate-900 select-all">{issued.password}</code>
-              <Button size="sm" onClick={copy}>Copy</Button>
-            </div>
-          </div>
-        )}
       </section>
+      {issued && <Issued email={issued.email} password={issued.password} onCopy={copy} onClose={() => setIssued(null)} />}
+    </div>
+  );
+}
+
+function Issued({ email, password, onCopy, onClose }: { email: string; password: string; onCopy: () => void; onClose: () => void }) {
+  useEffect(() => {
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      onClose();
+    };
+    window.addEventListener("keydown", escape, true);
+    return () => window.removeEventListener("keydown", escape, true);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-[60] grid place-items-center bg-slate-900/30 px-6" role="dialog" aria-label="Issued password">
+      <div className="enter-rise w-full max-w-sm rounded-2xl bg-white p-6">
+        <h4 className="text-[17px] font-semibold tracking-tight text-slate-900">Password issued</h4>
+        <p className="mt-1 text-[13px] text-slate-500">{email} 의 비밀번호입니다. 이 창을 닫으면 다시 볼 수 없습니다.</p>
+        <div className="mt-4 flex items-center gap-2">
+          <code className="min-w-0 flex-1 truncate rounded-lg bg-slate-50 px-2.5 py-1.5 font-mono text-[14px] text-slate-900 select-all">{password}</code>
+          <IconButton icon="copy" label="Copy password" onClick={onCopy} />
+        </div>
+        <div className="mt-5 flex justify-end">
+          <Button tone="fill" size="sm" onClick={onClose}>Done</Button>
+        </div>
+      </div>
     </div>
   );
 }
