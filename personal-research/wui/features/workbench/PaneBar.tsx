@@ -36,7 +36,7 @@ export default function PaneBar({ group, name, title, actions }: { group: Group;
       <span className={cx("text-[12px]", active ? "text-slate-400" : "text-slate-300")}>{kindLabel(group.item)}</span>
       <span className="text-[12px] text-slate-200">/</span>
       <span title={title || name} className={cx("mr-auto min-w-0 truncate text-[12px]", active ? "text-slate-900" : "text-slate-500")}>{name}</span>
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-1">
         {slot ? createPortal(actions, slot) : actions}
         <IconButton icon="close" size="sm" label="닫기" onClick={() => workbench.close(group.id)} />
       </div>

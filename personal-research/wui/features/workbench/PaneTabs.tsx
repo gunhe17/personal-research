@@ -23,7 +23,7 @@ export default function PaneTabs() {
               <span className="text-[12px] text-slate-200">/</span>
               <span className={cx("min-w-0 truncate text-[12px]", active ? "text-slate-900" : "text-slate-500")}>{name}</span>
             </button>
-            <div className="ml-auto flex items-center gap-2.5">
+            <div className="ml-auto flex items-center gap-1">
               {active && <span id={`tab-actions-${group.id}`} className="flex items-center empty:hidden" />}
               <IconButton icon="close" size="sm" label="닫기" onClick={() => workbench.close(group.id)} />
             </div>
