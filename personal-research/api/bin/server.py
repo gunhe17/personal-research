@@ -189,7 +189,7 @@ class Handler(BaseHTTPRequestHandler):
             if not self.trusted():
                 return self.reply(code=403, payload={"error": "forbidden"})
             try:
-                return self.reply(code=200, payload=job.start(input=str(body.get("input") or "")))
+                return self.reply(code=200, payload=job.start(input=str(body.get("input") or ""), model=body.get("model")))
             except ValueError as error:
                 return self.reply(code=400, payload={"error": str(error)})
 

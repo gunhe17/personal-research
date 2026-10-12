@@ -17,13 +17,14 @@ KEPT = 30
 # #
 # command
 
-def start(*, input: str) -> dict:
+def start(*, input: str, model: dict | None = None) -> dict:
     given = input.strip()
     if not given:
         raise ValueError("input 이 비어 있다")
     job = {
         "id": str(uuid.uuid4()),
         "input": given,
+        "model": model if isinstance(model, dict) else None,
         "state": "queued",
         "events": [],
         "path": "",
@@ -77,7 +78,7 @@ def collecting(*, job: dict) -> None:
         note(job=job, event=event)
 
     try:
-        pipeline.run(input=job["input"], send=forward)
+        pipeline.run(input=job["input"], send=forward, model=job["model"])
     finally:
         if outcome.get("id"):
             record.edit(domain="agent", id=started["id"], data={"collected_id": outcome["id"]})
