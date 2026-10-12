@@ -105,7 +105,7 @@ export default function Shell({ children }: { children: ReactNode }) {
     <div className={cx("flex h-full flex-col", resizing && "cursor-col-resize select-none")}>
       <Header sidebar={sidebar} settings={settings} onSidebar={() => showSidebar(!sidebar)} onSettings={() => showSettings(true)} />
       <div className="relative flex min-h-0 flex-1">
-        {sidebar && <div className="absolute inset-0 z-20 bg-slate-900/20 lg:hidden" onClick={() => showSidebar(false)} />}
+        {sidebar && <div className="absolute inset-0 z-20 cursor-pointer bg-slate-900/20 lg:hidden" onClick={() => showSidebar(false)} />}
         <aside
           inert={!sidebar}
           className={cx("flex h-full shrink-0 flex-col overflow-hidden bg-white max-lg:absolute max-lg:inset-y-0 max-lg:left-0 max-lg:z-30", !resizing && "transition-all duration-300 ease-spring")}
