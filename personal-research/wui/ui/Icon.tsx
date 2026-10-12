@@ -34,8 +34,6 @@ const PATHS: Record<string, string> = {
   materials: '<path d="M4 19.5V5.5A1.5 1.5 0 0 1 5.5 4H18v13H5.5A1.5 1.5 0 0 0 4 18.5 1.5 1.5 0 0 0 5.5 20H18"/><path d="M8 8h6M8 11h4"/>',
 };
 
-export type IconName = keyof typeof PATHS;
-
 export default function Icon({ name, className = "h-3.5 w-3.5", width = 1.5 }: { name: string; className?: string; width?: number }) {
   return (
     <svg

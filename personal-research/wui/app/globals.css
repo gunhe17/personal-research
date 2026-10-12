@@ -27,10 +27,8 @@
 
   --radius-xl: 8px;
   --radius-2xl: 12px;
-  --radius-3xl: 16px;
 
   --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
-  --ease-leave: cubic-bezier(0.4, 0, 1, 1);
 }
 
 @layer base {

@@ -14,17 +14,16 @@ type Props = {
   flat?: boolean;
   count?: number;
   trailing?: ReactNode;
-  title?: string;
   onClick: () => void;
   onDragStart?: (event: DragEvent) => void;
 };
 
-export default function TreeRow({ label, icon, variant = "folder", open = false, active, strong, small, flat, count, trailing, title, onClick, onDragStart }: Props) {
+export default function TreeRow({ label, icon, variant = "folder", open = false, active, strong, small, flat, count, trailing, onClick, onDragStart }: Props) {
   const glyph = typeof icon === "string" ? <Icon name={icon} className={variant === "nav" ? "h-4 w-4" : "h-3.5 w-3.5"} /> : icon;
   return (
     <button
       type="button"
-      title={title || label}
+      title={label}
       aria-expanded={variant === "folder" ? open : undefined}
       aria-selected={active}
       draggable={Boolean(onDragStart)}
