@@ -237,7 +237,7 @@ def locate(*, text: str) -> str | None:
 def resolve(*, text: str) -> str:
     found = locate(text=text)
     if found is None:
-        raise ValueError(f"Document not found: {text}")
+        raise ValueError(f"문서를 찾을 수 없습니다: {text}")
 
     return found
 
@@ -246,7 +246,7 @@ def path_of(*, id: str) -> str:
     with session() as connection:
         row = connection.execute("SELECT path FROM collected WHERE id = ?", (id,)).fetchone()
     if row is None:
-        raise ValueError(f"Document not found: {id}")
+        raise ValueError(f"문서를 찾을 수 없습니다: {id}")
 
     return row[0]
 

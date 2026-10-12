@@ -86,7 +86,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(code=200, payload=setting.get())
         if path == "/api/login":
             if not self.trusted():
-                return self.reply(code=403, payload={"error": "forbidden"})
+                return self.reply(code=403, payload={"error": "권한이 없습니다."})
             try:
                 return self.reply(code=200, payload=login.status(provider=(query.get("provider") or [""])[0], method=(query.get("method") or ["plan_key"])[0]))
             except ValueError as error:
@@ -98,7 +98,7 @@ class Handler(BaseHTTPRequestHandler):
         if path.startswith("/api/collect/"):
             found = job.get(id=path.removeprefix("/api/collect/"))
             if found is None:
-                return self.reply(code=404, payload={"error": "not found"})
+                return self.reply(code=404, payload={"error": "찾을 수 없습니다."})
             return self.reply(code=200, payload=found)
         if path == "/api/skills":
             try:
@@ -119,7 +119,7 @@ class Handler(BaseHTTPRequestHandler):
                 language=(query.get("language") or ["eng"])[0],
             )
             if found is None:
-                return self.send(code=404, data=b"not found", content_type="text/plain; charset=utf-8")
+                return self.send(code=404, data="찾을 수 없습니다.".encode("utf-8"), content_type="text/plain; charset=utf-8")
             return self.send(
                 code=200,
                 data=found["content"].encode("utf-8"),
@@ -132,12 +132,12 @@ class Handler(BaseHTTPRequestHandler):
                 language=(query.get("language") or ["eng"])[0],
             )
             if found is None:
-                return self.reply(code=404, payload={"error": "not found"})
+                return self.reply(code=404, payload={"error": "찾을 수 없습니다."})
             return self.reply(code=200, payload=found)
         if path == "/api/meta":
             found = read.meta(reference=(query.get("id") or [""])[0])
             if found is None:
-                return self.reply(code=404, payload={"error": "not found"})
+                return self.reply(code=404, payload={"error": "찾을 수 없습니다."})
             return self.reply(code=200, payload=found)
         if path == "/api/search":
             terms = [t for t in (query.get("q") or [""])[0].split() if t]
@@ -153,30 +153,30 @@ class Handler(BaseHTTPRequestHandler):
         matched = MATERIAL.fullmatch(path)
         if matched:
             found = spaces.material(id=matched.group(1))
-            return self.reply(code=200 if found else 404, payload=found or {"error": "not found"})
+            return self.reply(code=200 if found else 404, payload=found or {"error": "찾을 수 없습니다."})
         matched = SPACE.fullmatch(path)
         if matched:
             found = spaces.get(id=matched.group(1))
-            return self.reply(code=200 if found else 404, payload=found or {"error": "not found"})
+            return self.reply(code=200 if found else 404, payload=found or {"error": "찾을 수 없습니다."})
         matched = CONVERSATION.fullmatch(path)
         if matched and not matched.group(3):
             found = record.get(domain=matched.group(1), id=matched.group(2))
             if found:
                 found["codex_available"] = converse.available()
-            return self.reply(code=200 if found else 404, payload=found or {"error": "not found"})
+            return self.reply(code=200 if found else 404, payload=found or {"error": "찾을 수 없습니다."})
 
-        self.reply(code=404, payload={"error": "not found", "path": path})
+        self.reply(code=404, payload={"error": "찾을 수 없습니다.", "path": path})
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
         body = self.payload()
         if body is None:
-            return self.reply(code=400, payload={"error": "invalid json"})
+            return self.reply(code=400, payload={"error": "JSON 이 올바르지 않습니다."})
         if not self.identify(path=parsed.path, reading=False):
             return
         if parsed.path == "/api/auth/login":
             if not self.trusted():
-                return self.reply(code=403, payload={"error": "forbidden"})
+                return self.reply(code=403, payload={"error": "권한이 없습니다."})
             found = account.verify(email=str(body.get("email") or ""), password=str(body.get("password") or ""))
             if found is None:
                 return self.reply(code=401, payload={"error": "이메일이나 비밀번호가 맞지 않습니다."})
@@ -191,7 +191,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(code=400, payload={"error": str(error)})
         if parsed.path == "/api/auth/password":
             if not self.trusted():
-                return self.reply(code=403, payload={"error": "forbidden"})
+                return self.reply(code=403, payload={"error": "권한이 없습니다."})
             try:
                 account.change(user_id=self.account["id"], password=str(body.get("password") or ""))
             except ValueError as error:
@@ -204,12 +204,12 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path == "/api/opened":
             wanted = (body.get("id") or "").strip()
             if not wanted:
-                return self.reply(code=400, payload={"error": "id 가 비어 있다"})
+                return self.reply(code=400, payload={"error": "id 가 비어 있습니다."})
             store.touch(id=wanted)
             return self.reply(code=200, payload={"id": wanted})
         if parsed.path == "/api/login":
             if not self.trusted():
-                return self.reply(code=403, payload={"error": "forbidden"})
+                return self.reply(code=403, payload={"error": "권한이 없습니다."})
             try:
                 provider = body.get("provider") or ""
                 method = body.get("method") or "plan_key"
@@ -232,13 +232,13 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(code=400, payload={"error": str(error) or "요청을 처리하지 못했습니다."})
         if parsed.path == "/api/collect":
             if not self.trusted():
-                return self.reply(code=403, payload={"error": "forbidden"})
+                return self.reply(code=403, payload={"error": "권한이 없습니다."})
             try:
                 return self.reply(code=200, payload=job.start(input=str(body.get("input") or "")))
             except ValueError as error:
                 return self.reply(code=400, payload={"error": str(error)})
 
-        self.reply(code=404, payload={"error": "not found"})
+        self.reply(code=404, payload={"error": "찾을 수 없습니다."})
 
     def do_PUT(self) -> None:
         path = urlparse(self.path).path
@@ -246,11 +246,11 @@ class Handler(BaseHTTPRequestHandler):
             return
         body = self.payload()
         if body is None:
-            return self.reply(code=400, payload={"error": "invalid json"})
+            return self.reply(code=400, payload={"error": "JSON 이 올바르지 않습니다."})
         try:
             if path == "/api/settings":
                 if not self.trusted():
-                    return self.reply(code=403, payload={"error": "forbidden"})
+                    return self.reply(code=403, payload={"error": "권한이 없습니다."})
                 return self.reply(code=200, payload=setting.edit(data=body))
             if SPACE.fullmatch(path):
                 return self.reply(code=200, payload=spaces.edit(id=SPACE.fullmatch(path).group(1), data=body))
@@ -265,7 +265,7 @@ class Handler(BaseHTTPRequestHandler):
         except ValueError as error:
             return self.reply(code=404, payload={"error": str(error)})
 
-        self.reply(code=404, payload={"error": "not found"})
+        self.reply(code=404, payload={"error": "찾을 수 없습니다."})
 
     def do_DELETE(self) -> None:
         path = urlparse(self.path).path
@@ -281,7 +281,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(code=200, payload={"ok": True})
         if path == "/api/login":
             if not self.trusted():
-                return self.reply(code=403, payload={"error": "forbidden"})
+                return self.reply(code=403, payload={"error": "권한이 없습니다."})
             asked = parse_qs(urlparse(self.path).query)
             provider = (asked.get("provider") or [""])[0]
             method = (asked.get("method") or ["plan_key"])[0]
@@ -301,7 +301,7 @@ class Handler(BaseHTTPRequestHandler):
         elif matched and not matched.group(3):
             removed = record.remove(domain=matched.group(1), id=matched.group(2))
         else:
-            return self.reply(code=404, payload={"error": "not found"})
+            return self.reply(code=404, payload={"error": "찾을 수 없습니다."})
 
         self.reply(code=200 if removed else 404, payload={"ok": removed})
 
@@ -320,11 +320,11 @@ class Handler(BaseHTTPRequestHandler):
     def act(self, *, domain: str, id: str, action: str, body: dict) -> None:
         owned = record.get(domain=domain, id=id)
         if owned is None:
-            return self.reply(code=404, payload={"error": "not found"})
+            return self.reply(code=404, payload={"error": "찾을 수 없습니다."})
         if action != "messages" and not any(m["id"] == body.get("message_id") for m in owned["messages"]):
-            return self.reply(code=404, payload={"error": "not found"})
+            return self.reply(code=404, payload={"error": "찾을 수 없습니다."})
         if not converse.available():
-            return self.reply(code=500, payload={"error": "codex CLI 가 없다"})
+            return self.reply(code=500, payload={"error": "codex CLI 가 없습니다."})
         if action == "messages":
             return self.reply(code=200, payload=self.ask(domain=domain, id=id, body=body))
         message_id = body.get("message_id") or ""

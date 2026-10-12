@@ -21,7 +21,7 @@ KEPT = 30
 def start(*, input: str) -> dict:
     given = input.strip()
     if not given:
-        raise ValueError("input 이 비어 있다")
+        raise ValueError("input 이 비어 있습니다.")
     job = {
         "id": str(uuid.uuid4()),
         "user_id": store.user(),
