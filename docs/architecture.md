@@ -98,7 +98,7 @@ docker compose --env-file .env/.env.production -f .docker/docker-compose.product
 
 ## 사용자와 권한
 
-로그인한 사용자만 쓴다. 역할은 `admin` 과 `user` 둘이다(`user.role`). 관리자는 서버에서 `bin/user.py add` 로 만들고, 일반 사용자는 관리자가 설정의 Users 화면(`POST /api/users`)에서 이름과 이메일로 추가한다. 이때 서버가 무작위 비밀번호를 만들어 응답에 한 번만 담고 해시만 저장하므로 다시 볼 수 없다. 사용자는 Profile 화면(`POST /api/auth/password`)에서 자기 비밀번호만 바꾼다. 로그인된 본인 세션으로만 바꿀 수 있고 현재 비밀번호는 묻지 않는다. 가입 화면은 없고, 비밀번호는 scrypt 해시로 `user.password` 에 둔다. 로그인하면 `user_session` 에 토큰의 SHA-256 을 30일 동안 두고 브라우저에는 `HttpOnly` `SameSite=Lax` 쿠키 `session` 을 준다. `/api/health` 와 `/api/auth/login` 을 뺀 모든 `/api/*` 는 세션이 없으면 401 이다.
+로그인한 사용자만 쓴다. 역할은 `admin` 과 `user` 둘이다(`user.role`). 관리자는 서버에서 `bin/user.py add` 로 만들고, 일반 사용자는 관리자가 설정의 Users 화면(`POST /api/users`)에서 이름과 이메일로 추가한다. 이때 서버가 무작위 비밀번호를 만들어 응답에 한 번만 담고 해시만 저장하므로 다시 볼 수 없다. 관리자는 사용자 카드의 Delete(`DELETE /api/users/{id}`)로 다른 사용자를 지운다. 자기 계정은 지울 수 없고, 지우면 그 사람의 세션, 저장된 요금제·API 키(`user_meta`), CLI 로그인 폴더가 함께 지워진다. 그 사람의 대화는 DB 에 남지만 누구에게도 보이지 않는다. 사용자는 Profile 화면(`POST /api/auth/password`)에서 자기 비밀번호만 바꾼다. 로그인된 본인 세션으로만 바꿀 수 있고 현재 비밀번호는 묻지 않는다. 가입 화면은 없고, 비밀번호는 scrypt 해시로 `user.password` 에 둔다. 로그인하면 `user_session` 에 토큰의 SHA-256 을 30일 동안 두고 브라우저에는 `HttpOnly` `SameSite=Lax` 쿠키 `session` 을 준다. `/api/health` 와 `/api/auth/login` 을 뺀 모든 `/api/*` 는 세션이 없으면 401 이다.
 
 사용자를 나누는 목적은 AI 사용의 격리다. 수집물, space, 자료는 모두가 함께 본다. 대화(`space_conversation` `agent_conversation`)는 `user_id` 로 주인을 가지고 주인만 보고 이어 간다. 제공사 설정, 요금제 토큰, API 키는 `user_meta` 에 사용자별로 있고, codex·grok 의 로그인 폴더도 `data/cli/{codex,grok}/{사용자}/{수단}` 으로 나뉜다. 답변은 대화 주인의, 번역은 수집을 요청한 사람의 인증만 쓴다. 저장된 토큰이나 키가 없는 수단은 실행하지 않으므로 서버 쪽 CLI 자체 로그인으로 넘어가지 않는다. 모델 호출 기록 `llm` 에도 `user_id` 가 남아 사용량을 사람마다 센다.
 
