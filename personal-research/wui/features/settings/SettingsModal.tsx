@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { api, type Account, type Provider } from "@/lib/api";
+import type { Account, Provider } from "@/lib/api";
 import { cx } from "@/lib/cx";
 import { load, save } from "@/lib/storage";
 import Dot from "@/ui/Dot";
@@ -18,7 +18,7 @@ import { usable } from "./MethodRow";
 import ProviderPane from "./ProviderPane";
 import useProviders, { statusKey } from "./useProviders";
 
-export default function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+export default function SettingsModal({ open, account, onClose }: { open: boolean; account: Account; onClose: () => void }) {
   const [tab, setTab] = useState(() => load("settingsTab", "font", true));
   const [paned, setPaned] = useState(false);
   const [narrow, setNarrow] = useState(false);
@@ -30,13 +30,10 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
     return () => media.removeEventListener("change", sync);
   }, []);
   const chosen = (key: string) => tab === key && !narrow;
-  const [account, setAccount] = useState<Account | null>(null);
   const { providers, statuses, errors, sheet, openSheet, saveProvider, logout, prune, closeSheet } = useProviders(open);
 
   useEffect(() => {
-    if (!open) return;
-    setPaned(false);
-    api.me().then(setAccount, () => {});
+    if (open) setPaned(false);
   }, [open]);
 
   useEffect(() => save("settingsTab", tab, true), [tab]);
@@ -63,7 +60,7 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
         </Group>
         <Group icon="person" label="Account">
           <TreeRow variant="nav" label="Profile" active={chosen("account")} onClick={() => pick("account")} />
-          {account?.role === "admin" && <TreeRow variant="nav" label="Users" active={chosen("users")} onClick={() => pick("users")} />}
+          {account.role === "admin" && <TreeRow variant="nav" label="Users" active={chosen("users")} onClick={() => pick("users")} />}
         </Group>
         <Group icon="chip" label="Models">
           {providers.map((provider) => (
@@ -89,7 +86,7 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
           />
         ) : tab === "account" ? (
           <AccountPane account={account} />
-        ) : tab === "users" && account?.role === "admin" ? (
+        ) : tab === "users" && account.role === "admin" ? (
           <UsersPane me={account.id} />
         ) : tab === "function" ? (
           <FunctionPane />

@@ -137,7 +137,7 @@ export default function Shell({ children }: { children: ReactNode }) {
         )}
         <div className="relative flex min-h-0 min-w-0 flex-1">{children}</div>
       </div>
-      <SettingsModal open={settings} onClose={() => showSettings(false)} />
+      <SettingsModal open={settings} account={account} onClose={() => showSettings(false)} />
     </div>
   );
 }

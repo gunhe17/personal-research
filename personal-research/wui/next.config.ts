@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const config: NextConfig = {
   output: "standalone",
-  allowedDevOrigins: ["127.0.0.1", "localhost", "*.local", "10.*.*.*", "172.*.*.*", "192.168.*.*"],
+  allowedDevOrigins: ["127.0.0.1", "localhost", "*.local", "10.*.*.*", "172.*.*.*", "192.168.*.*", "*.devtunnels.ms", "*.*.devtunnels.ms"],
   turbopack: {
     rules: {
       "*.css": {
