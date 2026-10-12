@@ -73,6 +73,19 @@ export default function Sidebar() {
   return (
     <nav className="flex flex-col gap-1 px-2 pt-2 pb-2">
       <TreeRow variant="nav" label="Home" icon="home" active={pathname === "/"} onClick={() => router.push("/")} />
+      <TreeRow variant="nav" label="Agent" icon="agent" onClick={() => toggle("agents")} />
+      <Fold open={isOpen("agents")} className="mt-1 ml-3 border-l border-slate-100 pl-1">
+        {agents && !agents.length && <div className="px-2 py-1.5 text-xs text-slate-400">Nothing yet</div>}
+        {(agents || []).map((conversation) => (
+          <Leaf
+            key={conversation.id}
+            row={[{ kind: "agent", agent: conversation.id, title: conversation.title }, conversation.collected_id ? "collected" : "chat", conversation.title || "새 대화"]}
+            active={workbench.activeKey}
+            onOpen={(item) => workbench.open(item)}
+            flat
+          />
+        ))}
+      </Fold>
       <div className="group relative">
         <TreeRow variant="nav" label="Space" icon="grid" onClick={() => toggle("spaces")} />
         <IconButton icon="collapse" size="sm" label="Collapse all" onClick={collapse} className="absolute top-1/2 right-1.5 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100" />
@@ -115,19 +128,6 @@ export default function Sidebar() {
             ))}
           </>
         )}
-      </Fold>
-      <TreeRow variant="nav" label="Agent" icon="chat" onClick={() => toggle("agents")} />
-      <Fold open={isOpen("agents")} className="mt-1 ml-3 border-l border-slate-100 pl-1">
-        {agents && !agents.length && <div className="px-2 py-1.5 text-xs text-slate-400">Nothing yet</div>}
-        {(agents || []).map((conversation) => (
-          <Leaf
-            key={conversation.id}
-            row={[{ kind: "agent", agent: conversation.id, title: conversation.title }, conversation.collected_id ? "collected" : "chat", conversation.title || "새 대화"]}
-            active={workbench.activeKey}
-            onOpen={(item) => workbench.open(item)}
-            flat
-          />
-        ))}
       </Fold>
     </nav>
   );

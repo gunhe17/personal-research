@@ -12,6 +12,7 @@ const PATHS: Record<string, string> = {
   plus: '<path d="M12 5v14M5 12h14"/>',
   collapse: '<path d="M7 11l5-5 5 5"/><path d="M7 18l5-5 5 5"/>',
   function: '<path d="M15.5 4H14a2.5 2.5 0 0 0-2.5 2.5v11A2.5 2.5 0 0 1 9 20H7.5"/><path d="M8.5 10.5h7"/>',
+  agent: '<path d="M10 3.5l1.6 4.4 4.4 1.6-4.4 1.6L10 15.5l-1.6-4.4L4 9.5l4.4-1.6z"/><path d="M17.5 13.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/>',
   search: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>',
   up: '<path d="M12 20V4"/><path d="M5 11l7-7 7 7"/>',
   down: '<path d="M6 9l6 6 6-6"/>',

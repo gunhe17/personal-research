@@ -123,7 +123,7 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
             <TreeRow key={provider.id} variant="nav" label={provider.label} active={tab === provider.id} trailing={<Dot on={ready(provider)} />} onClick={() => setTab(provider.id)} />
           ))}
         </Group>
-        <Group icon="chat" label="Agent">
+        <Group icon="agent" label="Agent">
           <TreeRow variant="nav" label="Function" active={tab === "function"} onClick={() => setTab("function")} />
           {jobs.length > 0 && <TreeRow variant="nav" label="Collect" active={tab === "collect"} trailing={<Dot on={collecting} />} onClick={() => setTab("collect")} />}
         </Group>
