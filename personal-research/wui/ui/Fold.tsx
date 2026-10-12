@@ -34,18 +34,22 @@ export default function Fold({ open, children, className }: { open: boolean; chi
       duration: open ? 240 : 180,
       easing: open ? "cubic-bezier(0.22, 1, 0.36, 1)" : "cubic-bezier(0.4, 0, 0.2, 1)",
     });
+    let live = true;
     const settle = () => {
+      if (!live) return;
+      live = false;
       if (open) Object.assign(node.style, { overflow: "", height: "" });
       else setShown(false);
     };
     animation.finished.then(settle, () => {});
     const fallback = setTimeout(() => {
-      if (node.getAnimations().length) {
-        node.getAnimations().forEach((pending) => pending.cancel());
-        settle();
-      }
-    }, 400);
-    return () => clearTimeout(fallback);
+      animation.cancel();
+      settle();
+    }, (open ? 240 : 180) + 80);
+    return () => {
+      live = false;
+      clearTimeout(fallback);
+    };
   }, [open]);
 
   if (!shown) return null;
