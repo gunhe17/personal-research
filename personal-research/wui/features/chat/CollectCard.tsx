@@ -128,9 +128,9 @@ function Preview({ texts }: { texts: Texts }) {
           onChange={setView}
           className="mb-2"
           options={[
-            { value: "both", label: "Line by line" },
             { value: "eng", label: "Eng" },
-            { value: "kor", label: "Kor" },
+            { value: "kor", label: "Korean" },
+            { value: "both", label: "Line by line" },
           ]}
         />
       )}
