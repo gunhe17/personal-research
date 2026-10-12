@@ -23,7 +23,9 @@ type Props = {
 };
 
 export default function CollectCard({ input, events, state, collected, onOpen }: Props) {
-  const steps = stepsOf(events);
+  const texts = useTexts(state === "done" && collected && !collected.path.endsWith(".html") ? collected.id : null);
+  const recorded = events.length > 0;
+  const steps = recorded ? stepsOf(events) : state === "done" && collected ? recalled(collected.path, texts) : [];
   const now = useNow(state === "running");
   const [host, rest] = origin(input);
   return (
@@ -45,9 +47,10 @@ export default function CollectCard({ input, events, state, collected, onOpen }:
             {STAGES.map(([key, label]) => (
               <Row key={key} label={label} step={steps.find((s) => s.key === key)} now={now} />
             ))}
+            {!recorded && <li className="pt-1 pl-[26px] text-[11px] text-slate-400">단계 기록을 남기기 전에 수집해 걸린 시간은 없습니다</li>}
           </ul>
         )}
-        {state === "done" && collected && !collected.path.endsWith(".html") && <Preview id={collected.id} />}
+        {texts && texts.eng.length > 0 && <Preview texts={texts} />}
         {collected && (
           <div className="flex items-center border-t border-slate-100 bg-slate-50 px-4 py-2.5">
             <Button tone="fill" size="sm" onClick={() => onOpen(collected)}>Open</Button>
@@ -83,16 +86,34 @@ function Row({ label, step, now }: { label: string; step?: Step; now: number }) 
   );
 }
 
-function Preview({ id }: { id: string }) {
-  const [texts, setTexts] = useState<{ eng: string[]; kor: string[] } | null>(null);
-  const [view, setView] = useState<View>("both");
+type Texts = { eng: string[]; kor: string[] };
 
+function useTexts(id: string | null): Texts | null {
+  const [texts, setTexts] = useState<Texts | null>(null);
   useEffect(() => {
+    if (!id) return;
     const read = (language: string) => api.file(id, language).then((data) => lead(data.content), () => []);
     Promise.all([read("eng"), read("kor")]).then(([eng, kor]) => setTexts({ eng, kor }));
   }, [id]);
 
-  if (!texts?.eng.length) return null;
+  return texts;
+}
+
+const KINDS: [string, string][] = [["papers/", "arXiv paper"], ["videos/", "YouTube transcript"], ["docs/x/", "X article"], ["repos/", "GitHub document"], ["docs/", "Web document"]];
+
+function recalled(path: string, texts: Texts | null): Step[] {
+  const step = (key: string, text: string, state = "done"): Step => ({ key, text, state, at: 0, took: null });
+  const kind = KINDS.find(([prefix]) => path.startsWith(prefix))?.[1] || "Document";
+  return [
+    step("detect", `Detected ${kind}`),
+    step("fetch", `Saved ${path}`),
+    texts?.kor.length ? step("translate", "Korean translation saved") : step("translate", path.endsWith(".html") ? "Paper HTML needs segmented translation" : "No Korean translation", "skip"),
+    step("check", "Checked consistency"),
+  ];
+}
+
+function Preview({ texts }: { texts: Texts }) {
+  const [view, setView] = useState<View>("both");
   const paired = texts.kor.length > 0;
   const shown = paired ? view : "eng";
   return (
