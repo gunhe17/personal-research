@@ -61,7 +61,7 @@ def called(*, params: dict) -> dict:
 # #
 # tools
 
-def request(url: str) -> urllib.request.Request:
+def request(*, url: str) -> urllib.request.Request:
     return urllib.request.Request(url, headers={"Authorization": f"Bearer {TOKEN}"} if TOKEN else {})
 
 
@@ -69,7 +69,7 @@ def search_collected(*, terms: list, limit: int = 8) -> list[dict]:
     if not isinstance(terms, list) or not all(isinstance(t, str) for t in terms):
         raise ValueError("terms must be a list of strings")
     query = urllib.parse.urlencode({"q": " ".join(terms)})
-    with urllib.request.urlopen(request(f"{API_URL}/api/search?{query}"), timeout=30) as response:
+    with urllib.request.urlopen(request(url=f"{API_URL}/api/search?{query}"), timeout=30) as response:
         found = json.loads(response.read())["items"]
 
     return [
@@ -82,7 +82,7 @@ def read_document(*, path: str, language: str = "eng", start: int = 1, lines: in
         raise ValueError("language must be eng or kor")
     query = urllib.parse.urlencode({"id": path, "language": language})
     try:
-        with urllib.request.urlopen(request(f"{API_URL}/api/file?{query}"), timeout=30) as response:
+        with urllib.request.urlopen(request(url=f"{API_URL}/api/file?{query}"), timeout=30) as response:
             found = json.loads(response.read())
     except urllib.error.HTTPError as error:
         if error.code == 404:
@@ -103,7 +103,7 @@ def read_document(*, path: str, language: str = "eng", start: int = 1, lines: in
 
 
 def list_collected(*, folder: str = "", limit: int = 100) -> dict:
-    with urllib.request.urlopen(request(f"{API_URL}/api/tree"), timeout=30) as response:
+    with urllib.request.urlopen(request(url=f"{API_URL}/api/tree"), timeout=30) as response:
         nodes = json.loads(response.read())["tree"]
     wanted = folder.strip("/")
     for part in [p for p in wanted.split("/") if p]:
@@ -149,7 +149,7 @@ TOOLS = {
     "list_collected": {
         "run": list_collected,
         "spec": {
-            "description": "수집물 목록을 폴더 하나씩 본다. folder 를 비우면 맨 위(docs, papers, repos, videos). 하위 폴더와 그 문서 수, 그 폴더에 바로 있는 문서의 path 와 언어(eng, kor)를 돌려준다.",
+            "description": "수집물 목록을 폴더 하나씩 본다. folder 를 비우면 맨 위(document, paper, repository, video). 하위 폴더와 그 문서 수, 그 폴더에 바로 있는 문서의 path 와 언어(eng, kor)를 돌려준다.",
             "inputSchema": {
                 "type": "object",
                 "properties": {

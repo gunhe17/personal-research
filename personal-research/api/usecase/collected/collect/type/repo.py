@@ -14,7 +14,7 @@ HEADERS = {"User-Agent": "personal-research document mirror", "Accept": "applica
 # #
 # get
 
-def card(*, url: str) -> tuple[str, dict]:
+def card(*, url: str) -> tuple[str, str, dict]:
     owner, repo, _, _ = parse(url=url)
     info = api(owner=owner, repo=repo)
     fields = {
