@@ -54,6 +54,8 @@ export default function Sidebar() {
   const shownAgents = (agents || []).filter((conversation) => (conversation.title || "새 대화").toLowerCase().includes(agentQuery.trim().toLowerCase()));
   const needle = query.trim().toLowerCase();
   const isOpen = (key: string, fallback = true) => expanded[key] ?? fallback;
+  const libraryOpen = isOpen("library", false) && Object.entries(expanded).some(([key, open]) => open && key.startsWith("library:"));
+  const spacesOpen = isOpen("spaces") && (spaces || []).some((space) => isOpen(space.id, space.id === current));
   const remember = (next: Record<string, boolean>) => {
     setExpanded(next);
     save("spaceExpanded", next);
@@ -98,7 +100,7 @@ export default function Sidebar() {
       </Fold>
       <div className="relative">
         <TreeRow variant="nav" label="Collected" icon="collected" onClick={() => toggle("library", false)} />
-        <IconButton icon="collapse" size="sm" label="Collapse collected" onClick={() => remember({ ...expanded, ...Object.fromEntries(Object.keys(expanded).filter((key) => key.startsWith("library:")).map((key) => [key, false])) })} className="absolute top-1/2 right-0 -translate-y-1/2" />
+        {libraryOpen && <IconButton icon="collapse" size="sm" label="Collapse collected" onClick={() => remember({ ...expanded, ...Object.fromEntries(Object.keys(expanded).filter((key) => key.startsWith("library:")).map((key) => [key, false])) })} className="absolute top-1/2 right-0 -translate-y-1/2" />}
       </div>
       <Fold open={isOpen("library", false)} className="ml-3 flex flex-col gap-1 border-l border-slate-100 pl-2">
         <Search value={docQuery} onChange={setDocQuery} label="Search collected" />
@@ -111,7 +113,7 @@ export default function Sidebar() {
       </Fold>
       <div className="relative">
         <TreeRow variant="nav" label="Space" icon="grid" onClick={() => toggle("spaces")} />
-        <IconButton icon="collapse" size="sm" label="Collapse all" onClick={collapse} className="absolute top-1/2 right-0 -translate-y-1/2" />
+        {spacesOpen && <IconButton icon="collapse" size="sm" label="Collapse all" onClick={collapse} className="absolute top-1/2 right-0 -translate-y-1/2" />}
       </div>
       <Fold open={isOpen("spaces")} className="ml-3 flex flex-col gap-1 border-l border-slate-100 pl-2">
         <Search value={query} onChange={setQuery} label="Search spaces" />
