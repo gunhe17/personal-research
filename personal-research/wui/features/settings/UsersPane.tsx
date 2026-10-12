@@ -5,8 +5,8 @@ import { api, type Member } from "@/lib/api";
 import Button from "@/ui/Button";
 import IconButton from "@/ui/IconButton";
 import KeyValue from "@/ui/KeyValue";
+import Popup from "@/ui/Popup";
 import SectionHeader from "@/ui/SectionHeader";
-import { toast } from "@/ui/Toaster";
 
 const field = "min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[13px] text-slate-900 focus:border-apple focus:bg-white focus:outline-none";
 
@@ -16,6 +16,7 @@ export default function UsersPane({ me }: { me: string }) {
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [issued, setIssued] = useState<{ email: string; password: string } | null>(null);
+  const [doomed, setDoomed] = useState<Member | null>(null);
 
   const reload = () => api.users().then((data) => setMembers(data.items), (failure) => setError(failure.message));
   useEffect(() => {
@@ -37,7 +38,7 @@ export default function UsersPane({ me }: { me: string }) {
   };
 
   const remove = async (member: Member) => {
-    if (!confirm(`Delete ${member.name} (${member.email})?`)) return;
+    setDoomed(null);
     try {
       await api.removeUser(member.id);
       setError("");
@@ -45,11 +46,6 @@ export default function UsersPane({ me }: { me: string }) {
     } catch (failure) {
       setError((failure as Error).message);
     }
-  };
-
-  const copy = async () => {
-    if (!issued) return;
-    await navigator.clipboard.writeText(issued.password).then(() => toast("Password copied"), () => toast("Select the password and copy it"));
   };
 
   return (
@@ -67,7 +63,7 @@ export default function UsersPane({ me }: { me: string }) {
               </div>
               {member.id !== me && (
                 <div className="flex justify-end px-4 pb-3">
-                  <Button tone="quiet" size="sm" onClick={() => remove(member)}>Delete</Button>
+                  <Button tone="quiet" size="sm" onClick={() => setDoomed(member)}>Delete</Button>
                 </div>
               )}
             </div>
@@ -89,35 +85,48 @@ export default function UsersPane({ me }: { me: string }) {
         </div>
         {error && <p className="mt-1 text-[12px] text-red-600">{error}</p>}
       </section>
-      {issued && <Issued email={issued.email} password={issued.password} onCopy={copy} onClose={() => setIssued(null)} />}
+      {issued && <Issued email={issued.email} password={issued.password} onClose={() => setIssued(null)} />}
+      {doomed && (
+        <Popup
+          label="Delete user"
+          title="Delete user"
+          onClose={() => setDoomed(null)}
+          actions={
+            <>
+              <Button tone="quiet" size="sm" onClick={() => setDoomed(null)}>Cancel</Button>
+              <Button tone="fill" size="sm" onClick={() => remove(doomed)}>Delete</Button>
+            </>
+          }
+        >
+          {doomed.name} ({doomed.email}) 를 지웁니다. 이 사람의 로그인과 저장된 요금제·API 키도 함께 지워집니다.
+        </Popup>
+      )}
     </div>
   );
 }
 
-function Issued({ email, password, onCopy, onClose }: { email: string; password: string; onCopy: () => void; onClose: () => void }) {
-  useEffect(() => {
-    const escape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      onClose();
-    };
-    window.addEventListener("keydown", escape, true);
-    return () => window.removeEventListener("keydown", escape, true);
-  }, [onClose]);
+function Issued({ email, password, onClose }: { email: string; password: string; onClose: () => void }) {
+  const [copied, setCopied] = useState<"copy" | "check" | "close">("copy");
 
+  useEffect(() => {
+    if (copied === "copy") return;
+    const timer = setTimeout(() => setCopied("copy"), 1500);
+    return () => clearTimeout(timer);
+  }, [copied]);
+
+  const copy = () => navigator.clipboard.writeText(password).then(() => setCopied("check"), () => setCopied("close"));
   return (
-    <div className="fixed inset-0 z-[60] grid place-items-center bg-slate-900/30 px-6" role="dialog" aria-label="Issued password">
-      <div className="enter-rise w-full max-w-sm rounded-2xl bg-white p-6">
-        <h4 className="text-[17px] font-semibold tracking-tight text-slate-900">Password issued</h4>
-        <p className="mt-1 text-[13px] text-slate-500">{email} 의 비밀번호입니다. 이 창을 닫으면 다시 볼 수 없습니다.</p>
-        <div className="mt-4 flex items-center gap-2">
-          <code className="min-w-0 flex-1 truncate rounded-lg bg-slate-50 px-2.5 py-1.5 font-mono text-[14px] text-slate-900 select-all">{password}</code>
-          <IconButton icon="copy" label="Copy password" onClick={onCopy} />
-        </div>
-        <div className="mt-5 flex justify-end">
-          <Button tone="fill" size="sm" onClick={onClose}>Done</Button>
-        </div>
+    <Popup label="Issued password" title="Password issued" onClose={onClose} actions={<Button tone="fill" size="sm" onClick={onClose}>Done</Button>}>
+      {email} 의 비밀번호입니다. 이 창을 닫으면 다시 볼 수 없습니다.
+      <div className="mt-4 flex items-center gap-2">
+        <code className="min-w-0 flex-1 truncate rounded-lg bg-slate-50 px-2.5 py-1.5 font-mono text-[14px] text-slate-900 select-all">{password}</code>
+        <IconButton
+          icon={copied}
+          label={copied === "check" ? "Copied" : copied === "close" ? "Copy failed" : "Copy password"}
+          className={copied === "check" ? "text-ok" : copied === "close" ? "text-red-500" : ""}
+          onClick={copy}
+        />
       </div>
-    </div>
+    </Popup>
   );
 }
