@@ -35,7 +35,7 @@ export default function AccountPane({ account }: { account: Account | null }) {
     <div className="space-y-6">
       <h3 className="text-[21px] font-semibold tracking-tight text-slate-900">Profile</h3>
       <section>
-        <SectionHeader title="Signed in" className="mb-2" />
+        <SectionHeader title="Profile" className="mb-2" />
         <KeyValue label="Name">{account?.name || "…"}</KeyValue>
         <KeyValue label="Email">
           <span className="min-w-0 flex-1 truncate">{account?.email || "…"}</span>
