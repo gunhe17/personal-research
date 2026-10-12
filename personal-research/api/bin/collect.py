@@ -170,7 +170,7 @@ def selftest() -> None:
     }
     for given, want in cases.items():
         assert collect.detect(input=given) == want, (given, collect.detect(input=given))
-    assert web.provider(url="https://openai.com/index/an-alien-mind/") == "docs/openai"
+    assert web.provider(url="https://openai.com/index/an-alien-mind/") == "document/openai"
     assert web.synced(url="https://code.claude.com/docs/en/overview")
     assert repo.parse(url="https://github.com/o/r/blob/dev/a/b.md") == ("o", "r", "dev", "a/b.md")
     roundtrip()
@@ -185,13 +185,13 @@ def roundtrip() -> None:
         store.DATABASE = Path(folder) / "t.db"
         try:
             id = store.write(document=store.Document(
-                path="docs/t/a.md", body="# T\n\nbody\n", url="https://t/a",
+                path="document/t/a.md", body="# T\n\nbody\n", url="https://t/a",
             ))
             assert store.find(url="https://t/a") == id
-            assert store.locate(text="docs/t/a.md") == id
+            assert store.locate(text="document/t/a.md") == id
             assert store.locate(text="https://t/a") == id
             assert store.locate(text=id) == id
-            assert store.locate(text="eng/docs/t/a.md") == id
+            assert store.locate(text="eng/document/t/a.md") == id
             assert store.version(id=id, language="eng") == 1
 
             # 같은 본문을 다시 넣어도 판이 늘지 않는다
@@ -203,7 +203,7 @@ def roundtrip() -> None:
 
             # 같은 경로를 다시 수집해도 id 가 유지된다
             again = store.write(document=store.Document(
-                path="docs/t/a.md", body="# T\n\nchanged\n", url="https://t/a",
+                path="document/t/a.md", body="# T\n\nchanged\n", url="https://t/a",
             ))
             assert again == id, (again, id)
             assert store.version(id=id, language="eng") == 2
@@ -220,7 +220,7 @@ def roundtrip() -> None:
 
             # 주소가 같아도 경로가 다르면 다른 문서다
             other = store.write(document=store.Document(
-                path="docs/t/b.md", body="# B\n", url="https://t/a",
+                path="document/t/b.md", body="# B\n", url="https://t/a",
             ))
             assert other != id
         finally:

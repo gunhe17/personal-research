@@ -29,7 +29,7 @@ def card(*, url: str) -> tuple[str, dict]:
     }
     data = {k: v for k, v in fields.items() if v not in (None, "")}
 
-    return f"repos/github/{owner}/{repo}", f"https://github.com/{owner}/{repo}", data
+    return f"repository/github/{owner}/{repo}", f"https://github.com/{owner}/{repo}", data
 
 
 def get(*, url: str, path: str | None = None) -> store.Document:
@@ -42,7 +42,7 @@ def get(*, url: str, path: str | None = None) -> store.Document:
     except urllib.error.HTTPError as error:
         raise ValueError(f"문서를 찾지 못했다: {owner}/{repo}@{branch}/{path} ({error.code})") from None
     document = store.Document(
-        path=f"repos/github/{owner}/{repo}/{path}",
+        path=f"repository/github/{owner}/{repo}/{path}",
         body=rewrite(text=text, owner=owner, repo=repo, branch=branch, path=path),
         url=f"https://github.com/{owner}/{repo}/blob/{branch}/{path}",
         extra={

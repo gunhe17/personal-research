@@ -25,7 +25,7 @@ paths:
 
 신원은 uuid 다. 원문 주소는 유일하지 않기 때문이다. Protégé 논문 한 편이 8절로 쪼개져 같은 주소를 공유하고, 저장소 카드와 그 README 도 주소가 같다. 주소로 묶으면 이것들이 한 문서가 되어 버린다.
 
-`collected.path` 는 수집할 때 정한 보관 경로다. `docs/anthropic/docs/en/intro.md` 처럼 `{종류}/{공급자}/...` 로 시작한다. 신원이 아니라 사람이 읽는 이름이자 뷰어가 트리를 그리는 근거이며, 그래서 유일해야 한다. 경로를 정하는 논리는 유형 모듈과 `usecase/collected/collect/type/web.py` 의 `provider()` 에 있다.
+`collected.path` 는 수집할 때 정한 보관 경로다. `document/anthropic/docs/en/intro.md` 처럼 `{종류}/{공급자}/...` 로 시작한다. 신원이 아니라 사람이 읽는 이름이자 뷰어가 트리를 그리는 근거이며, 그래서 유일해야 한다. 경로를 정하는 논리는 유형 모듈과 `usecase/collected/collect/type/web.py` 의 `provider()` 에 있다.
 
 | 무엇을 찾을 때 | 무엇으로 |
 |---|---|
@@ -53,25 +53,25 @@ DB 는 git 이 읽지 못하고 grep 도 되지 않는다. 그래서 `collect.py
 
 ## 공급자
 
-`path` 는 `{종류}/{공급자}/...` 로 시작한다. 종류는 `docs/` `papers/` `repos/` `videos/` 넷이다.
+`path` 는 `{종류}/{공급자}/...` 로 시작한다. 종류는 `document/` `paper/` `repository/` `video/` 넷이다. 예전 이름 `docs/` `papers/` `repos/` `videos/` 는 DB 를 열 때 새 이름으로 옮기고, `store.locate` 가 옛 경로도 받는다.
 
 | 접두 | 출처 | 문서 | 수집 방법 | 갱신 |
 |---|---|---|---|---|
-| `docs/anthropic/` | https://platform.claude.com/docs | 549 | `llms.txt` 목록의 각 URL 을 `.md` 로 | sync 전량 |
-| `docs/claude-code/` | https://code.claude.com/docs | 174 | `llms.txt` 목록의 각 URL 을 `.md` 로 | sync 전량 |
-| `docs/gemini/` | https://ai.google.dev/gemini-api/docs | 171 | `llms.txt` 목록의 각 URL 을 `.md.txt` 로 | sync 전량 |
-| `docs/poolside/` | https://docs.poolside.ai | 92 | `llms.txt` 목록의 각 URL 을 `.md` 로 | sync 전량 |
-| `docs/llama/` | https://llama.developer.meta.com/docs | 50 | `llms.txt` 가 없어 `overview.md` 부터 링크를 크롤 | sync 전량 |
-| `docs/anthropic-engineering/` | https://www.anthropic.com/engineering | 24 | sitemap 목록의 HTML 을 변환 | sync 전량 |
-| `docs/research-google/` | https://research.google/blog | 색인 1598 + 받아둔 본문 | sitemap 에서 주소와 날짜만 | sync 는 색인만 |
-| `docs/earendil/` | https://earendil.com/posts | 필요한 것만 | HTML 을 변환 | 하나씩 |
-| `docs/openai/` | https://openai.com/index | 필요한 것만 | Wayback 스냅샷의 HTML 을 변환 | 하나씩 |
-| `docs/palantir/` | https://www.palantir.com/docs/foundry | 16 | 외부 추출본을 옮겨 옴 | 하나씩 |
-| `docs/protege-stanford/` | https://protege.stanford.edu/publications | 1편(8절) | 외부 추출본을 옮겨 옴 | 하나씩 |
-| `docs/x/` | https://x.com | 필요한 것만 | fxTwitter API 의 블록을 변환 | 하나씩 |
-| `papers/arxiv/` | https://arxiv.org | 필요한 것만 | 자족적 HTML 한 장 | 하나씩 |
-| `repos/github/` | https://github.com | 필요한 것만 | URL 카드는 본문 없이 `collected` 행으로, 문서 파일은 발췌 | 하나씩 |
-| `videos/youtube/` | https://www.youtube.com | 필요한 것만 | yt-dlp 오디오와 whisperx 전사, 화자 분리 | 하나씩 |
+| `document/anthropic/` | https://platform.claude.com/docs | 549 | `llms.txt` 목록의 각 URL 을 `.md` 로 | sync 전량 |
+| `document/claude-code/` | https://code.claude.com/docs | 174 | `llms.txt` 목록의 각 URL 을 `.md` 로 | sync 전량 |
+| `document/gemini/` | https://ai.google.dev/gemini-api/docs | 171 | `llms.txt` 목록의 각 URL 을 `.md.txt` 로 | sync 전량 |
+| `document/poolside/` | https://docs.poolside.ai | 92 | `llms.txt` 목록의 각 URL 을 `.md` 로 | sync 전량 |
+| `document/llama/` | https://llama.developer.meta.com/docs | 50 | `llms.txt` 가 없어 `overview.md` 부터 링크를 크롤 | sync 전량 |
+| `document/anthropic-engineering/` | https://www.anthropic.com/engineering | 24 | sitemap 목록의 HTML 을 변환 | sync 전량 |
+| `document/research-google/` | https://research.google/blog | 색인 1598 + 받아둔 본문 | sitemap 에서 주소와 날짜만 | sync 는 색인만 |
+| `document/earendil/` | https://earendil.com/posts | 필요한 것만 | HTML 을 변환 | 하나씩 |
+| `document/openai/` | https://openai.com/index | 필요한 것만 | Wayback 스냅샷의 HTML 을 변환 | 하나씩 |
+| `document/palantir/` | https://www.palantir.com/docs/foundry | 16 | 외부 추출본을 옮겨 옴 | 하나씩 |
+| `document/protege-stanford/` | https://protege.stanford.edu/publications | 1편(8절) | 외부 추출본을 옮겨 옴 | 하나씩 |
+| `document/x/` | https://x.com | 필요한 것만 | fxTwitter API 의 블록을 변환 | 하나씩 |
+| `paper/arxiv/` | https://arxiv.org | 필요한 것만 | 자족적 HTML 한 장 | 하나씩 |
+| `repository/github/` | https://github.com | 필요한 것만 | URL 카드는 본문 없이 `collected` 행으로, 문서 파일은 발췌 | 하나씩 |
+| `video/youtube/` | https://www.youtube.com | 필요한 것만 | yt-dlp 오디오와 whisperx 전사, 화자 분리 | 하나씩 |
 
 sync 전량인 접두는 매 실행마다 목록을 새로 읽어 다시 받으므로 손으로 넣은 것이 덮인다. 나머지는 sync 가 지우지 않는다. 상류에서 삭제된 페이지는 남으므로 필요하면 지운다.
 
@@ -87,16 +87,16 @@ sync 전량인 접두는 매 실행마다 목록을 새로 읽어 다시 받으�
 - `openai/` 는 openai.com 이 봇 차단으로 403 을 주어 Wayback 스냅샷을 변환했다. 미러는 스냅샷 시점에 머문다.
 - `palantir/` 와 `protege-stanford/` 는 우리 변환기가 본문을 찾지 못해 `research-ontology` 저장소가 2026-08-12 에 추출한 본문을 옮겨 왔다. 추출 방법은 `meta.extraction` 에 있다.
 - `x/` 는 X 가 로그인한 브라우저에만 본문을 주므로 프록시 fxTwitter 에서 받는다. 바이트의 출처는 `meta.via` 다. 프록시는 트윗 id 로 찾으므로, 받은 아티클 id 가 URL 과 다르면 쓰지 않는다.
-- `videos/youtube/` 는 모델이 만든 전사다. 인용할 때는 타임스탬프로 원본 영상을 확인한다. 화자 분리에는 약관에 동의한 HuggingFace 토큰(`HF_TOKEN` 이나 `~/.cache/huggingface/token`)이 필요하다.
+- `video/youtube/` 는 모델이 만든 전사다. 인용할 때는 타임스탬프로 원본 영상을 확인한다. 화자 분리에는 약관에 동의한 HuggingFace 토큰(`HF_TOKEN` 이나 `~/.cache/huggingface/token`)이 필요하다.
 
 ## path 짓기
 
-`path` 는 종류 접두 뒤에서부터 원본 URL 경로를 그대로 따른다. `platform.claude.com/docs/en/intro.md` 는 `docs/anthropic/docs/en/intro.md` 가 된다. 그래서 미러를 주제별로 재배치하지 않는다. `path` 가 URL 에 묶여 있어야 갱신이 멱등하다. 같은 `path` 로 다시 수집하면 같은 `id` 에 새 판이 쌓인다. 글 목록이 한 단 아래 모인 블로그는 공급자 접두가 그 단을 흡수한다(`anthropic.com/engineering/` 을 `anthropic-engineering/` 이 받는 식).
+`path` 는 종류 접두 뒤에서부터 원본 URL 경로를 그대로 따른다. `platform.claude.com/docs/en/intro.md` 는 `document/anthropic/docs/en/intro.md` 가 된다. 그래서 미러를 주제별로 재배치하지 않는다. `path` 가 URL 에 묶여 있어야 갱신이 멱등하다. 같은 `path` 로 다시 수집하면 같은 `id` 에 새 판이 쌓인다. 글 목록이 한 단 아래 모인 블로그는 공급자 접두가 그 단을 흡수한다(`anthropic.com/engineering/` 을 `anthropic-engineering/` 이 받는 식).
 
 예외는 둘이며, 모두 sync 가 소유하지 않는 접두라서 허용된다. 원래 URL 은 `collected.url` 에 남는다.
 
-- `papers/arxiv/` 와 `videos/youtube/` 는 URL 이 식별자뿐이라 제목 슬러그를 이름으로 쓴다. 스크립트가 만든 슬러그는 사이트 이름이 섞여 들어와도 고치지 않는다.
-- `docs/palantir/` 는 상류 사이드바의 순서가 정보라서 페이지를 평평하게 펴고 사이드바 순서대로 두 자리 번호를 붙인다. 사이드바는 페이지 HTML 의 `__NEXT_DATA__` 안 `sidebarNavProps` 에 있다.
+- `paper/arxiv/` 와 `video/youtube/` 는 URL 이 식별자뿐이라 제목 슬러그를 이름으로 쓴다. 스크립트가 만든 슬러그는 사이트 이름이 섞여 들어와도 고치지 않는다.
+- `document/palantir/` 는 상류 사이드바의 순서가 정보라서 페이지를 평평하게 펴고 사이드바 순서대로 두 자리 번호를 붙인다. 사이드바는 페이지 HTML 의 `__NEXT_DATA__` 안 `sidebarNavProps` 에 있다.
 
 ## 논문은 HTML 로 둔다
 
@@ -111,7 +111,7 @@ sync 전량인 접두는 매 실행마다 목록을 새로 읽어 다시 받으�
 | `collected_content.decoration` | 상류가 본문 앞에 붙인 장식을 떼어낸 바이트 그대로 |
 | `collected_content.created_at` | 그 판을 받은 시각 |
 
-본문이 없는 기록도 `collected` 행으로 둔다. 저장소 URL 카드가 그렇고, `path` 는 `repos/github/{owner}/{repo}` 다. 카드는 `meta` 에 `stars` `description` `language` `default_branch` `updated_upstream` 을 담는다.
+본문이 없는 기록도 `collected` 행으로 둔다. 저장소 URL 카드가 그렇고, `path` 는 `repository/github/{owner}/{repo}` 다. 카드는 `meta` 에 `stars` `description` `language` `default_branch` `updated_upstream` 을 담는다.
 
 ## 번역본 규약
 
@@ -130,5 +130,5 @@ sync 전량인 접두는 매 실행마다 목록을 새로 읽어 다시 받으�
 - Poolside 의 legal 문서 4페이지와 support portal 은 마크다운을 제공하지 않거나 로그인이 필요하다.
 - `platform.claude.com/cookbook` 은 `.md` 를 붙이면 200 이 오지만 HTML 껍데기다.
 - www.llama.com/docs 는 마크다운 내보내기가 없는 JS 앱이다. Llama 는 공식 개발자 문서 사이트를 받는다.
-- engineering 의 `claude-code-best-practices` 는 `code.claude.com/docs/en/best-practices` 로 리다이렉트되며, 원문이 `docs/claude-code/` 에 있다.
-- `platform.claude.com/docs/en/agent-sdk/` 는 `code.claude.com` 으로 보내는 HTML 껍데기다. Agent SDK 문서는 `docs/claude-code/` 에 있다.
+- engineering 의 `claude-code-best-practices` 는 `code.claude.com/docs/en/best-practices` 로 리다이렉트되며, 원문이 `document/claude-code/` 에 있다.
+- `platform.claude.com/docs/en/agent-sdk/` 는 `code.claude.com` 으로 보내는 HTML 껍데기다. Agent SDK 문서는 `document/claude-code/` 에 있다.

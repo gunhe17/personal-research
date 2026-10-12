@@ -36,7 +36,7 @@ def get(*, url: str) -> store.Document:
         )
         result = json.loads((work / "audio.json").read_text())
     document = store.Document(
-        path=f"videos/youtube/{store.slugify(title=title)}.md",
+        path=f"video/youtube/{store.slugify(title=title)}.md",
         body=to_markdown(result=result, title=title),
         url=url,
         extra={

@@ -35,7 +35,7 @@ def get(*, id: str) -> store.Document:
     arxiv = matched.group(1)
     page, title = build(page_url=f"https://arxiv.org/html/{arxiv}")
     document = store.Document(
-        path=f"papers/arxiv/{store.slugify(title=title)}.html",
+        path=f"paper/arxiv/{store.slugify(title=title)}.html",
         body=page,
         url=f"https://arxiv.org/abs/{arxiv}",
         extra={"fetched": store.today(), "via": "arXiv html"},

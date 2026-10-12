@@ -54,7 +54,7 @@ personal-research/
 | `log` | 서버 기록 |
 
 - 메시지의 `context` 는 질문할 때의 인용과 주석과 그래프 상태, `rich` 는 답변 블록, `sources` 는 답변이 근거로 쓴 수집물이다. 모두 JSON 이다.
-- 대화의 `collected_id` 가 저장소 카드(`repos/github/{owner}/{repo}`)면 그 path 아래 파일이 모두 자료가 된다. 나중에 수집한 파일도 포함된다.
+- 대화의 `collected_id` 가 저장소 카드(`repository/github/{owner}/{repo}`)면 그 path 아래 파일이 모두 자료가 된다. 나중에 수집한 파일도 포함된다.
 - 대화의 `meta` 는 모델 이름을 키로 한다. 예: `{"codex": {"thread_id": ..., "model": ...}}`. `thread_id` 는 Codex 가 `~/.codex` 에 저장한 대화의 번호로, 다음 질문에서 그 대화를 이어 가는 데 쓴다.
 - 문서를 열면 그 문서를 자료로 가진 space 대화가 열리고, 없으면 첫 질문 때 그 문서를 자료로 새 대화를 만든다.
 - 답할 때마다 Codex 가 `data/corpus/` 의 수집물 사본(`collect.py export` 와 같은 트리)을 읽기 전용으로 조사하고, 근거로 쓴 path 를 `sources` 에 남긴다. 근거가 없으면 그렇다고 밝히고 답한다. 사본은 수집물이 바뀌면 다음 질문 때 다시 만든다.

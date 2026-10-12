@@ -35,25 +35,25 @@ run_list() {
 echo "== anthropic =="
 curl -s https://platform.claude.com/llms.txt \
   | grep -oE 'https://platform\.claude\.com/[^) ]+\.md' | sort -u \
-  | while read -r u; do echo "$u|docs/anthropic/${u#https://platform.claude.com/}"; done \
+  | while read -r u; do echo "$u|document/anthropic/${u#https://platform.claude.com/}"; done \
   | run_list
 
 echo "== claude-code =="
 curl -s https://code.claude.com/llms.txt \
   | grep -oE 'https://code\.claude\.com/[^) ]+\.md' | sort -u \
-  | while read -r u; do echo "$u|docs/claude-code/${u#https://code.claude.com/}"; done \
+  | while read -r u; do echo "$u|document/claude-code/${u#https://code.claude.com/}"; done \
   | run_list
 
 echo "== poolside =="
 curl -s https://docs.poolside.ai/llms.txt \
   | grep -oE 'https://docs\.poolside\.ai/[^) ]+\.md' | sort -u \
-  | while read -r u; do echo "$u|docs/poolside/${u#https://docs.poolside.ai/}"; done \
+  | while read -r u; do echo "$u|document/poolside/${u#https://docs.poolside.ai/}"; done \
   | run_list
 
 echo "== gemini =="
 curl -sL https://ai.google.dev/gemini-api/docs/llms.txt \
   | grep -oE 'https://ai\.google\.dev/gemini-api/[^) ]+\.md\.txt' | sort -u \
-  | while read -r u; do p="${u#https://ai.google.dev/gemini-api/}"; echo "$u|docs/gemini/${p%.txt}"; done \
+  | while read -r u; do p="${u#https://ai.google.dev/gemini-api/}"; echo "$u|document/gemini/${p%.txt}"; done \
   | run_list
 
 echo "== anthropic-engineering blog =="
@@ -62,7 +62,7 @@ curl -s https://www.anthropic.com/sitemap.xml \
   | sed -e 's|<loc>||' -e 's|</loc>||' | sort -u \
   | grep -v '/engineering/claude-code-best-practices$' \
   | while read -r u; do
-      rel="docs/anthropic-engineering/${u#https://www.anthropic.com/engineering/}.md"
+      rel="document/anthropic-engineering/${u#https://www.anthropic.com/engineering/}.md"
       python3 "$COLLECT" web "$u" --rel "$rel" > /dev/null 2>&1 || echo "SKIP convert $u"
     done
 
@@ -86,7 +86,7 @@ for url, date in posts:
     title = url.rstrip("/").rsplit("/", 1)[-1].replace("-", " ").capitalize()
     print(f"- {date} [{title}]({url})")
 ' > "$WORK/research-google-index.md"
-python3 "$COLLECT" ingest "https://research.google/blog/" "docs/research-google/index.md" "$WORK/research-google-index.md" > /dev/null
+python3 "$COLLECT" ingest "https://research.google/blog/" "document/research-google/index.md" "$WORK/research-google-index.md" > /dev/null
 
 echo "== llama =="
 BASE="https://llama.developer.meta.com"
@@ -97,7 +97,7 @@ while [ -s "$queue" ] && [ "$(wc -l < "$seen")" -lt 300 ]; do
   sed -i '' '1d' "$queue"
   grep -qxF "$p" "$seen" && continue
   echo "$p" >> "$seen"
-  rel="docs/llama${p}.md"
+  rel="document/llama${p}.md"
   dl "$BASE${p}.md" "$rel" || continue
   grep -oE '\((/docs/[A-Za-z0-9/_.-]+|'"$BASE"'/docs/[A-Za-z0-9/_.-]+)' "$(tmpfile "$rel")" \
     | tr -d '(' | sed -e "s|^$BASE||" -e 's|[#?].*$||' -e 's|/$||' -e 's|\.md$||' | sort -u \

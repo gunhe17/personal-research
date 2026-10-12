@@ -39,7 +39,7 @@ def get(*, url: str, tweet_id: str | None = None) -> store.Document:
     if not article:
         raise ValueError(f"Tweet {tweet_id} has no article. Only tweets carrying an article are collected")
     document = store.Document(
-        path=f"docs/x/{user}/article/{store.slugify(title=article['title'])}.md",
+        path=f"document/x/{user}/article/{store.slugify(title=article['title'])}.md",
         body=f"# {article['title']}\n\n" + render(article=article),
         url=f"https://x.com/{user}/article/{article['id']}",
         extra={

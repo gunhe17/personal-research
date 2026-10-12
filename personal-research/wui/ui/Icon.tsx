@@ -22,10 +22,10 @@ const PATHS: Record<string, string> = {
   copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/>',
   check: '<path d="M4 12.5l5 5L20 6.5"/>',
   folder: '<path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4l2 2.5h9A1.5 1.5 0 0 1 21 10v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18z"/>',
-  docs: '<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/>',
-  papers: '<path d="M4 7l8-4 8 4-8 4z"/><path d="M8 9v5c0 1.5 2 3 4 3s4-1.5 4-3V9"/>',
-  repos: '<path d="M9 8l-4 4 4 4M15 8l4 4-4 4"/>',
-  videos: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9.5v5l4.5-2.5z"/>',
+  document: '<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/>',
+  paper: '<path d="M4 7l8-4 8 4-8 4z"/><path d="M8 9v5c0 1.5 2 3 4 3s4-1.5 4-3V9"/>',
+  repository: '<path d="M9 8l-4 4 4 4M15 8l4 4-4 4"/>',
+  video: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9.5v5l4.5-2.5z"/>',
   lesson: '<path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H12v16H5.5A1.5 1.5 0 0 1 4 18.5zM12 4h6.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H12"/>',
   note: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13 7l4 4"/>',
   log: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>',
@@ -47,7 +47,7 @@ export default function Icon({ name, className = "h-3.5 w-3.5", width = 1.5 }: {
       strokeLinejoin="round"
       className={cx("shrink-0", className)}
       aria-hidden="true"
-      dangerouslySetInnerHTML={{ __html: PATHS[name] || PATHS.docs }}
+      dangerouslySetInnerHTML={{ __html: PATHS[name] || PATHS.document }}
     />
   );
 }

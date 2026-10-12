@@ -25,7 +25,7 @@ def dump(*, reference: str, file: str, language: str) -> str:
 def load(*, reference: str, file: str, language: str) -> str:
     id = store.resolve(text=reference)
     body = Path(file).read_text(encoding="utf-8")
-    if language == "kor" and store.path_of(id=id).startswith("docs/x/"):
+    if language == "kor" and store.path_of(id=id).startswith("document/x/"):
         x.verify(source=store.read(id=id, language="eng"), translated=body)
 
     return store.save(id=id, language=language, body=body)
@@ -112,7 +112,7 @@ def korean(*, id: str) -> str:
         if not target.is_file():
             raise RuntimeError(f"No translation produced: {stderr.strip()[-300:] or stdout.strip()[-300:]}")
         translated = target.read_text(encoding="utf-8")
-    if store.path_of(id=id).startswith("docs/x/"):
+    if store.path_of(id=id).startswith("document/x/"):
         x.verify(source=body, translated=translated)
 
     return store.save(id=id, language="kor", body=translated)

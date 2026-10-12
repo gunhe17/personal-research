@@ -18,10 +18,10 @@ SYNCED = (
     "www.anthropic.com/engineering/",
 )
 PROVIDER = {
-    "www.anthropic.com/engineering/": "docs/anthropic-engineering",
-    "earendil.com/posts/": "docs/earendil",
-    "openai.com/index/": "docs/openai",
-    "research.google/blog/": "docs/research-google",
+    "www.anthropic.com/engineering/": "document/anthropic-engineering",
+    "earendil.com/posts/": "document/earendil",
+    "openai.com/index/": "document/openai",
+    "research.google/blog/": "document/research-google",
 }
 ARCHIVED = ("openai.com",)
 
@@ -91,7 +91,7 @@ def provider(*, url: str) -> str:
             return name
     host = urlparse(url).netloc.removeprefix("www.")
 
-    return "docs/" + host.rsplit(".", 1)[0].replace(".", "-")
+    return "document/" + host.rsplit(".", 1)[0].replace(".", "-")
 
 
 # #

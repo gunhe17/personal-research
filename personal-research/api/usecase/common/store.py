@@ -14,6 +14,7 @@ from pathlib import Path
 API = Path(__file__).resolve().parents[2]
 DATABASE = API / (os.environ.get("DATABASE_PATH") or "database/research.db")
 LANGUAGES = ("eng", "kor")
+RENAMED = {"docs": "document", "papers": "paper", "repos": "repository", "videos": "video"}
 DOCUMENT_SUFFIX = (".md", ".html")
 DECORATION = re.compile(r"\A(?:> ## Documentation Index\n(?:>.*\n)*|---\n(?s:.*?)\n---\n)\n*")
 USER = "default"
@@ -219,6 +220,9 @@ def locate(*, text: str) -> str | None:
     wanted = wanted.lstrip("/")
     for language in LANGUAGES:
         wanted = wanted.removeprefix(f"{language}/")
+    kind, _, rest = wanted.partition("/")
+    if kind in RENAMED and rest:
+        wanted = f"{RENAMED[kind]}/{rest}"
     with session() as connection:
         row = connection.execute(
             """SELECT id FROM collected
@@ -453,6 +457,9 @@ def upgrade(*, connection) -> None:
     for table, column, fallback in (("user", "password", "''"), ("user", "email", "''"), ("user", "role", "'user'"), ("space", "user_id", "'default'"), ("space_conversation", "user_id", "'default'"), ("agent_conversation", "user_id", "'default'"), ("llm", "user_id", "'default'")):
         if column not in columns(connection=connection, table=table):
             connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} TEXT NOT NULL DEFAULT {fallback}")
+    # kind
+    for old, new in RENAMED.items():
+        connection.execute("UPDATE collected SET path = ? || substr(path, ?) WHERE path LIKE ?", (new, len(old) + 1, f"{old}/%"))
     # conversation
     paths = dict(connection.execute("SELECT path, id FROM collected").fetchall())
     for table in ("conversations", "agent"):

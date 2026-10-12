@@ -10,7 +10,7 @@ from usecase.common import store
 DOMAINS = ("space", "agent")
 KINDS = ("question", "retrieval", "next", "collect")
 IDENTIFIER = re.compile(r"[a-zA-Z0-9_-]+")
-REPOSITORY = re.compile(r"(repos/github/[^/]+/[^/]+)/")
+REPOSITORY = re.compile(r"(repository/github/[^/]+/[^/]+)/")
 ENCODED = ("context", "rich", "sources")
 
 

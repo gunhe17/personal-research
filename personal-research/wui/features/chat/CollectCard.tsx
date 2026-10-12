@@ -102,7 +102,7 @@ function useTexts(id: string | null): Texts | null {
   return texts;
 }
 
-const KINDS: [string, string][] = [["papers/", "arXiv paper"], ["videos/", "YouTube transcript"], ["docs/x/", "X article"], ["repos/", "GitHub document"], ["docs/", "Web document"]];
+const KINDS: [string, string][] = [["paper/", "arXiv paper"], ["video/", "YouTube transcript"], ["document/x/", "X article"], ["repository/", "GitHub document"], ["document/", "Web document"]];
 
 function recalled(path: string, texts: Texts | null): Step[] {
   const step = (key: string, text: string, state = "done"): Step => ({ key, text, state, at: 0, took: null });
