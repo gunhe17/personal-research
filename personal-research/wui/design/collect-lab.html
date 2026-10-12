@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ko" class="h-full">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Collect Lab</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: { extend: {
+      fontFamily: {
+        sans: ['"SF Pro Text"', "-apple-system", "BlinkMacSystemFont", "Inter", "Pretendard", "system-ui", "sans-serif"],
+        mono: ['"SF Mono"', "ui-monospace", "monospace"],
+      },
+      colors: {
+        slate: { 50: "#f5f5f7", 100: "#e8e8ed", 200: "#d2d2d7", 300: "#b4b4b9", 400: "#858585",
+                 500: "#707070", 600: "#474747", 700: "#333333", 800: "#1d1d1f", 900: "#1d1d1f" },
+        apple: { DEFAULT: "#0071e3", hover: "#0077ed", link: "#0066cc" },
+        ice: "#f4f8fb",
+        ok: "#34c759",
+      },
+    } },
+  };
+</script>
+<style type="text/tailwindcss">
+  body { letter-spacing: -0.016em; }
+  .seg { @apply inline-flex rounded-lg bg-slate-100 p-0.5 text-[12px]; }
+  .seg button { @apply rounded-md px-2.5 py-1 text-slate-600; }
+  .seg button[aria-pressed=true] { @apply bg-white text-slate-900; }
+  .pill { @apply inline-flex shrink-0 items-center gap-1 rounded-full border border-apple-link px-3 py-1 text-[12px] text-apple-link transition hover:bg-white; }
+  .fill { @apply inline-flex shrink-0 items-center gap-1 rounded-full bg-apple px-3 py-1 text-[12px] text-white transition hover:bg-apple-hover; }
+  .quiet { @apply inline-flex shrink-0 items-center rounded-full bg-slate-100 px-3 py-1 text-[12px] text-slate-700 hover:bg-slate-200; }
+  .bubble { @apply ml-auto w-fit max-w-md rounded-2xl border border-slate-100 bg-white px-4 py-3 text-[14px]; }
+  .profile { @apply grid h-5 w-5 place-items-center rounded-full border border-slate-200 text-slate-800; }
+  .link { @apply text-[12px] text-apple-link hover:underline; }
+  @keyframes breathe { 50% { opacity: 0.35; transform: scale(0.8); } }
+  .breathe { animation: breathe 1.4s ease-in-out infinite; }
+  @keyframes sweep { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+  .sweep { background: linear-gradient(90deg, #707070 40%, #d2d2d7 50%, #707070 60%); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: sweep 2.2s linear infinite; }
+  @keyframes fill { from { width: 0; } }
+  .grow { animation: fill 600ms cubic-bezier(0.22, 1, 0.36, 1); }
+  @keyframes rise { from { opacity: 0; transform: translateY(4px); } }
+  .rise { animation: rise 240ms cubic-bezier(0.22, 1, 0.36, 1); }
+</style>
+</head>
+<body class="h-full bg-slate-50 text-slate-800 font-sans antialiased">
+
+<div class="mx-auto max-w-5xl px-6 py-12">
+  <header class="mb-12">
+    <h1 class="text-[40px] font-semibold tracking-tight" style="letter-spacing: 0.44px">Collect Lab</h1>
+    <p class="mt-2 text-[17px] font-light text-slate-500">대화 안의 수집 답변을 어떻게 보여 줄지 정합니다. 시안마다 진행 중 · 완료 · 실패를 바꿔 볼 수 있고, 재생으로 처음부터 끝까지 흐름을 봅니다.</p>
+  </header>
+  <div class="space-y-16" id="variants"></div>
+
+  <section class="mt-16 rounded-2xl bg-white p-6">
+    <h2 class="mb-3 text-[13px] font-semibold uppercase tracking-wide text-slate-500">공통</h2>
+    <ul class="space-y-1.5 text-[14px] text-slate-600">
+      <li>단계는 판별 → 원문 받기 → 번역 → 정합 검사 넷. 저장소 카드와 논문 HTML 은 번역을 건너뜀</li>
+      <li>번역이 가장 오래 걸림(수 분~30분). 진행 중에 무엇이 오래 걸리는지 보여야 함</li>
+      <li>완료 뒤에는 결과 문서를 여는 동작이 가장 중요. 근거 링크와 "이 답변에 질문하기"는 수집 답변에 맞지 않음</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+  const STEPS = [
+    { key: "detect", label: "판별", done: "Detected Web document", running: "Reading the input" },
+    { key: "fetch", label: "원문", done: "Fetched 14,280 chars", running: "Fetching the original" },
+    { key: "translate", label: "번역", done: "Korean 13,912 chars", running: "Translating to Korean" },
+    { key: "check", label: "검사", done: "1,103 originals, 412 translations, 0 problems", running: "Checking consistency" },
+  ];
+  const TIMES = ["0.4s", "2.1s", "3m 12s", "0.8s"];
+  const URL = "https://github.com/openai/codex/blob/main/README.md";
+  const PATH = "repos/github/openai/codex/README.md";
+  const box = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="h-3 w-3"><rect x="3.5" y="4" width="17" height="4.5" rx="1"/><path d="M5 8.5V19a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8.5M10 12.5h4"/></svg>`;
+  const doc = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>`;
+  const check = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="h-[11px] w-[11px] text-slate-400"><path d="M4 12.5l5 5L20 6.5"/></svg>`;
+  const cross = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="h-[11px] w-[11px] text-red-500"><path d="M6 6l12 12M18 6L6 18"/></svg>`;
+  const pulse = `<span class="breathe block h-[7px] w-[7px] rounded-full bg-apple"></span>`;
+
+  const stateOf = (state, at) => STEPS.map((s, i) => {
+    if (state === "failed") return i === 0 ? "done" : i === 1 ? "error" : "idle";
+    if (state === "done") return "done";
+    return i < at ? "done" : i === at ? "running" : "idle";
+  });
+  const textOf = (s, st) => st === "done" ? s.done : st === "running" ? s.running : st === "error" ? "Fetch failed: 페이지를 받지 못했다" : s.running;
+  const mark = (st) => st === "done" ? check : st === "error" ? cross : st === "running" ? pulse : `<span class="block h-[7px] w-[7px] rounded-full border border-slate-300"></span>`;
+  const profile = (extra = "") => `<div class="mb-3 flex items-center gap-2 text-[12px] text-slate-500"><span class="profile">${box}</span><span>수집</span>${extra}</div>`;
+
+  const VARIANTS = [
+    {
+      id: "C1", title: "C1. 세로 단계 (지금)", note: "홈·설정과 같은 Steps. 단계마다 한 줄, 걸린 시간 오른쪽. 결과는 아래 문단과 근거 링크.",
+      render: (state, at) => {
+        const sts = stateOf(state, at);
+        return profile() + `<div class="max-w-xl">${STEPS.map((s, i) => sts[i] === "idle" ? "" : `
+          <div class="relative flex gap-2.5 ${i < 3 && sts[i + 1] !== "idle" ? "pb-2.5" : ""}">
+            ${i < 3 && sts[i + 1] !== "idle" ? `<span class="absolute top-[15px] bottom-0 left-[5px] w-px bg-slate-200"></span>` : ""}
+            <span class="relative z-10 mt-[4px] flex h-[11px] w-[11px] shrink-0 items-center justify-center rounded-full bg-slate-50">${mark(sts[i])}</span>
+            <span class="min-w-0 flex-1 text-[12px] ${sts[i] === "running" ? "sweep" : "text-slate-500"}">${textOf(s, sts[i])}</span>
+            <span class="font-mono text-[10px] text-slate-300">${sts[i] === "done" ? TIMES[i] : ""}</span>
+          </div>`).join("")}</div>
+          ${state === "done" ? `<p class="mt-4 text-[17px]"><code class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[15px]">${PATH}</code></p><div class="mt-3 border-t border-slate-100 pt-2"><span class="block text-[12px] text-slate-500">근거</span><a class="font-mono link">${PATH}</a></div>` : ""}
+          ${state === "failed" ? `<p class="mt-4 text-[17px]">Nothing was collected.</p>` : ""}`;
+      },
+    },
+    {
+      id: "C2", title: "C2. 가로 진행 막대", note: "네 단계를 한 줄 막대로. 지금 단계만 문장으로 풀고, 나머지는 칸의 채움으로 보여 줌. 번역 칸이 길게 차오르는 것이 한눈에 보임.",
+      render: (state, at) => {
+        const sts = stateOf(state, at);
+        const current = sts.findIndex((x) => x === "running" || x === "error");
+        const cell = (st) => st === "done" ? "bg-apple" : st === "running" ? "bg-apple/40 breathe" : st === "error" ? "bg-red-400" : "bg-slate-200";
+        return profile() + `<div class="max-w-xl">
+          <div class="grid grid-cols-4 gap-1">${STEPS.map((s, i) => `<div><div class="h-1 rounded-full ${cell(sts[i])}"></div><div class="mt-1.5 text-[11px] ${sts[i] === "idle" ? "text-slate-300" : "text-slate-500"}">${s.label}</div></div>`).join("")}</div>
+          <p class="mt-3 text-[13px] ${current >= 0 && sts[current] === "running" ? "sweep" : sts[current] === "error" ? "text-red-600" : "text-slate-500"}">${current >= 0 ? textOf(STEPS[current], sts[current]) : "4 steps · 3m 15s"}</p>
+          ${state === "done" ? `<div class="rise mt-4 flex items-center gap-2"><span class="font-mono text-[13px]">${PATH}</span><button class="fill">Open</button><button class="pill">Korean</button></div>` : ""}
+          ${state === "failed" ? `<div class="rise mt-4 flex items-center gap-2"><span class="text-[14px]">Nothing was collected.</span><button class="pill">Try again</button></div>` : ""}
+        </div>`;
+      },
+    },
+    {
+      id: "C3", title: "C3. 결과 문서 카드", note: "완료되면 결과가 주인공. 문서 카드 하나에 경로, 언어, 분량, 열기. 단계는 한 줄 요약으로 접고 눌러서 펼침.",
+      render: (state, at) => {
+        const sts = stateOf(state, at);
+        const running = sts.findIndex((x) => x === "running");
+        if (state === "running") return profile() + `<div class="max-w-xl rounded-xl border border-slate-200 bg-white p-4">
+            <div class="flex items-center gap-3"><span class="grid h-10 w-10 place-items-center rounded-lg bg-slate-50 text-slate-400">${doc}</span>
+            <div class="min-w-0 flex-1"><div class="truncate text-[13px] text-slate-500">${URL}</div><div class="mt-0.5 text-[13px] sweep">${textOf(STEPS[running], "running")}</div></div>
+            <span class="font-mono text-[11px] text-slate-400">${running + 1}/4</span></div></div>`;
+        if (state === "failed") return profile() + `<div class="max-w-xl rounded-xl border border-slate-200 bg-white p-4">
+            <div class="flex items-center gap-3"><span class="grid h-10 w-10 place-items-center rounded-lg bg-slate-50 text-red-500">${doc}</span>
+            <div class="min-w-0 flex-1"><div class="truncate text-[13px] text-slate-800">${URL}</div><div class="mt-0.5 text-[12px] text-red-600">Fetch failed: 페이지를 받지 못했다</div></div>
+            <button class="pill">Try again</button></div></div>`;
+        return profile() + `<div class="rise max-w-xl rounded-xl border border-slate-200 bg-white p-4">
+            <div class="flex items-center gap-3"><span class="grid h-10 w-10 place-items-center rounded-lg bg-ice text-apple-link">${doc}</span>
+            <div class="min-w-0 flex-1"><div class="truncate font-mono text-[13px] text-slate-900">${PATH}</div>
+            <div class="mt-1 flex items-center gap-1.5 text-[11px] text-slate-500"><span class="rounded bg-slate-100 px-1.5 py-0.5">eng 14,280</span><span class="rounded bg-slate-100 px-1.5 py-0.5">kor 13,912</span><span>github.com</span></div></div>
+            <button class="fill">Open</button></div>
+            <details class="mt-3 border-t border-slate-100 pt-2 text-[12px] text-slate-500"><summary class="cursor-pointer list-none">4 steps · 3m 15s ▸</summary>
+            <ul class="mt-1.5 space-y-1">${STEPS.map((s, i) => `<li class="flex"><span class="flex-1">${s.done}</span><span class="font-mono text-[10px] text-slate-300">${TIMES[i]}</span></li>`).join("")}</ul></details></div>`;
+      },
+    },
+    {
+      id: "C4", title: "C4. 한 줄 상태", note: "가장 조용한 형태. 진행 중엔 한 줄만 바뀌고, 끝나면 그 줄이 결과 요약으로 바뀜. 대화 흐름을 거의 차지하지 않음.",
+      render: (state, at) => {
+        const sts = stateOf(state, at);
+        const current = sts.findIndex((x) => x === "running");
+        const line = state === "running"
+          ? `<span class="flex h-4 w-4 items-center justify-center">${pulse}</span><span class="sweep">${textOf(STEPS[current], "running")}</span><span class="font-mono text-[11px] text-slate-300">${current + 1}/4</span>`
+          : state === "done"
+            ? `<span class="flex h-4 w-4 items-center justify-center">${check}</span><span class="text-slate-600">Collected</span><a class="font-mono link text-[13px]">${PATH}</a><span class="text-slate-400">· eng · kor · 3m 15s</span>`
+            : `<span class="flex h-4 w-4 items-center justify-center">${cross}</span><span class="text-red-600">Fetch failed</span><span class="text-slate-400">· 페이지를 받지 못했다</span><a class="link">다시 시도</a>`;
+        return profile() + `<div class="flex max-w-2xl flex-wrap items-center gap-2 text-[13px]">${line}</div>`;
+      },
+    },
+    {
+      id: "C5", title: "C5. 체크리스트 카드", note: "테두리 카드 안에 출처 머리(도메인), 네 단계 체크리스트(대기 단계도 회색으로 미리 보임), 아래 동작 줄. 남은 단계가 보여 기다릴 양을 짐작할 수 있음.",
+      render: (state, at) => {
+        const sts = stateOf(state, at);
+        return profile() + `<div class="max-w-xl overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <div class="flex items-center gap-2 border-b border-slate-100 px-4 py-2.5 text-[12px] text-slate-500"><span class="font-semibold text-slate-800">github.com</span><span class="truncate">${URL.replace("https://github.com", "")}</span></div>
+          <ul class="px-4 py-2">${STEPS.map((s, i) => `<li class="flex items-center gap-2.5 py-1.5"><span class="flex h-4 w-4 items-center justify-center">${mark(sts[i])}</span><span class="w-10 text-[12px] ${sts[i] === "idle" ? "text-slate-300" : "text-slate-800"}">${s.label}</span><span class="min-w-0 flex-1 truncate text-[12px] ${sts[i] === "running" ? "sweep" : sts[i] === "error" ? "text-red-600" : sts[i] === "idle" ? "text-slate-300" : "text-slate-500"}">${sts[i] === "idle" ? "" : textOf(s, sts[i])}</span><span class="font-mono text-[10px] text-slate-300">${sts[i] === "done" ? TIMES[i] : ""}</span></li>`).join("")}</ul>
+          ${state === "done" ? `<div class="flex items-center gap-2 border-t border-slate-100 bg-slate-50 px-4 py-2.5"><button class="fill">Open</button><button class="pill">Line by line</button><span class="flex-1"></span><button class="quiet">Ask about it</button></div>` : ""}
+          ${state === "failed" ? `<div class="flex items-center gap-2 border-t border-slate-100 bg-slate-50 px-4 py-2.5"><button class="pill">Try again</button></div>` : ""}
+        </div>`;
+      },
+    },
+    {
+      id: "C6", title: "C6. 미리보기", note: "완료되면 첫 문단을 원문/번역으로 나란히 보여 주어 번역 품질을 바로 확인. 진행 중엔 C4 처럼 한 줄.",
+      render: (state, at) => {
+        if (state !== "done") return VARIANTS[3].render(state, at);
+        return profile() + `<div class="rise max-w-2xl">
+          <div class="mb-2 flex items-center gap-2"><a class="font-mono link text-[13px]">${PATH}</a><span class="text-[12px] text-slate-400">· 3m 15s</span><span class="flex-1"></span><button class="pill">Open</button></div>
+          <div class="grid grid-cols-2 gap-3 text-[13px] leading-relaxed">
+            <div class="rounded-xl border border-slate-200 bg-white p-3"><div class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Eng</div>Codex CLI is a coding agent from OpenAI that runs locally on your computer.</div>
+            <div class="rounded-xl border border-slate-200 bg-white p-3"><div class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Kor</div>Codex CLI 는 내 컴퓨터에서 로컬로 실행되는 OpenAI 의 코딩 에이전트다.</div>
+          </div></div>`;
+      },
+    },
+  ];
+
+  const root = document.getElementById("variants");
+  for (const v of VARIANTS) {
+    const section = document.createElement("section");
+    section.innerHTML = `
+      <div class="mb-3 flex flex-wrap items-center gap-3">
+        <h2 class="text-[21px] font-semibold tracking-tight">${v.title}</h2>
+        <div class="seg" role="group">${["running", "done", "failed"].map((s) => `<button data-state="${s}" aria-pressed="${s === "done"}">${{ running: "진행 중", done: "완료", failed: "실패" }[s]}</button>`).join("")}</div>
+        <button class="quiet" data-play>▶ 재생</button>
+      </div>
+      <p class="mb-4 max-w-3xl text-[14px] text-slate-500">${v.note}</p>
+      <div class="rounded-2xl border border-slate-200 bg-slate-50 p-6">
+        <div class="bubble mb-6"><div class="mb-1 text-[11px] text-slate-400">나</div>${URL}</div>
+        <div data-stage></div>
+      </div>`;
+    root.appendChild(section);
+    const stage = section.querySelector("[data-stage]");
+    let timer;
+    const show = (state, at = 2) => {
+      stage.innerHTML = v.render(state, at);
+      section.querySelectorAll("[data-state]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.state === state)));
+    };
+    section.querySelectorAll("[data-state]").forEach((b) => b.addEventListener("click", () => { clearInterval(timer); show(b.dataset.state); }));
+    section.querySelector("[data-play]").addEventListener("click", () => {
+      clearInterval(timer);
+      let at = 0;
+      show("running", at);
+      timer = setInterval(() => {
+        at += 1;
+        if (at > 3) { clearInterval(timer); show("done"); } else show("running", at);
+      }, at === 2 ? 2400 : 1100);
+    });
+    show("done");
+  }
+</script>
+</body>
+</html>
