@@ -19,7 +19,7 @@ def tree() -> list[dict]:
                GROUP BY collected.id
                ORDER BY collected.path"""
         ).fetchall()
-    root: dict = {}
+    root: dict = {kind: {} for kind in store.RENAMED.values()}
     for id, path, extra, languages in rows:
         available = sorted((languages or "").split(","))
         if "eng" not in available:

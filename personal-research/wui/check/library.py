@@ -22,10 +22,17 @@ with sync_playwright() as p:
     page.get_by_label("Toggle sidebar").click()
     nav = page.locator("nav").first
     tree = page.evaluate("fetch('/api/tree').then(r => r.json())")["tree"]
-    trail, node = [], tree[0]
-    while node["type"] == "dir":
-        trail.append(node["name"])
-        node = node["children"][0]
+    print("0 kind folders:", [n["name"] for n in tree])
+
+    def first(nodes, trail):
+        for node in nodes:
+            if node["type"] == "file":
+                return trail, node
+            found = first(node["children"], trail + [node["name"]])
+            if found:
+                return found
+
+    trail, node = first(tree, [])
 
     nav.get_by_role("button", name="Collected", exact=True).click()
     for name in trail:

@@ -53,7 +53,7 @@ DB 는 git 이 읽지 못하고 grep 도 되지 않는다. 그래서 `collect.py
 
 ## 공급자
 
-`path` 는 `{종류}/{공급자}/...` 로 시작한다. 종류는 `document/` `paper/` `repository/` `video/` 넷이다. 예전 이름 `docs/` `papers/` `repos/` `videos/` 는 DB 를 열 때 새 이름으로 옮기고, `store.locate` 가 옛 경로도 받는다.
+`path` 는 `{종류}/{공급자}/...` 로 시작한다. 종류는 `document/` `paper/` `repository/` `video/` 넷이다. 예전 이름 `docs/` `papers/` `repos/` `videos/` 는 DB 를 열 때 새 이름으로 옮기고, `store.locate` 가 옛 경로도 받는다. 네 폴더는 문서가 없어도 트리(`/api/tree`)에 늘 있다.
 
 | 접두 | 출처 | 문서 | 수집 방법 | 갱신 |
 |---|---|---|---|---|

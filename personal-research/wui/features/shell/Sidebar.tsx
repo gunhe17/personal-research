@@ -166,6 +166,7 @@ function Branch({ node, isOpen, toggle, active, onOpen }: { node: TreeNode; isOp
     <div className="flex flex-col gap-1">
       <TreeRow label={node.name} icon={<Icon name="folder" className="h-3.5 w-3.5 text-slate-500" />} open={isOpen(key)} onClick={() => toggle(key)} />
       <Fold open={isOpen(key)} className="ml-3 flex flex-col gap-1 border-l border-slate-100 pl-2">
+        {!node.children.length && <div className="flex h-8 items-center px-2 text-[11px] text-slate-400">Nothing yet</div>}
         {node.children.map((child) => <Branch key={child.path} node={child} isOpen={isOpen} toggle={toggle} active={active} onOpen={onOpen} />)}
       </Fold>
     </div>
