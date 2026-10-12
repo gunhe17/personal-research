@@ -29,14 +29,13 @@ export default function Fold({ open, children, className }: { open: boolean; chi
     const full = { height: `${node.scrollHeight}px`, opacity: 1, marginTop: "0px" };
     const from = running ? current : open ? shut : full;
     const to = open ? full : shut;
-    node.style.overflow = "hidden";
+    Object.assign(node.style, { overflow: "hidden", height: to.height, opacity: String(to.opacity), marginTop: to.marginTop });
     const animation = node.animate([from, to], {
       duration: open ? 240 : 180,
       easing: open ? "cubic-bezier(0.22, 1, 0.36, 1)" : "cubic-bezier(0.4, 0, 0.2, 1)",
-      fill: open ? "none" : "forwards",
     });
     const settle = () => {
-      if (open) node.style.overflow = "";
+      if (open) Object.assign(node.style, { overflow: "", height: "" });
       else setShown(false);
     };
     animation.finished.then(settle, () => {});
