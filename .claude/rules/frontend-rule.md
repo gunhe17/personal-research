@@ -66,7 +66,7 @@ wui/
 | `doc` | 문서 패널, 언어 전환, 내려받기, 선택 막대 |
 | `material` | 자료 패널 |
 | `blocks` | 답변·수업 블록 렌더러, 그래프 실험(Playground) |
-| `settings` | 설정 모달(General·Font, Models·제공사, Agent·Function·Collect), 로그인 시트 |
+| `settings` | 설정 모달(General·Font, Models·제공사, Agent·Function), 로그인 시트 |
 
 ## 공용 부품
 
@@ -93,7 +93,7 @@ wui/
 | `Logo` | 제공사 로고(openai, anthropic, xai) | 답변의 프로필 |
 | `Icon` | 24 격자 1.5 선. 이름으로 고른다 | 모든 아이콘 |
 | `toast()` (`ui/Toaster.tsx`) | 화면 아래 흰 알약 | 짧은 알림 |
-| `Steps` | 체크·진행 점과 세로선, 단계별 걸린 시간 | 수집 진행(홈 답변, 설정 Collect) |
+| `Steps` | 체크·진행 점과 세로선, 단계별 걸린 시간 | 수집 진행(홈 답변) |
 
 버튼 규칙:
 
@@ -116,7 +116,7 @@ wui/
 ## 상태와 데이터
 
 - 화면 상태는 그 컴포넌트의 `useState` 에 둔다. 전역 Context 는 작업대(`WorkbenchProvider`) 하나뿐이다. 패널 사이의 일(근거 문서 열기 `open`, 인용 보내기 `sendQuote`, 지금 문서 `doc`, 포커스)은 모두 이 Context 를 거친다.
-- 기능 사이의 짧은 신호는 `lib/events.ts` 의 이름 있는 이벤트로 보낸다: `spaces`(space 목록이 바뀜), `settings`(제공사 설정이 바뀜), `zoom`(글자 크기가 바뀜), `collect`(수집 작업이 생기거나 끝남), `agents`(홈 대화가 생기거나 바뀜). 새 신호도 여기에 이름을 더한다.
+- 기능 사이의 짧은 신호는 `lib/events.ts` 의 이름 있는 이벤트로 보낸다: `spaces`(space 목록이 바뀜), `settings`(제공사 설정이 바뀜), `zoom`(글자 크기가 바뀜), `agents`(홈 대화가 생기거나 바뀜). 새 신호도 여기에 이름을 더한다.
 - `fetch` 는 `lib/api.ts` 에서만 부른다. 엔드포인트마다 함수 하나, 응답 타입을 함께 둔다. 실패하면 서버의 `error` 문장으로 `ApiError` 를 던지고, 화면이 그 문장을 보여 준다.
 - 브라우저 저장은 `lib/storage.ts` 의 `load` `save` 만 쓴다. 키는 옛 화면과 같게 둔다: `workbench` `sidebarWidth` `spaceExpanded` `docZoom` `chatZoom` `docLang` `dlFmt` `homeMode` `lastDoc` `model` `space-draft:<그룹>` `pg:<key>`.
 - 문서와 대화 글자 크기는 `<html>` 의 CSS 변수 `--doc-zoom` `--chat-zoom` 으로 퍼뜨린다.
