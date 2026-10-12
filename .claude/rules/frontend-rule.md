@@ -160,3 +160,4 @@ wui/
 - 바꾼 뒤에는 `npm run build` 가 경고 없이 끝나야 한다.
 - 화면 흐름은 `check/` 의 Playwright 스크립트로 눌러 본다(`uv run --with playwright python check/<이름>.py <스크린샷 폴더>`). api(8768) 와 `npm run dev`(3000) 가 떠 있어야 하고, 점검용 계정을 `WUI_EMAIL` `WUI_PASSWORD` 로 넘긴다(`check/account.py` 가 로그인한다). 다른 주소는 `WUI_URL`, 창을 보려면 `HEADED=1`.
 - 새 화면 흐름을 만들면 그 흐름의 점검 스크립트도 하나 둔다.
+- 점검은 실제 DB 를 쓰는 api(8768)와 dev 서버(3000)를 건드리지 않고 따로 띄운 점검용 쌍에서 돌린다. DB 사본으로 `PORT=8797 DATABASE_PATH=<사본> python3 personal-research/api/bin/server.py`, 화면은 `NEXT_DIST_DIR=.next-check API_URL=http://127.0.0.1:8797 npx next dev -p 3010`, 스크립트는 `WUI_URL=http://localhost:3010`. 그래야 점검 중에도 실제 계정으로 로그인된다.
