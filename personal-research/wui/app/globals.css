@@ -89,7 +89,7 @@
   .prose-doc a { @apply text-apple-link no-underline underline-offset-2 hover:underline; }
   .prose-doc ul { @apply my-3 list-disc space-y-1 pl-5 text-slate-700; }
   .prose-doc ol { @apply my-3 list-decimal space-y-1 pl-5 text-slate-700; }
-  .prose-doc code { @apply rounded bg-slate-100 px-1.5 py-0.5 font-mono text-slate-800; font-size: 0.9em; }
+  .prose-doc code { @apply rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-slate-800; font-size: 0.9em; }
   .prose-doc pre { @apply my-4 overflow-x-auto rounded-xl bg-white p-4; font-size: 0.88em; }
   .prose-doc pre code { @apply bg-transparent p-0; }
   .prose-doc table { @apply my-4 w-full border-collapse; font-size: 0.92em; }
@@ -115,7 +115,7 @@
   .md-chat h3, .md-chat h4 { @apply mt-2.5 mb-1 font-semibold text-slate-800; }
   .md-chat ul { @apply my-2 list-disc space-y-1 pl-4; }
   .md-chat ol { @apply my-2 list-decimal space-y-1 pl-4; }
-  .md-chat code { @apply rounded bg-slate-100 px-1 py-0.5 font-mono text-[0.85em] text-slate-800; }
+  .md-chat code { @apply rounded-md bg-slate-100 px-1 py-0.5 font-mono text-[0.85em] text-slate-800; }
   .md-chat pre { @apply my-2 max-w-full overflow-x-auto rounded-lg border border-slate-700 bg-slate-900 p-2.5 text-xs text-slate-50; }
   .md-chat pre code { @apply bg-transparent p-0 text-xs text-slate-50; }
   .md-chat a { @apply text-apple-link no-underline underline-offset-2 hover:underline; }

@@ -11,9 +11,9 @@ export default function Attachments({ notes, quote, onDropQuote }: { notes: Note
   return (
     <div className="mb-1.5 grid gap-1.5">
       {notes.items.length > 0 && (
-        <button type="button" onClick={() => setListOpen(!listOpen)} className="justify-self-start rounded-full border border-slate-200 bg-white px-3 py-0.5 text-[12px]">
+        <Button tone="quiet" size="sm" onClick={() => setListOpen(!listOpen)} className="justify-self-start">
           ▤ {notes.items.length} annotation{notes.items.length === 1 ? "" : "s"}
-        </button>
+        </Button>
       )}
       {listOpen && notes.items.length > 0 && (
         <div className="rounded-lg border border-slate-100 bg-white p-1.5">

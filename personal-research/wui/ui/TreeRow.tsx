@@ -39,7 +39,7 @@ export default function TreeRow({ label, icon, variant = "folder", open = false,
       {variant === "folder" && <Chevron open={open} />}
       {glyph}
       <span className="min-w-0 flex-1 truncate">{label}</span>
-      {count !== undefined && <span className="shrink-0 text-[10px] font-normal text-slate-400">{count}</span>}
+      {count !== undefined && <span className="shrink-0 text-[11px] font-normal text-slate-400">{count}</span>}
       {trailing}
     </button>
   );

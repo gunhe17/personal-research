@@ -73,9 +73,7 @@ export default function MethodRow({ provider, method, status, rank, first, expan
           <Usage method={method} />
           {!plan(method) && removable(provider, method) && (
             <KeyValue label="">
-              <button type="button" className="text-[12px] text-slate-500 hover:text-red-600" onClick={() => setRemoving(true)}>
-                Remove {method.label}
-              </button>
+              <Button tone="quiet" size="sm" aria-label="Remove method" onClick={() => setRemoving(true)}>Remove</Button>
             </KeyValue>
           )}
           {removing && (

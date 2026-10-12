@@ -13,7 +13,7 @@ export default function Steps({ steps, className }: { steps: Step[]; className?:
             <StepMark state={step.state} />
           </span>
           <span className={cx("min-w-0 flex-1 text-[12px]", step.state === "skip" ? "text-slate-400" : step.state === "running" ? "sweep" : "text-slate-500")}>{step.text}</span>
-          <span className="shrink-0 pt-px font-mono text-[10px] text-slate-300 tabular-nums">{step.took && step.took >= 1000 ? `${(step.took / 1000).toFixed(1)}s` : ""}</span>
+          <span className="shrink-0 pt-px font-mono text-[11px] text-slate-300 tabular-nums">{step.took && step.took >= 1000 ? `${(step.took / 1000).toFixed(1)}s` : ""}</span>
         </div>
       ))}
     </div>

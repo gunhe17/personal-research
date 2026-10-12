@@ -72,7 +72,7 @@ with sync_playwright() as p:
     page.get_by_role("dialog", name="Remove key").get_by_role("button", name="Remove").click()
     page.wait_for_timeout(600)
     print("6 key removed, input back:", row.get_by_placeholder("Anthropic API key").count())
-    row.get_by_role("button", name=f"Remove {added['label']}", exact=True).click()
+    row.get_by_role("button", name="Remove method", exact=True).click()
     page.get_by_role("dialog", name="Remove key").get_by_role("button", name="Remove").click()
     page.wait_for_timeout(600)
     after = page.evaluate("fetch('/api/settings').then(r => r.json())")["providers"][1]["methods"]

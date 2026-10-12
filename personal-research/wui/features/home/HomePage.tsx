@@ -7,6 +7,7 @@ import { progress, type Progress } from "@/lib/collect";
 import { cx } from "@/lib/cx";
 import { emit } from "@/lib/events";
 import { chatHtml } from "@/lib/markdown";
+import Button from "@/ui/Button";
 import Steps from "@/ui/Steps";
 import { toast } from "@/ui/Toaster";
 import { useWorkbench } from "@/features/workbench/WorkbenchProvider";
@@ -109,7 +110,7 @@ function Answer({ reply, onOpen }: { reply: Progress; onOpen: (source: Source) =
   const empty = !reply.content.trim();
   return (
     <div className="mr-2 max-w-full min-w-0 overflow-hidden rounded-2xl rounded-bl-md bg-white px-3.5 py-2.5 text-slate-900">
-      <div className="mb-1 text-[10px] font-semibold tracking-wider text-slate-500 uppercase">Agent</div>
+      <div className="mb-1 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Agent</div>
       <Steps steps={reply.steps} className="mb-2" />
       {reply.streaming && empty ? (
         <div className="typing py-0.5" aria-label="Generating"><span /><span /><span /></div>
@@ -121,11 +122,11 @@ function Answer({ reply, onOpen }: { reply: Progress; onOpen: (source: Source) =
       )}
       {reply.sources.length > 0 && (
         <div className="mt-2.5 border-t border-slate-100 pt-2">
-          <div className="mb-1 text-[10px] font-semibold tracking-wider text-slate-500 uppercase">Sources</div>
+          <div className="mb-1 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Sources</div>
           {reply.sources.map((source) => (
-            <button key={source.id} type="button" onClick={() => onOpen(source)} className="block w-full truncate rounded px-1 py-0.5 text-left text-[11px] text-apple-link transition duration-150 hover:bg-slate-50">
+            <Button key={source.id} tone="link" size="sm" onClick={() => onOpen(source)} className="block! w-full truncate text-left">
               {source.path}
-            </button>
+            </Button>
           ))}
         </div>
       )}

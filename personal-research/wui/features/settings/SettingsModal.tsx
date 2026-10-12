@@ -76,7 +76,7 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
       </nav>
       <IconButton icon="close" label="Close" className="absolute top-3 right-3 z-10 bg-white" onClick={close} />
       <div className={cx("min-w-0 flex-1 overflow-y-auto p-6", !paned && "max-sm:hidden")}>
-        <IconButton icon="back" label="Back" className="-mt-3 -ml-2 mb-3 sm:hidden" onClick={() => setPaned(false)} />
+        <IconButton icon="back" label="Back" className="-mt-3 -ml-2 mb-3 align-top sm:hidden" onClick={() => setPaned(false)} />
         {current ? (
           <ProviderPane
             key={current.id}

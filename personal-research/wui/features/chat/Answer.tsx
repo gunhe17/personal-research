@@ -32,9 +32,9 @@ export default function Answer({ message, label, provider, scene, onContext, onA
         <div className="mt-3 border-t border-slate-100 pt-2.5 text-[12px]">
           <span className="mb-0.5 block text-slate-500">근거</span>
           {message.sources!.map((source) => (
-            <button key={source.id} type="button" onClick={() => onOpen(source)} className="block max-w-full truncate py-px text-left font-mono text-[11px] text-apple-link">
+            <Button key={source.id} tone="link" size="sm" onClick={() => onOpen(source)} className="block! w-full truncate text-left">
               {source.path}
-            </button>
+            </Button>
           ))}
         </div>
       )}

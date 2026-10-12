@@ -80,7 +80,7 @@ export default function LoginSheet({ provider, method, title, initial, onClose }
       <div className="enter-rise w-full max-w-sm overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200">
         <div className="flex items-center border-b border-slate-100 px-5 py-4">
           <h3 className="flex-1 text-sm font-semibold text-slate-900">{title}</h3>
-          <button type="button" className="text-[12px] text-slate-500 hover:text-slate-800" onClick={() => onClose(true)}>Cancel</button>
+          <Button tone="quiet" size="sm" onClick={() => onClose(true)}>Cancel</Button>
         </div>
         <ol className="space-y-5 p-5 text-[13px] text-slate-800">
           <li className="flex gap-3">
@@ -100,7 +100,7 @@ export default function LoginSheet({ provider, method, title, initial, onClose }
               <div className="font-medium">{pending?.needs_code ? "Paste the code shown after login" : "Enter this code"}</div>
               {pending?.code && (
                 <div className="mt-2 flex items-center gap-2">
-                  <span className="rounded-lg bg-slate-50 px-3 py-2 font-mono text-[20px] font-semibold tracking-[0.12em] text-slate-900 select-all">{pending.code}</span>
+                  <span className="rounded-lg bg-slate-50 px-3 py-2 font-mono text-[21px] font-semibold tracking-[0.12em] text-slate-900 select-all">{pending.code}</span>
                   <Button tone="quiet" size="sm" onClick={() => navigator.clipboard?.writeText(pending.code).then(() => toast("Code copied"))}>Copy</Button>
                 </div>
               )}

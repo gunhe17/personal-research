@@ -113,7 +113,7 @@ wui/
 - 색은 토큰 이름으로만 쓴다: `slate-*`(Apple 회색 단계로 덮어씀), `apple` `apple-hover` `apple-link` `apple-signal` `ice` `ok`. `#0071e3` 같은 값을 클래스에 쓰지 않는다.
 - 반경은 `rounded-md`(6) `rounded-lg`(8) `rounded-xl`(8) `rounded-2xl`(12) `rounded-full` 만.
 - 그림자를 쓰지 않는다. 경계는 `ring-1 ring-slate-200` 이나 `border-slate-100`.
-- 글자 크기는 11, 12, 13, 14, 15, 17, 21, 40px. 대문자 머리는 `text-[11px]` 이나 `text-[13px]` + `font-semibold uppercase tracking-wide text-slate-500`.
+- 글자 크기는 11, 12, 13, 14, 15, 17, 21, 40px 뿐이다. 보조 수치(단계 시간, 개수)와 대문자 라벨은 11, 시트·그래프·로그인 제목은 21, 홈 머리만 40 이다. 대문자 머리는 `text-[11px]` 이나 `text-[13px]` + `font-semibold uppercase tracking-wide text-slate-500`.
 - `style={{}}` 는 계산된 값(폭, 위치, CSS 변수)에만 쓴다.
 - 클래스를 조건으로 붙일 때는 `lib/cx.ts` 의 `cx()` 를 쓴다.
 - 마크다운 본문은 `globals.css` 의 `.prose-doc`(문서) `.md-chat`(대화) `.article`(답변·수업) 셋 중 하나로 감싼다.
@@ -130,6 +130,7 @@ wui/
 - 기준 폭은 Tailwind 의 `sm`(640) `md`(768) `lg`(1024) 셋만 쓴다. 덮개 기준은 `Shell.tsx` 의 `OVERLAY` 한 곳이다.
 - 메뉴는 화면 끝에 닿으면 반대쪽으로 펼친다(`MenuButton`). 긴 글은 `break-words`, 토글 글자는 `whitespace-nowrap`.
 - 설정의 키-값(`KeyValue`)은 640px 미만에서 키가 값 위에 쌓인다.
+- 대화 입력창(`InputBar`)은 768px 미만에서 두 줄이다. 위 줄에 제공사·모델 메뉴, 아래 줄에 입력칸과 보내기.
 - 터치 화면(`pointer: coarse`)에서는 `IconButton` 의 누르는 영역만 8px 넓힌다(`.touch`). 보이는 크기는 같다.
 - 폰 흐름은 `check/mobile.py` 로 점검한다(390×844).
 

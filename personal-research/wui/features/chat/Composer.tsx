@@ -85,7 +85,11 @@ export default function Composer({ value, sending, catalog, choice, input, onPic
         className="max-h-[180px] min-w-0 flex-1 resize-none self-center bg-transparent px-1 py-1 leading-normal text-slate-900 placeholder:text-slate-400 focus:outline-none"
         style={{ fontSize: "calc(17px * var(--chat-zoom))" }}
       />
-      {catalog && choice && <ModelPicker catalog={catalog} choice={choice} onPick={onPick} />}
+      {catalog && choice && (
+        <div className="flex items-center max-md:order-first max-md:w-full">
+          <ModelPicker catalog={catalog} choice={choice} onPick={onPick} />
+        </div>
+      )}
       <SendButton disabled={sending} onClick={onSend} />
     </InputBar>
   );

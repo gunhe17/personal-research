@@ -37,7 +37,18 @@ with sync_playwright() as p:
     page.wait_for_timeout(800)
     print("1 sidebar closed:", page.locator("aside[inert]").count() == 1, "| visible panes:", page.locator("section.bg-white:visible").count())
 
+    composer = page.locator("section.bg-white:visible textarea[aria-label='메시지']").first
+    model = page.get_by_role("button", name="model", exact=True)
     picker = page.get_by_role("button", name="provider", exact=True)
+    two_rows = picker.bounding_box()["y"] + picker.bounding_box()["height"] <= composer.bounding_box()["y"]
+    print("13 composer width:", rect(composer)["width"], rect(composer)["width"] >= 250, "| menus visible:", picker.is_visible() and model.is_visible(), "| two rows:", two_rows)
+    composer.locator("xpath=..").screenshot(path=f"{OUT}/composer-390.png")
+    model.click()
+    page.wait_for_timeout(300)
+    menu = rect(page.get_by_role("menu", name="model"))
+    print("14 model menu inside:", menu["left"] >= 0 and menu["right"] <= WIDTH)
+    model.click()
+    page.wait_for_timeout(200)
     picker.click()
     page.wait_for_timeout(300)
     menu = rect(page.get_by_role("menu", name="provider"))
@@ -109,5 +120,13 @@ with sync_playwright() as p:
     print("11 back:", hidden, dialog.get_by_role("button", name="Anthropic", exact=True).is_visible(), "| pane hidden:", not add.is_visible())
     dialog.get_by_label("Close").click()
     print("12 closed:", page.get_by_role("dialog").count() == 0)
+    desk = browser.new_page(viewport={"width": 1280, "height": 800})
+    sign_in(desk, BASE)
+    desk.goto(f"{BASE}/collected?agent={agent['id']}")
+    desk.wait_for_timeout(1500)
+    composer = desk.locator("section.bg-white:visible textarea[aria-label='메시지']").first
+    box, pick = composer.bounding_box(), desk.get_by_role("button", name="provider", exact=True).bounding_box()
+    print("15 desktop one row:", abs((box["y"] + box["height"] / 2) - (pick["y"] + pick["height"] / 2)) < 8)
+    composer.locator("xpath=..").screenshot(path=f"{OUT}/composer-1280.png")
     print("errors:", errors[:5])
     browser.close()

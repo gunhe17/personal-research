@@ -28,7 +28,7 @@ export default function LoginScreen() {
   return (
     <main className="flex h-full items-center justify-center bg-slate-50 px-6">
       <form onSubmit={submit} className="w-full max-w-sm">
-        <h1 className="mb-8 text-center text-[28px] font-semibold tracking-tight text-slate-900">Personal Research</h1>
+        <h1 className="mb-8 text-center text-[21px] font-semibold tracking-tight text-slate-900">Personal Research</h1>
         <div className="space-y-2">
           <TextInput size="lg" autoFocus type="email" autoComplete="username" aria-label="Email" placeholder="Email" value={email} onChange={(event) => setEmail(event.target.value)} />
           <TextInput size="lg" type="password" autoComplete="current-password" aria-label="Password" placeholder="Password" value={password} onChange={(event) => setPassword(event.target.value)} />

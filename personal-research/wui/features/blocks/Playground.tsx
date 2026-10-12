@@ -165,7 +165,7 @@ function Metric({ title, value }: { title: string; value: string }) {
   return (
     <div className="rounded-lg bg-slate-50 px-3 py-2.5">
       <span className="block text-[12px] text-slate-500">{title}</span>
-      <strong className="text-[20px] font-semibold tabular-nums">{value}</strong>
+      <strong className="text-[21px] font-semibold tabular-nums">{value}</strong>
     </div>
   );
 }
