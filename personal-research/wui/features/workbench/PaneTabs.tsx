@@ -11,7 +11,7 @@ export default function PaneTabs() {
   const workbench = useWorkbench();
   const many = workbench.groups.length > 1;
   return (
-    <div role="tablist" className="flex h-[34px] shrink-0 overflow-x-auto border-b border-slate-200 bg-slate-50 whitespace-nowrap [scrollbar-width:none] md:hidden [&::-webkit-scrollbar]:hidden">
+    <div role="tablist" className="flex h-[34px] shrink-0 overflow-x-auto overflow-y-hidden border-b border-slate-200 bg-slate-50 whitespace-nowrap [scrollbar-width:none] md:hidden [&::-webkit-scrollbar]:hidden">
       {workbench.groups.map((group, index) => {
         const active = index === workbench.focus;
         const name = nameOf(group.item);
@@ -23,6 +23,7 @@ export default function PaneTabs() {
               <span className="text-[12px] text-slate-200">/</span>
               <span className={cx("min-w-0 truncate text-[12px]", active ? "text-slate-900" : "text-slate-500")}>{name}</span>
             </button>
+            {active && <span id={`tab-actions-${group.id}`} className="flex items-center" />}
             <IconButton icon="close" size="sm" label="닫기" onClick={() => workbench.close(group.id)} />
           </div>
         );
