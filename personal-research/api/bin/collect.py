@@ -144,7 +144,6 @@ def parse(*, argv: list[str]):
 # selftest
 
 def selftest() -> None:
-    from usecase.collected.collect.type import paper
     from usecase.collected.collect.type import repo
     from usecase.collected.collect.type import web
     from usecase.collected.collect.type import x
@@ -194,14 +193,12 @@ def roundtrip() -> None:
             assert store.locate(text="eng/document/t/a.md") == id
             assert store.version(id=id, language="eng") == 1
 
-            # 같은 본문을 다시 넣어도 판이 늘지 않는다
             store.save(id=id, language="eng", body="# T\n\nbody\n")
             assert store.version(id=id, language="eng") == 1
 
             store.save(id=id, language="kor", body="# T\n\n본문\n")
             assert check.run()[0] == [], check.run()[0]
 
-            # 같은 경로를 다시 수집해도 id 가 유지된다
             again = store.write(document=store.Document(
                 path="document/t/a.md", body="# T\n\nchanged\n", url="https://t/a",
             ))
@@ -218,7 +215,6 @@ def roundtrip() -> None:
             store.save(id=id, language="kor", body="# T\n\n바뀜\n")
             assert check.run()[0] == [], check.run()[0]
 
-            # 주소가 같아도 경로가 다르면 다른 문서다
             other = store.write(document=store.Document(
                 path="document/t/b.md", body="# B\n", url="https://t/a",
             ))

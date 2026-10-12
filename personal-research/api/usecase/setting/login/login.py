@@ -5,7 +5,6 @@ import json
 import os
 import pty
 import re
-import shutil
 import signal
 import struct
 import subprocess
@@ -18,11 +17,6 @@ from pathlib import Path
 from usecase.common import store
 from usecase.setting.record import record as setting
 
-BINARIES = {
-    "openai": os.environ.get("CODEX_BIN") or shutil.which("codex") or "codex",
-    "anthropic": os.environ.get("CLAUDE_BIN") or shutil.which("claude") or str(Path.home() / ".local" / "bin" / "claude"),
-    "xai": os.environ.get("GROK_BIN") or shutil.which("grok") or str(Path.home() / ".grok" / "bin" / "grok"),
-}
 STARTS = {
     "openai": ["login", "--device-auth"],
     "anthropic": ["setup-token"],
@@ -219,12 +213,6 @@ def check(*, provider: str, method: str) -> None:
         raise ValueError("알 수 없는 제공사입니다.")
     if setting.kind(method=method) != "plan_key" or not setting.METHOD.fullmatch(method):
         raise ValueError("로그인할 수 없는 인증 수단입니다.")
-
-
-def binary(*, provider: str) -> str:
-    found = BINARIES[provider]
-
-    return found if Path(found).exists() else Path(found).name
 
 
 def clean(*, text: str) -> str:

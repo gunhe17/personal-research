@@ -7,7 +7,6 @@ import uuid
 from usecase.common import store
 from usecase.conversation.record import record as conversation
 
-IDENTIFIER = re.compile(r"[a-zA-Z0-9_-]+")
 KINDS = ("plan", "log", "lesson", "note")
 
 

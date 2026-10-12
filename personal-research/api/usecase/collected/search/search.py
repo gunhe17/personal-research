@@ -4,16 +4,6 @@ import re
 
 from usecase.common import store
 
-LATEST = """
-SELECT collected.id, collected.path, collected.url, c.language, c.content
-FROM collected_content AS c
-JOIN collected ON collected.id = c.collected_id
-JOIN (SELECT collected_id, language, MAX(version) AS version
-      FROM collected_content GROUP BY collected_id, language) AS top
-  ON top.collected_id = c.collected_id
- AND top.language = c.language
- AND top.version = c.version
-"""
 WINDOW = 260
 
 

@@ -343,9 +343,6 @@ class Handler(BaseHTTPRequestHandler):
         return question
 
     # #
-    # chat
-
-    # #
     # respond
 
     def payload(self) -> dict | None:
@@ -401,8 +398,6 @@ class Handler(BaseHTTPRequestHandler):
         if sandbox:
             self.send_header("Content-Security-Policy", "sandbox allow-scripts allow-popups")
         self.send_header("Content-Length", str(len(data)))
-        if no_store:
-            self.send_header("Cache-Control", "no-store, must-revalidate")
         if self.cookie:
             self.send_header("Set-Cookie", self.cookie)
         self.cors()
