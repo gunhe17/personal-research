@@ -144,3 +144,7 @@
   .playground .chart .point { fill: var(--color-slate-800); font-weight: 600; }
   .playground input[type="range"] { width: 100%; accent-color: var(--color-apple); }
 }
+
+@media (max-width: 767px) {
+  body { zoom: 1.1; height: calc(100dvh / 1.1); }
+}
