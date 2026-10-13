@@ -4,7 +4,6 @@ import hashlib
 import hmac
 import re
 import secrets
-import shutil
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -26,7 +25,7 @@ def create(*, email: str, name: str = "", password: str = "", role: str = "user"
         raise ValueError("올바른 이메일이 필요합니다." if issued else "이메일과 8자 이상의 비밀번호가 필요합니다.")
     name = name.strip() or email.split("@")[0]
     with store.session() as connection:
-        if connection.execute("SELECT 1 FROM user WHERE email = ? AND password != ''", (email,)).fetchone():
+        if connection.execute("SELECT 1 FROM user WHERE email = ? AND password != '' AND deleted_at = ''", (email,)).fetchone():
             raise ValueError(f"이미 있는 이메일입니다: {email}")
         unclaimed = connection.execute("SELECT id FROM user WHERE id = ? AND password = ''", (store.USER,)).fetchone()
         id = store.USER if unclaimed else str(uuid.uuid4())
@@ -40,7 +39,7 @@ def create(*, email: str, name: str = "", password: str = "", role: str = "user"
 
 def listed() -> list[dict]:
     with store.session() as connection:
-        rows = connection.execute("SELECT id, name, email, role, created_at FROM user WHERE password != '' ORDER BY created_at").fetchall()
+        rows = connection.execute("SELECT id, name, email, role, created_at FROM user WHERE password != '' AND deleted_at = '' ORDER BY created_at").fetchall()
 
     return [
         {"id": id, "name": name, "email": email, "role": role, "created_at": created_at} for id, name, email, role, created_at in rows
@@ -51,20 +50,20 @@ def remove(*, user_id: str, by: str) -> None:
     if user_id == by:
         raise ValueError("자기 계정은 지울 수 없습니다.")
     with store.session() as connection:
-        removed = connection.execute("DELETE FROM user WHERE id = ? AND password != ''", (user_id,)).rowcount
+        removed = connection.execute(
+            "UPDATE user SET deleted_at = ? WHERE id = ? AND password != '' AND deleted_at = ''",
+            (store.now(), user_id),
+        ).rowcount
         if not removed:
             raise ValueError("없는 사용자입니다.")
         connection.execute("DELETE FROM user_session WHERE user_id = ?", (user_id,))
-        connection.execute("DELETE FROM user_meta WHERE user_id = ?", (user_id,))
-    for home in store.CLI.glob("*"):
-        shutil.rmtree(home / user_id, ignore_errors=True)
 
 
 def change_password(*, user_id: str, password: str) -> None:
     if len(password) < 8:
         raise ValueError("새 비밀번호는 8자 이상이어야 합니다.")
     with store.session() as connection:
-        connection.execute("UPDATE user SET password = ? WHERE id = ? AND password != ''", (hashed(password=password), user_id))
+        connection.execute("UPDATE user SET password = ? WHERE id = ? AND password != '' AND deleted_at = ''", (hashed(password=password), user_id))
 
 
 def reset(*, email: str, password: str) -> None:
@@ -72,15 +71,15 @@ def reset(*, email: str, password: str) -> None:
     if len(password) < 8:
         raise ValueError("8자 이상의 비밀번호가 필요합니다.")
     with store.session() as connection:
-        changed = connection.execute("UPDATE user SET password = ? WHERE email = ? AND password != ''", (hashed(password=password), email)).rowcount
-        connection.execute("DELETE FROM user_session WHERE user_id IN (SELECT id FROM user WHERE email = ?)", (email,))
+        changed = connection.execute("UPDATE user SET password = ? WHERE email = ? AND password != '' AND deleted_at = ''", (hashed(password=password), email)).rowcount
+        connection.execute("DELETE FROM user_session WHERE user_id IN (SELECT id FROM user WHERE email = ? AND deleted_at = '')", (email,))
     if not changed:
         raise ValueError(f"없는 사용자입니다: {email}")
 
 
 def verify(*, email: str, password: str) -> dict | None:
     with store.session() as connection:
-        row = connection.execute("SELECT id, name, email, role, password FROM user WHERE email = ? AND password != ''", (email.strip().lower(),)).fetchone()
+        row = connection.execute("SELECT id, name, email, role, password FROM user WHERE email = ? AND password != '' AND deleted_at = ''", (email.strip().lower(),)).fetchone()
     if row is None or not matches(password=password, stored=row[4]):
         return None
 
@@ -108,7 +107,7 @@ def resolve(*, token: str) -> dict | None:
     with store.session() as connection:
         row = connection.execute(
             """SELECT user.id, user.name, user.email, user.role FROM user_session JOIN user ON user.id = user_session.user_id
-               WHERE user_session.token = ? AND user_session.expires_at > ? AND user.password != ''""",
+               WHERE user_session.token = ? AND user_session.expires_at > ? AND user.password != '' AND user.deleted_at = ''""",
             (digest(token=token), store.now()),
         ).fetchone()
 
@@ -191,6 +190,23 @@ if __name__ == "__main__":
             pass
         else:
             raise AssertionError(user_id)
+    token = open_session(user_id=issued["id"])
+    with store.session() as connection:
+        connection.execute("INSERT INTO user_meta (user_id, kind, updated_at) VALUES (?, 'model', ?)", (issued["id"], store.now()))
     remove(user_id=issued["id"], by=store.USER)
-    assert verify(email="new@example.com", password="my own pass") is None
+    assert verify(email="new@example.com", password="my own pass") is None and resolve(token=token) is None
+    assert "new@example.com" not in [u["email"] for u in listed()]
+    try:
+        remove(user_id=issued["id"], by=store.USER)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("removed twice")
+    again = create(email="new@example.com", password="fresh start")
+    assert again["id"] != issued["id"] and verify(email="new@example.com", password="fresh start")["id"] == again["id"]
+    with store.session() as connection:
+        deleted_at = connection.execute("SELECT deleted_at FROM user WHERE id = ?", (issued["id"],)).fetchone()[0]
+        kept = connection.execute("SELECT COUNT(*) FROM user_meta WHERE user_id = ?", (issued["id"],)).fetchone()[0]
+        sessions = connection.execute("SELECT COUNT(*) FROM user_session WHERE user_id = ?", (issued["id"],)).fetchone()[0]
+    assert deleted_at and kept == 1 and sessions == 0
     print("ok")

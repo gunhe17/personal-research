@@ -202,10 +202,10 @@ def status(*, domain: str, message_id: str) -> str:
 
 def run(*, domain: str, id: str, message_id: str) -> None:
     with TURN:
-        if status(domain=domain, message_id=message_id) != "queued":
+        conversation = conversations.get(domain=domain, id=id)
+        if conversation is None or status(domain=domain, message_id=message_id) != "queued":
             return
         conversations.mark(domain=domain, message_id=message_id, status="running", error=None)
-        conversation = conversations.get(domain=domain, id=id)
         question = next(m for m in conversation["messages"] if m["id"] == message_id)
         try:
             answer = generate(conversation=conversation, question=question)

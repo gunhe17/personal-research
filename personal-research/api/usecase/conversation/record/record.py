@@ -20,7 +20,7 @@ ENCODED = ("context", "rich", "sources")
 
 def listed(*, domain: str, space_id: str = "") -> list[dict]:
     assert domain in DOMAINS
-    where, parameters = ("WHERE c.user_id = ? AND c.space_id = ?", (store.user(), space_id)) if space_id else ("WHERE c.user_id = ?", (store.user(),))
+    where, parameters = ("WHERE c.user_id = ? AND c.deleted_at = '' AND c.space_id = ?", (store.user(), space_id)) if space_id else ("WHERE c.user_id = ? AND c.deleted_at = ''", (store.user(),))
     with store.session() as connection:
         rows = connection.execute(
             f"""SELECT c.id, c.title, c.collected_id, c.created_at, c.updated_at, COUNT(m.id)
@@ -44,7 +44,7 @@ def by_collected(*, collected_id: str) -> list[dict]:
                 FROM space_conversation AS c
                 JOIN collected AS root ON root.id = c.collected_id
                 JOIN collected AS wanted ON wanted.id = ?
-                WHERE c.user_id = ? AND {documents.subtree(root="root", node="wanted")}
+                WHERE c.user_id = ? AND c.deleted_at = '' AND {documents.subtree(root="root", node="wanted")}
                 ORDER BY c.updated_at DESC""",
             (collected_id, store.user()),
         ).fetchall()
@@ -61,7 +61,7 @@ def get(*, domain: str, id: str) -> dict | None:
         return None
     with store.session() as connection:
         connection.row_factory = sqlite3.Row
-        row = connection.execute(f"SELECT * FROM {domain}_conversation WHERE id = ? AND user_id = ?", (id, store.user())).fetchone()
+        row = connection.execute(f"SELECT * FROM {domain}_conversation WHERE id = ? AND user_id = ? AND deleted_at = ''", (id, store.user())).fetchone()
         if row is None:
             return None
         messages = connection.execute(
@@ -92,7 +92,7 @@ def notes(*, space_id: str) -> list[str]:
             """SELECT json_extract(m.rich, '$.learning_note')
                FROM space_message AS m
                JOIN space_conversation AS c ON c.id = m.conversation_id
-               WHERE c.space_id = ? AND c.user_id = ? AND m.role = 'assistant' AND m.rich IS NOT NULL
+               WHERE c.space_id = ? AND c.user_id = ? AND c.deleted_at = '' AND m.role = 'assistant' AND m.rich IS NOT NULL
                ORDER BY m.created_at DESC LIMIT 12""",
             (space_id, store.user()),
         ).fetchall()
@@ -155,9 +155,10 @@ def edit(*, domain: str, id: str, data: dict) -> dict:
 def remove(*, domain: str, id: str) -> bool:
     assert domain in DOMAINS
     with store.session() as connection:
-        removed = connection.execute(f"DELETE FROM {domain}_conversation WHERE id = ? AND user_id = ?", (id, store.user())).rowcount
-        if removed:
-            connection.execute(f"DELETE FROM {domain}_message WHERE conversation_id = ?", (id,))
+        removed = connection.execute(
+            f"UPDATE {domain}_conversation SET deleted_at = ? WHERE id = ? AND user_id = ? AND deleted_at = ''",
+            (store.now(), id, store.user()),
+        ).rowcount
 
     return removed > 0
 
@@ -239,7 +240,8 @@ def recover() -> None:
         for domain in DOMAINS:
             connection.execute(
                 f"""UPDATE {domain}_message SET status = 'interrupted', error = ?
-                    WHERE status IN ('queued', 'running')""",
+                    WHERE status IN ('queued', 'running')
+                      AND conversation_id IN (SELECT id FROM {domain}_conversation WHERE deleted_at = '')""",
                 ("서버가 다시 시작되었습니다. 다시 시도할 수 있습니다.",),
             )
 
@@ -286,5 +288,19 @@ if __name__ == "__main__":
         raise AssertionError("foreign edit")
     store.CURRENT.set(store.USER)
     assert [c["id"] for c in listed(domain="agent")] == [mine["id"]] and get(domain="agent", id=mine["id"])["title"] == "first question"
+    space_side = create(domain="space", data={"space_id": "s1", "collected_id": page})
+    assert [c["id"] for c in by_collected(collected_id=page)] == [space_side["id"]]
+    assert remove(domain="space", id=space_side["id"]) and by_collected(collected_id=page) == [] and listed(domain="space", space_id="s1") == []
     assert remove(domain="agent", id=mine["id"]) and get(domain="agent", id=mine["id"]) is None
+    assert listed(domain="agent") == [] and not remove(domain="agent", id=mine["id"])
+    try:
+        ask(domain="agent", id=mine["id"], data={"content": "late", "client_id": "c3"})
+    except NotFound:
+        pass
+    else:
+        raise AssertionError("deleted ask")
+    with store.session() as connection:
+        deleted_at = connection.execute("SELECT deleted_at FROM agent_conversation WHERE id = ?", (mine["id"],)).fetchone()[0]
+        kept = connection.execute("SELECT COUNT(*) FROM agent_message WHERE conversation_id = ?", (mine["id"],)).fetchone()[0]
+    assert deleted_at and kept == 2
     print("ok")

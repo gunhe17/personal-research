@@ -84,18 +84,19 @@ def collecting(*, job: dict) -> None:
     try:
         pipeline.run(input=job["input"], send=forward)
     finally:
-        if outcome.get("id"):
-            conversations.edit(domain="agent", id=started["id"], data={"collected_id": outcome["id"]})
-        conversations.add(domain="agent", id=started["id"], message={
-            "id": str(uuid.uuid4()),
-            "role": "assistant",
-            "kind": "collect",
-            "context": {"steps": job["events"]},
-            "question_id": question["id"],
-            "content": outcome.get("text") or outcome.get("error") or "수집을 마치지 못했습니다.",
-            "sources": [{"id": outcome["id"], "path": documents.path_of(id=outcome["id"])}] if outcome.get("id") else None,
-            "created_at": store.now(),
-        })
+        if conversations.get(domain="agent", id=started["id"]) is not None:
+            if outcome.get("id"):
+                conversations.edit(domain="agent", id=started["id"], data={"collected_id": outcome["id"]})
+            conversations.add(domain="agent", id=started["id"], message={
+                "id": str(uuid.uuid4()),
+                "role": "assistant",
+                "kind": "collect",
+                "context": {"steps": job["events"]},
+                "question_id": question["id"],
+                "content": outcome.get("text") or outcome.get("error") or "수집을 마치지 못했습니다.",
+                "sources": [{"id": outcome["id"], "path": documents.path_of(id=outcome["id"])}] if outcome.get("id") else None,
+                "created_at": store.now(),
+            })
 
 
 def note(*, job: dict, event: dict) -> None:

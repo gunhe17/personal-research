@@ -43,7 +43,8 @@ CREATE TABLE IF NOT EXISTS space (
     title      TEXT NOT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
-    user_id    TEXT NOT NULL DEFAULT 'default'
+    user_id    TEXT NOT NULL DEFAULT 'default',
+    deleted_at TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS space_material (
@@ -53,7 +54,8 @@ CREATE TABLE IF NOT EXISTS space_material (
     title      TEXT NOT NULL,
     content    TEXT NOT NULL,
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    deleted_at TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS space_material_space ON space_material (space_id);
 
@@ -65,7 +67,8 @@ CREATE TABLE IF NOT EXISTS space_conversation (
     meta         TEXT NOT NULL DEFAULT '{}',
     created_at   TEXT NOT NULL,
     updated_at   TEXT NOT NULL,
-    user_id      TEXT NOT NULL DEFAULT 'default'
+    user_id      TEXT NOT NULL DEFAULT 'default',
+    deleted_at   TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS space_conversation_space ON space_conversation (space_id);
 
@@ -93,7 +96,8 @@ CREATE TABLE IF NOT EXISTS agent_conversation (
     meta         TEXT NOT NULL DEFAULT '{}',
     created_at   TEXT NOT NULL,
     updated_at   TEXT NOT NULL,
-    user_id      TEXT NOT NULL DEFAULT 'default'
+    user_id      TEXT NOT NULL DEFAULT 'default',
+    deleted_at   TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS agent_message (
@@ -119,7 +123,8 @@ CREATE TABLE IF NOT EXISTS user (
     created_at TEXT NOT NULL,
     password   TEXT NOT NULL DEFAULT '',
     email      TEXT NOT NULL DEFAULT '',
-    role       TEXT NOT NULL DEFAULT 'user'
+    role       TEXT NOT NULL DEFAULT 'user',
+    deleted_at TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS user_session (

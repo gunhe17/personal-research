@@ -40,6 +40,10 @@ def upgrade(*, connection) -> None:
     for table, column, fallback in (("user", "password", "''"), ("user", "email", "''"), ("user", "role", "'user'"), ("space", "user_id", "'default'"), ("space_conversation", "user_id", "'default'"), ("agent_conversation", "user_id", "'default'"), ("llm", "user_id", "'default'")):
         if column not in store.columns(connection=connection, table=table):
             connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} TEXT NOT NULL DEFAULT {fallback}")
+    # deleted
+    for table in ("space", "space_material", "space_conversation", "agent_conversation", "user"):
+        if "deleted_at" not in store.columns(connection=connection, table=table):
+            connection.execute(f"ALTER TABLE {table} ADD COLUMN deleted_at TEXT NOT NULL DEFAULT ''")
     # kind
     for old, new in documents.RENAMED.items():
         connection.execute("UPDATE collected SET path = ? || substr(path, ?) WHERE path LIKE ?", (new, len(old) + 1, f"{old}/%"))

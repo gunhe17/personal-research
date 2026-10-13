@@ -22,9 +22,9 @@ def listed() -> list[dict]:
                       MAX(s.updated_at, COALESCE(MAX(c.updated_at), '')),
                       COUNT(DISTINCT c.id), COUNT(DISTINCT NULLIF(c.collected_id, ''))
                FROM space AS s
-               LEFT JOIN space_conversation AS c ON c.space_id = s.id AND c.user_id = s.user_id
-               LEFT JOIN space_material AS p ON p.space_id = s.id AND p.kind = 'plan'
-               WHERE s.user_id = ?
+               LEFT JOIN space_conversation AS c ON c.space_id = s.id AND c.user_id = s.user_id AND c.deleted_at = ''
+               LEFT JOIN space_material AS p ON p.space_id = s.id AND p.kind = 'plan' AND p.deleted_at = ''
+               WHERE s.user_id = ? AND s.deleted_at = ''
                GROUP BY s.id ORDER BY 5 DESC""",
             (store.user(),),
         ).fetchall()
@@ -47,7 +47,7 @@ def get(*, id: str) -> dict | None:
     if not re.fullmatch(store.IDENTIFIER, id or ""):
         return None
     with store.session() as connection:
-        row = connection.execute("SELECT id, title, created_at, updated_at FROM space WHERE id = ? AND user_id = ?", (id, store.user())).fetchone()
+        row = connection.execute("SELECT id, title, created_at, updated_at FROM space WHERE id = ? AND user_id = ? AND deleted_at = ''", (id, store.user())).fetchone()
     if not row:
         return None
     found = materials(space_id=row[0])
@@ -70,7 +70,7 @@ def collected(*, id: str) -> list[dict]:
             """SELECT root.id, root.path, root.url, COUNT(DISTINCT c.id), MAX(c.updated_at)
                FROM space_conversation AS c
                JOIN collected AS root ON root.id = c.collected_id
-               WHERE c.space_id = ? AND c.user_id = ?
+               WHERE c.space_id = ? AND c.user_id = ? AND c.deleted_at = ''
                GROUP BY root.id ORDER BY 5 DESC""",
             (id, store.user()),
         ).fetchall()
@@ -95,7 +95,7 @@ def materials(*, space_id: str) -> list[dict]:
     with store.session() as connection:
         rows = connection.execute(
             """SELECT id, kind, title, content, created_at, updated_at FROM space_material
-               WHERE space_id = ?
+               WHERE space_id = ? AND deleted_at = ''
                ORDER BY CASE kind WHEN 'plan' THEN 0 WHEN 'lesson' THEN 1 WHEN 'note' THEN 2 ELSE 3 END, created_at""",
             (space_id,),
         ).fetchall()
@@ -112,7 +112,8 @@ def get_material(*, id: str) -> dict | None:
     with store.session() as connection:
         row = connection.execute(
             """SELECT m.id, m.space_id, m.kind, m.title, m.content, m.created_at, m.updated_at FROM space_material AS m
-               JOIN space AS s ON s.id = m.space_id WHERE m.id = ? AND s.user_id = ?""",
+               JOIN space AS s ON s.id = m.space_id
+               WHERE m.id = ? AND s.user_id = ? AND m.deleted_at = '' AND s.deleted_at = ''""",
             (id, store.user()),
         ).fetchone()
     if not row:
@@ -151,7 +152,7 @@ def edit(*, id: str, data: dict) -> dict:
         if isinstance(data.get("title"), str) and data["title"].strip():
             connection.execute("UPDATE space SET title = ?, updated_at = ? WHERE id = ?", (data["title"].strip(), store.now(), id))
         if isinstance(data.get("purpose"), str):
-            plan = connection.execute("SELECT id FROM space_material WHERE space_id = ? AND kind = 'plan'", (id,)).fetchone()
+            plan = connection.execute("SELECT id FROM space_material WHERE space_id = ? AND kind = 'plan' AND deleted_at = ''", (id,)).fetchone()
             if plan:
                 connection.execute("UPDATE space_material SET content = ?, updated_at = ? WHERE id = ?", (data["purpose"], store.now(), plan[0]))
             else:
@@ -173,13 +174,15 @@ def edit_material(*, id: str, data: dict) -> dict:
 
 
 def remove(*, id: str) -> bool:
-    if get(id=id) is None:
-        return False
-    for item in conversations.listed(domain="space", space_id=id):
-        conversations.remove(domain="space", id=item["id"])
+    deleted_at = store.now()
     with store.session() as connection:
-        connection.execute("DELETE FROM space_material WHERE space_id = ?", (id,))
-        removed = connection.execute("DELETE FROM space WHERE id = ?", (id,)).rowcount
+        removed = connection.execute(
+            "UPDATE space SET deleted_at = ? WHERE id = ? AND user_id = ? AND deleted_at = ''",
+            (deleted_at, id, store.user()),
+        ).rowcount
+        if removed:
+            connection.execute("UPDATE space_conversation SET deleted_at = ? WHERE space_id = ? AND deleted_at = ''", (deleted_at, id))
+            connection.execute("UPDATE space_material SET deleted_at = ? WHERE space_id = ? AND deleted_at = ''", (deleted_at, id))
 
     return removed > 0
 
@@ -216,8 +219,9 @@ def write_material(*, space_id: str, data: dict, id: str) -> dict:
 def remove_material(*, id: str) -> bool:
     with store.session() as connection:
         removed = connection.execute(
-            "DELETE FROM space_material WHERE id = ? AND kind != 'plan' AND space_id IN (SELECT id FROM space WHERE user_id = ?)",
-            (id, store.user()),
+            """UPDATE space_material SET deleted_at = ?
+               WHERE id = ? AND kind != 'plan' AND deleted_at = '' AND space_id IN (SELECT id FROM space WHERE user_id = ? AND deleted_at = '')""",
+            (store.now(), id, store.user()),
         ).rowcount
 
     return removed > 0
@@ -247,5 +251,19 @@ if __name__ == "__main__":
     assert [s["id"] for s in listed()] == [theirs["id"]]
     store.CURRENT.set(store.USER)
     assert [s["id"] for s in listed()] == [mine["id"]] and get(id=mine["id"])["purpose"] == "goal"
-    assert remove_material(id=note["id"]) and remove(id=mine["id"])
+    kept = create_material(space_id=mine["id"], data={"kind": "note", "title": "k", "content": "kept"})
+    talk = conversations.create(domain="space", data={"space_id": mine["id"]})
+    assert remove_material(id=note["id"]) and get_material(id=note["id"]) is None and not remove_material(id=note["id"])
+    assert [m["id"] for m in get(id=mine["id"])["materials"]] == [kept["id"]] and listed()[0]["conversation_count"] == 1
+    assert remove(id=mine["id"]) and not remove(id=mine["id"])
+    assert listed() == [] and get(id=mine["id"]) is None and get_material(id=kept["id"]) is None
+    assert conversations.get(domain="space", id=talk["id"]) is None
+    with store.session() as connection:
+        rows = connection.execute(
+            """SELECT s.deleted_at, c.deleted_at, COUNT(m.id), SUM(m.deleted_at != '') FROM space AS s
+               JOIN space_conversation AS c ON c.space_id = s.id JOIN space_material AS m ON m.space_id = s.id
+               WHERE s.id = ?""",
+            (mine["id"],),
+        ).fetchone()
+    assert rows[0] and rows[0] == rows[1] and rows[2] == rows[3] == 3
     print("ok")
