@@ -14,7 +14,7 @@ with sync_playwright() as p:
     sign_in(page, BASE)
     page.goto(BASE + "/")
     page.evaluate("localStorage.clear(); sessionStorage.clear()")
-    agent = page.evaluate("fetch('/api/agent/conversations').then(r => r.json())")["items"][0]["id"]
+    agent = page.evaluate("fetch('/api/agent/conversations').then(r => r.json()).then(async d => { for (const c of d.items) { const full = await fetch('/api/agent/conversations/' + c.id).then(r => r.json()); if (full.messages[0]?.kind === 'question' && full.messages.some(m => m.role === 'assistant')) return c; } return null; })")["id"]
     page.goto(f"{BASE}/collected?agent={agent}")
     page.wait_for_selector("[data-answer-id]")
     page.get_by_label("Toggle sidebar").click()

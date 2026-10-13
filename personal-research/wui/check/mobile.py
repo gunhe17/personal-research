@@ -21,13 +21,17 @@ with sync_playwright() as p:
     page.set_default_timeout(15000)
     sign_in(page, BASE)
     page.goto(BASE + "/")
-    page.evaluate("localStorage.clear()")
+    page.evaluate("localStorage.clear(); localStorage.setItem('sidebarWidth', '480')")
     page.reload()
 
     agents = page.evaluate("fetch('/api/agent/conversations').then(r => r.json())")["items"]
     agent = agents[0]
     page.get_by_label("Toggle sidebar").click()
     page.wait_for_timeout(400)
+    drawer = rect(page.locator("aside"))
+    print("16 drawer inside:", drawer["right"] <= WIDTH, drawer)
+    if drawer["right"] > WIDTH:
+        errors.append(f"drawer wider than viewport: {drawer}")
     nav = page.locator("nav").first
     folder = nav.get_by_role("button", name="Agent", exact=True)
     if not nav.get_by_role("button", name=agent["title"], exact=True).first.is_visible():
@@ -55,6 +59,15 @@ with sync_playwright() as p:
     print("3 provider menu inside:", menu["left"] >= 0 and menu["right"] <= WIDTH, menu)
     picker.click()
     page.wait_for_timeout(200)
+    for button in (picker, model):
+        button.click()
+        page.wait_for_timeout(200)
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(200)
+        closed = page.get_by_role("menu").count() == 0
+        print("17 escape closes menu:", closed)
+        if not closed:
+            errors.append("menu stayed open after Escape")
 
     url = next((a for a in agents if (a["title"] or "").startswith("https://")), None)
     if url:
