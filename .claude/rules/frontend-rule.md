@@ -43,7 +43,7 @@ wui/
   features/<이름>/         한 화면 영역의 컴포넌트 묶음
   ui/                     어디서나 쓰는 모양 부품
   lib/                    React 가 없는 함수(api, cx, storage, time, markdown, events, collect, items, zoom, number)
-  check/                  화면 점검 스크립트(smoke, workbench, chat, flows, panes, settings, search, collect, persist, auth, library, mobile)
+  check/                  화면 점검 스크립트(smoke, workbench, chat, flows, panes, settings, search, collect, persist, auth, library, mobile, delete)
   design/                 디자인 랩. 앱이 가져오지 않는다
 ```
 

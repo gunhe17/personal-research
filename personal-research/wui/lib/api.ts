@@ -201,6 +201,7 @@ export const api = {
 
   conversation: (domain: Domain, id: string) => request<Conversation>(`/api/${domain}/conversations/${encodeURIComponent(id)}`),
   agentConversations: () => request<List<ConversationItem>>("/api/agent/conversations"),
+  removeConversation: (domain: Domain, id: string) => request<Ok>(`/api/${domain}/conversations/${encodeURIComponent(id)}`, { method: "DELETE" }),
   startAgent: (question: string) => send<{ id: string }>("/api/agent/conversations", { question, client_id: uuid() }),
   startSpace: (space: string, collected: string) => send<{ id: string }>("/api/space/conversations", { space_id: space, collected_id: collected }),
   ask: (domain: Domain, id: string, payload: unknown) => send<Message>(`/api/${domain}/conversations/${encodeURIComponent(id)}/messages`, payload),

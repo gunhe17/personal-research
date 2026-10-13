@@ -11,6 +11,7 @@ import { useWorkbench } from "@/features/workbench/WorkbenchProvider";
 import Heading from "./Heading";
 import Hint from "./Hint";
 import Leaf from "./Leaf";
+import removeConversation from "./removeConversation";
 import { NEST, sections } from "./rows";
 import Search from "./Search";
 import { useSpaces } from "./useSpaces";
@@ -71,6 +72,7 @@ export default function SpaceSection({ isOpen, onToggle, onClose, onReveal }: { 
 }
 
 function Folders({ space, isOpen, onToggle, active, onOpen }: { space: Space; isOpen: (key: string) => boolean; onToggle: (key: string) => void; active: string; onOpen: (item: Item) => void }) {
+  const workbench = useWorkbench();
   return (
     <>
       {sections(space).map(([key, name, rows]) => {
@@ -80,7 +82,7 @@ function Folders({ space, isOpen, onToggle, active, onOpen }: { space: Space; is
             <TreeRow small label={name} icon={<Icon name={key} className="h-3.5 w-3.5 text-apple-link" />} open={isOpen(id)} count={key === "conversations" ? space.conversations.length : rows.length} onClick={() => onToggle(id)} />
             <Fold open={isOpen(id)} className="flex flex-col gap-1">
               {!rows.length && <Hint text="Nothing yet" small indent />}
-              {rows.map((row) => <Leaf key={itemKey(row[0])} row={row} active={active} onOpen={onOpen} />)}
+              {rows.map((row) => <Leaf key={itemKey(row[0])} row={row} active={active} onOpen={onOpen} onRemove={row[0].kind === "chat" && row[0].conversation ? () => removeConversation(workbench, row[0]) : undefined} />)}
             </Fold>
           </div>
         );

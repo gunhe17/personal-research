@@ -9,6 +9,7 @@ const PATHS: Record<string, string> = {
   chip: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9h6v6H9z"/><path d="M9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2"/>',
   download: '<path d="M12 3v12.5"/><path d="M6.5 10.5L12 16l5.5-5.5"/><path d="M3 21h18"/>',
   close: '<path d="M6 6l12 12M18 6L6 18"/>',
+  trash: '<path d="M4.5 6.5h15M9.5 6.5V4.5h5v2M6.5 6.5l1 13h9l1-13M10 10.5v6M14 10.5v6"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   collapse: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 12h7"/>',
   function: '<path d="M15.5 4H14a2.5 2.5 0 0 0-2.5 2.5v11A2.5 2.5 0 0 1 9 20H7.5"/><path d="M8.5 10.5h7"/>',

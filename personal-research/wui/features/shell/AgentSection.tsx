@@ -6,6 +6,7 @@ import TreeRow from "@/ui/TreeRow";
 import { useWorkbench } from "@/features/workbench/WorkbenchProvider";
 import Hint from "./Hint";
 import Leaf from "./Leaf";
+import removeConversation from "./removeConversation";
 import { NEST, NEW } from "./rows";
 import Search from "./Search";
 import { useAgents } from "./useAgents";
@@ -30,6 +31,7 @@ export default function AgentSection({ open, onToggle }: { open: boolean; onTogg
             row={[{ kind: "agent", agent: conversation.id, title: conversation.title }, conversation.collected_id ? "collected" : "chat", conversation.title || NEW]}
             active={active}
             onOpen={workbench.open}
+            onRemove={() => removeConversation(workbench, { kind: "agent", agent: conversation.id })}
             flat
           />
         ))}
