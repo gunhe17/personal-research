@@ -20,6 +20,7 @@ const FOLDERS = ["conversations", "collected", "materials"];
 export default function SpaceSection({ isOpen, onToggle, onClose, onReveal }: { isOpen: (key: string, fallback?: boolean) => boolean; onToggle: (key: string, fallback?: boolean) => void; onClose: (keys: string[]) => void; onReveal: (key: string) => void }) {
   const workbench = useWorkbench();
   const [query, setQuery] = useState("");
+  const [all, setAll] = useState(false);
   const needle = query.trim().toLowerCase();
   const current = workbench.activeSpace;
   const active = workbench.activeKey;
@@ -47,7 +48,7 @@ export default function SpaceSection({ isOpen, onToggle, onClose, onReveal }: { 
         ) : (
           <>
             {spaces && !spaces.length && <Hint text="Nothing yet" />}
-            {(spaces || []).slice(0, 12).map((space) => (
+            {(spaces || []).slice(0, all ? undefined : 12).map((space) => (
               <div key={space.id} className="flex flex-col gap-1">
                 <TreeRow
                   label={space.title}
@@ -61,6 +62,7 @@ export default function SpaceSection({ isOpen, onToggle, onClose, onReveal }: { 
                 </Fold>
               </div>
             ))}
+            {!all && (spaces || []).length > 12 && <TreeRow variant="leaf" flat label="더 보기" onClick={() => setAll(true)} />}
           </>
         )}
       </Fold>

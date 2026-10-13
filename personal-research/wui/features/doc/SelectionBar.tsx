@@ -8,7 +8,7 @@ import useOutside from "@/ui/useOutside";
 
 type Picked = { text: string; range: Range; left: number; top: number };
 
-export default function SelectionBar({ scope, onQuote }: { scope: RefObject<HTMLElement | null>; onQuote: (text: string) => void }) {
+export default function SelectionBar({ scope, onQuote }: { scope: RefObject<HTMLElement | null>; onQuote: (text: string) => boolean }) {
   const [picked, setPicked] = useState<Picked | null>(null);
   const bar = useRef<HTMLDivElement>(null);
 
@@ -23,13 +23,24 @@ export default function SelectionBar({ scope, onQuote }: { scope: RefObject<HTML
       const rect = range.getClientRects()[0] || range.getBoundingClientRect();
       setPicked({ text, range, left: Math.min(Math.max(8, rect.left), window.innerWidth - 90), top: Math.max(8, rect.top - 36) });
     };
+    let timer: ReturnType<typeof setTimeout>;
+    const settle = () => {
+      if (!matchMedia("(pointer: coarse)").matches) return;
+      clearTimeout(timer);
+      timer = setTimeout(up, 150);
+    };
     root.addEventListener("mouseup", up);
+    root.addEventListener("touchend", settle);
+    document.addEventListener("selectionchange", settle);
     const hide = () => setPicked(null);
     const scroller = root.parentElement;
     scroller?.addEventListener("scroll", hide, { passive: true });
     return () => {
       scroller?.removeEventListener("scroll", hide);
+      clearTimeout(timer);
       root.removeEventListener("mouseup", up);
+      root.removeEventListener("touchend", settle);
+      document.removeEventListener("selectionchange", settle);
     };
   }, [scope]);
 
@@ -41,8 +52,7 @@ export default function SelectionBar({ scope, onQuote }: { scope: RefObject<HTML
   const quote = () => {
     if (globalThis.Highlight && CSS.highlights) CSS.highlights.set("doc-selection", new Highlight(picked.range));
     window.getSelection()?.removeAllRanges();
-    onQuote(picked.text);
-    toast("Quoted");
+    if (onQuote(picked.text)) toast("Quoted");
     setPicked(null);
   };
   const copy = async () => {

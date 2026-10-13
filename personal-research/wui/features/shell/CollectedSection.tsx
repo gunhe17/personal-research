@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { api, type TreeNode } from "@/lib/api";
 import { cx } from "@/lib/cx";
+import { listen } from "@/lib/events";
 import type { Item } from "@/lib/items";
 import Fold from "@/ui/Fold";
 import Icon from "@/ui/Icon";
@@ -26,6 +27,8 @@ export default function CollectedSection({ expanded, isOpen, onToggle, onClose }
   useEffect(() => {
     if (open && !tree) api.tree().then((data) => setTree(data.tree), () => setTree([]));
   });
+
+  useEffect(() => listen("collected", () => setTree(null)), []);
 
   return (
     <>

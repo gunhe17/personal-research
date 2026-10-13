@@ -23,7 +23,7 @@ type Value = {
   doc: Source | null;
   viewDoc: (doc: Source) => void;
   quote: Quote | null;
-  sendQuote: (quote: Omit<Quote, "target" | "nonce">) => void;
+  sendQuote: (quote: Omit<Quote, "target" | "nonce">) => boolean;
   clearQuote: () => void;
   activeKey: string;
   activeSpace: string | null;
@@ -151,9 +151,13 @@ export default function WorkbenchProvider({ children }: { children: ReactNode })
   const sendQuote = useCallback((detail: Omit<Quote, "target" | "nonce">) => {
     const chats = groups.filter((g) => g.item.kind === "chat" || g.item.kind === "agent");
     const target = chats.find((g) => g.id === lastChat.current) || chats[0];
-    if (!target) return toast("인용을 받을 대화를 먼저 여세요");
+    if (!target) {
+      toast("인용을 받을 대화를 먼저 여세요");
+      return false;
+    }
     setFocus(groups.indexOf(target));
     setQuote({ ...detail, target: target.id, nonce: Date.now() });
+    return true;
   }, [groups]);
 
   const focused = groups[focus];

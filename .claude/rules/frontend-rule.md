@@ -139,9 +139,9 @@ wui/
 ## 상태와 데이터
 
 - 화면 상태는 그 컴포넌트의 `useState` 에 둔다. 전역 Context 는 작업대(`WorkbenchProvider`) 하나뿐이다. 패널 사이의 일(근거 문서 열기 `open`, 인용 보내기 `sendQuote`, 지금 문서 `doc`, 포커스)은 모두 이 Context 를 거친다.
-- 기능 사이의 짧은 신호는 `lib/events.ts` 의 이름 있는 이벤트로 보낸다: `spaces`(space 목록이 바뀜), `settings`(제공사 설정이 바뀜), `zoom`(글자 크기가 바뀜), `agents`(홈 대화가 생기거나 바뀜), `auth`(어떤 요청이 401 을 받음. Shell 이 로그인 화면으로 바꾼다), `sidebar`(사이드바 항목을 골랐음. 덮개일 때 Shell 이 닫는다). 새 신호도 여기에 이름을 더한다.
+- 기능 사이의 짧은 신호는 `lib/events.ts` 의 이름 있는 이벤트로 보낸다: `spaces`(space 목록이 바뀜), `settings`(제공사 설정이 바뀜), `zoom`(글자 크기가 바뀜), `agents`(홈 대화가 생기거나 바뀜), `auth`(어떤 요청이 401 을 받음. Shell 이 로그인 화면으로 바꾼다), `sidebar`(사이드바 항목을 골랐음. 덮개일 때 Shell 이 닫는다), `collected`(수집이 끝나 수집물 트리가 바뀜). 새 신호도 여기에 이름을 더한다.
 - `fetch` 는 `lib/api.ts` 에서만 부른다. 엔드포인트마다 함수 하나, 응답 타입을 함께 둔다. 실패하면 서버의 `error` 문장으로 `ApiError` 를 던지고, 화면이 그 문장을 보여 준다.
-- 브라우저 저장은 `lib/storage.ts` 의 `load` `save` 만 쓴다. 오래 남길 취향은 localStorage: `workbench` `sidebarWidth` `sidebarOpen` `spaceExpanded` `docZoom` `chatZoom` `docLang` `dlFmt` `homeMode` `lastDoc` `model` `space-draft:<그룹>` `pg:<key>`. 새로고침에만 이어지면 되는 화면 상태는 세 번째 인자 `true` 로 sessionStorage: `settingsOpen` `settingsTab` `sidebarScroll` `chatScroll:<그룹>` `docScroll:<경로>`.
+- 브라우저 저장은 `lib/storage.ts` 의 `load` `save` 만 쓴다. 오래 남길 취향은 localStorage: `workbench` `sidebarWidth` `sidebarOpen` `spaceExpanded` `docZoom` `chatZoom` `docLang` `dlFmt` `homeMode` `lastDoc` `model` `space-draft:<그룹>` `pg:<key>`. 새로고침에만 이어지면 되는 화면 상태는 세 번째 인자 `true` 로 sessionStorage: `settingsOpen` `settingsTab` `settingsPage` `sidebarScroll` `chatScroll:<그룹>` `docScroll:<경로>`.
 - 문서와 대화 글자 크기는 `<html>` 의 CSS 변수 `--doc-zoom` `--chat-zoom` 으로 퍼뜨린다.
 
 ## 이름

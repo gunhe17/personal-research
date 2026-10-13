@@ -23,7 +23,7 @@ def create(*, email: str, name: str = "", password: str = "", role: str = "user"
     issued = "" if password else secrets.token_urlsafe(12)
     password = password or issued
     if not EMAIL.match(email) or len(password) < 8 or role not in ROLES:
-        raise ValueError("이메일과 8자 이상의 비밀번호가 필요합니다.")
+        raise ValueError("올바른 이메일이 필요합니다." if issued else "이메일과 8자 이상의 비밀번호가 필요합니다.")
     name = name.strip() or email.split("@")[0]
     with store.session() as connection:
         if connection.execute("SELECT 1 FROM user WHERE email = ? AND password != ''", (email,)).fetchone():

@@ -22,6 +22,7 @@ export default function Shell({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState(false);
   const pane = useRef<HTMLDivElement>(null);
   const [account, setAccount] = useState<Account | null | undefined>(undefined);
+  const signedIn = Boolean(account);
 
   useEffect(() => {
     api.me().then(setAccount, () => setAccount(null));
@@ -56,7 +57,7 @@ export default function Shell({ children }: { children: ReactNode }) {
     applyZoom("chatZoom", readZoom("chatZoom"));
     requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove("booting")));
     const keys = (event: KeyboardEvent) => {
-      if (!(event.metaKey || event.ctrlKey)) return;
+      if (!(event.metaKey || event.ctrlKey) || window.location.pathname !== "/collected") return;
       const step = { "=": 0.1, "+": 0.1, "-": -0.1 }[event.key];
       if (step) {
         event.preventDefault();
@@ -85,7 +86,7 @@ export default function Shell({ children }: { children: ReactNode }) {
       observer.disconnect();
       clearTimeout(timer);
     };
-  }, []);
+  }, [signedIn]);
 
   useEffect(() => {
     if (!resizing) return;
@@ -109,10 +110,10 @@ export default function Shell({ children }: { children: ReactNode }) {
         {sidebar && <div className="absolute inset-0 z-20 cursor-pointer bg-slate-900/20 lg:hidden" onClick={() => showSidebar(false)} />}
         <aside
           inert={!sidebar}
-          className={cx("flex h-full shrink-0 flex-col overflow-hidden bg-white max-lg:absolute max-lg:inset-y-0 max-lg:left-0 max-lg:z-30", !resizing && "transition-all duration-300 ease-spring")}
+          className={cx("flex h-full shrink-0 flex-col overflow-hidden bg-white max-lg:absolute max-lg:max-w-[85vw] max-lg:inset-y-0 max-lg:left-0 max-lg:z-30", !resizing && "transition-all duration-300 ease-spring")}
           style={{ width: sidebar ? width : 0, opacity: sidebar ? 1 : 0 }}
         >
-          <div ref={pane} onScroll={(event) => save("sidebarScroll", Math.round(event.currentTarget.scrollTop), true)} className="min-h-0 flex-1 overflow-y-auto text-sm" style={{ width }}>
+          <div ref={pane} onScroll={(event) => save("sidebarScroll", Math.round(event.currentTarget.scrollTop), true)} className="min-h-0 flex-1 overflow-y-auto text-sm max-lg:max-w-[85vw]" style={{ width }}>
             <Sidebar />
           </div>
         </aside>

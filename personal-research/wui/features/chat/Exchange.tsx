@@ -38,6 +38,18 @@ export default function Exchange({ question, canRetry, children, onScene, onActi
   );
 }
 
+function readable(text: string): string {
+  const start = text.indexOf("{");
+  if (start >= 0) {
+    try {
+      const body = JSON.parse(text.slice(start));
+      const message = body.error?.message || body.message || (typeof body.error === "string" && body.error);
+      if (message) return `${text.slice(0, start).trim()} ${message}`.trim();
+    } catch {}
+  }
+  return text.trim().split("\n")[0];
+}
+
 function Status({ question, canRetry, onAction }: { question: Message; canRetry: boolean; onAction: (action: "retry" | "cancel") => void }) {
   if (!question.status || question.status === "completed") return null;
   if (question.status === "queued" || question.status === "running") {
@@ -51,7 +63,7 @@ function Status({ question, canRetry, onAction }: { question: Message; canRetry:
   }
   return (
     <div role="status" className="flex items-center gap-2.5 text-[13px] text-red-700">
-      <span>{question.error || (question.status === "cancelled" ? "답변 생성을 중지했습니다." : "답변을 받지 못했습니다.")}</span>
+      <span>{question.error ? readable(question.error) : (question.status === "cancelled" ? "답변 생성을 중지했습니다." : "답변을 받지 못했습니다.")}</span>
       {canRetry && <Button tone="link" onClick={() => onAction("retry")}>다시 시도</Button>}
     </div>
   );

@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { cx } from "@/lib/cx";
+import Button from "@/ui/Button";
 import ChatPane from "@/features/chat/ChatPane";
 import DocPane from "@/features/doc/DocPane";
 import MaterialPane from "@/features/material/MaterialPane";
@@ -32,7 +33,10 @@ export default function Workbench() {
   if (!count) {
     return (
       <Drop className="flex flex-1 items-center justify-center bg-slate-50" onDrop={(item) => item && workbench.open(item)} full>
-        <span />
+        <div className="flex flex-col items-center gap-2 text-[13px] text-slate-500">
+          <span>열린 항목이 없습니다</span>
+          <Button tone="link" size="md" onClick={() => router.push("/")}>홈으로</Button>
+        </div>
       </Drop>
     );
   }
@@ -76,7 +80,7 @@ function Drop({ children, className, full, onDrop }: { children: ReactNode; clas
   const [side, setSide] = useState<Side | null>(null);
   const accepts = (event: DragEvent) => [...event.dataTransfer.types].some((t) => t.startsWith("application/x-research"));
   const zone = (event: DragEvent): Side => {
-    if (full) return "center";
+    if (full && !event.dataTransfer.types.includes("application/x-research-group")) return "center";
     const rect = event.currentTarget.getBoundingClientRect();
     const x = (event.clientX - rect.left) / rect.width;
     return x < 0.25 ? "left" : x > 0.75 ? "right" : "center";

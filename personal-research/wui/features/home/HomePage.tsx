@@ -77,6 +77,7 @@ export default function HomePage() {
     }
     emit("spaces");
     emit("agents");
+    if (job.state === "done") emit("collected");
   };
 
   const empty = !replies.length;

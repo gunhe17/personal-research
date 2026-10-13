@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { api, type CollectJob, type Source } from "@/lib/api";
+import { emit } from "@/lib/events";
 import CollectCard from "./CollectCard";
 
 export default function CollectLive({ conversation, onDone, onOpen }: { conversation: string; onDone: () => void; onOpen: (collected: Source) => void }) {
@@ -21,7 +22,10 @@ export default function CollectLive({ conversation, onDone, onOpen }: { conversa
       const found = items.find((item) => item.conversation_id === conversation) || null;
       setJob(found);
       if (found && (found.state === "queued" || found.state === "running")) timer = setTimeout(tick, 1000);
-      else if (found) done.current();
+      else if (found) {
+        if (found.state === "done") emit("collected");
+        done.current();
+      }
     };
     tick();
     return () => {

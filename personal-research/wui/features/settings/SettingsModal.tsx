@@ -20,7 +20,7 @@ import useProviders, { statusKey } from "./useProviders";
 
 export default function SettingsModal({ open, account, onClose }: { open: boolean; account: Account; onClose: () => void }) {
   const [tab, setTab] = useState(() => load("settingsTab", "font", true));
-  const [paned, setPaned] = useState(false);
+  const [paned, setPaned] = useState(() => load("settingsPage", false, true));
   const [narrow, setNarrow] = useState(false);
   useEffect(() => {
     const media = window.matchMedia("(max-width: 639px)");
@@ -32,14 +32,12 @@ export default function SettingsModal({ open, account, onClose }: { open: boolea
   const chosen = (key: string) => tab === key && !narrow;
   const { providers, statuses, errors, sheet, openSheet, saveProvider, logout, prune, closeSheet } = useProviders(open);
 
-  useEffect(() => {
-    if (open) setPaned(false);
-  }, [open]);
-
   useEffect(() => save("settingsTab", tab, true), [tab]);
+  useEffect(() => save("settingsPage", paned, true), [paned]);
 
   const close = () => {
     if (sheet) closeSheet(true);
+    setPaned(false);
     onClose();
     prune();
   };

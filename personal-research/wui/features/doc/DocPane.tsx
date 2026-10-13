@@ -140,7 +140,7 @@ export default function DocPane({ group, id }: { group: Group; id: string }) {
           )}
           {body()}
         </Body>
-        <SelectionBar scope={content} onQuote={(text) => file && workbench.sendQuote({ text, path: file.path, id })} />
+        <SelectionBar scope={content} onQuote={(text) => (file ? workbench.sendQuote({ text, path: file.path, id }) : false)} />
       </main>
     </Pane>
   );
