@@ -16,6 +16,7 @@ import FontPane from "./FontPane";
 import LoginSheet from "./LoginSheet";
 import { usable } from "./MethodRow";
 import ProviderPane from "./ProviderPane";
+import TrashPane from "./TrashPane";
 import useProviders, { statusKey } from "./useProviders";
 
 export default function SettingsModal({ open, account, onClose }: { open: boolean; account: Account; onClose: () => void }) {
@@ -55,6 +56,7 @@ export default function SettingsModal({ open, account, onClose }: { open: boolea
         <div className="mb-2 px-2 text-sm font-semibold text-slate-900">Settings</div>
         <Group icon="gear" label="General">
           <TreeRow variant="nav" label="Font" active={chosen("font")} onClick={() => pick("font")} />
+          <TreeRow variant="nav" label="Trash" icon="trash" active={chosen("trash")} onClick={() => pick("trash")} />
         </Group>
         <Group icon="person" label="Account">
           <TreeRow variant="nav" label="Profile" active={chosen("account")} onClick={() => pick("account")} />
@@ -86,6 +88,8 @@ export default function SettingsModal({ open, account, onClose }: { open: boolea
           <AccountPane account={account} />
         ) : tab === "users" && account.role === "admin" ? (
           <UsersPane me={account.id} />
+        ) : tab === "trash" ? (
+          <TrashPane admin={account.role === "admin"} />
         ) : tab === "function" ? (
           <FunctionPane />
         ) : (

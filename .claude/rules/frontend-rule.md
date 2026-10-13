@@ -43,7 +43,7 @@ wui/
   features/<이름>/         한 화면 영역의 컴포넌트 묶음
   ui/                     어디서나 쓰는 모양 부품
   lib/                    React 가 없는 함수(api, cx, storage, time, markdown, events, collect, items, zoom, number)
-  check/                  화면 점검 스크립트(smoke, workbench, chat, flows, panes, settings, search, collect, persist, auth, library, mobile, delete)
+  check/                  화면 점검 스크립트(smoke, workbench, chat, flows, panes, settings, search, collect, persist, auth, library, mobile, delete, trash)
   design/                 디자인 랩. 앱이 가져오지 않는다
 ```
 
@@ -67,7 +67,7 @@ wui/
 | `doc` | 문서 패널, 언어 전환, 내려받기, 선택 막대 |
 | `material` | 자료 패널 |
 | `blocks` | 답변·수업 블록 렌더러, 그래프 실험(Playground) |
-| `settings` | 설정 모달(General·Font, Account·Profile·Users(관리자만), Models·제공사, Agent·Function), 요금제 로그인 시트 |
+| `settings` | 설정 모달(General·Font·Trash, Account·Profile·Users(관리자만), Models·제공사, Agent·Function), 요금제 로그인 시트 |
 
 ## 공용 부품
 

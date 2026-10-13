@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 import uuid
+from datetime import datetime, timezone
 
 from usecase.collected.record import record as documents
 from usecase.common import store
@@ -62,6 +63,24 @@ def get(*, id: str) -> dict | None:
         "conversations": conversations.listed(domain="space", space_id=row[0]),
         "collected": collected(id=row[0]),
     }
+
+
+def deleted() -> list[dict]:
+    with store.session() as connection:
+        rows = connection.execute(
+            """SELECT s.id, s.title, s.deleted_at,
+                      (SELECT COUNT(*) FROM space_conversation WHERE space_id = s.id AND deleted_at = s.deleted_at),
+                      (SELECT COUNT(*) FROM space_material WHERE space_id = s.id AND kind != 'plan' AND deleted_at = s.deleted_at)
+               FROM space AS s
+               WHERE s.user_id = ? AND s.deleted_at != ''
+               ORDER BY s.deleted_at DESC""",
+            (store.user(),),
+        ).fetchall()
+
+    return [
+        {"id": r[0], "title": r[1], "deleted_at": r[2], "conversation_count": r[3], "material_count": r[4]}
+        for r in rows
+    ]
 
 
 def collected(*, id: str) -> list[dict]:
@@ -174,7 +193,7 @@ def edit_material(*, id: str, data: dict) -> dict:
 
 
 def remove(*, id: str) -> bool:
-    deleted_at = store.now()
+    deleted_at = datetime.now(timezone.utc).isoformat(timespec="microseconds")
     with store.session() as connection:
         removed = connection.execute(
             "UPDATE space SET deleted_at = ? WHERE id = ? AND user_id = ? AND deleted_at = ''",
@@ -185,6 +204,18 @@ def remove(*, id: str) -> bool:
             connection.execute("UPDATE space_material SET deleted_at = ? WHERE space_id = ? AND deleted_at = ''", (deleted_at, id))
 
     return removed > 0
+
+
+def restore(*, id: str) -> dict:
+    with store.session() as connection:
+        row = connection.execute("SELECT deleted_at FROM space WHERE id = ? AND user_id = ? AND deleted_at != ''", (id, store.user())).fetchone()
+        if row is None:
+            raise NotFound("지운 space 를 찾을 수 없습니다.")
+        connection.execute("UPDATE space SET deleted_at = '' WHERE id = ?", (id,))
+        connection.execute("UPDATE space_conversation SET deleted_at = '' WHERE space_id = ? AND deleted_at = ?", (id, row[0]))
+        connection.execute("UPDATE space_material SET deleted_at = '' WHERE space_id = ? AND deleted_at = ?", (id, row[0]))
+
+    return get(id=id)
 
 
 def write_material(*, space_id: str, data: dict, id: str) -> dict:
@@ -266,4 +297,25 @@ if __name__ == "__main__":
             (mine["id"],),
         ).fetchone()
     assert rows[0] and rows[0] == rows[1] and rows[2] == rows[3] == 3
+    trashed = deleted()
+    assert [(s["id"], s["conversation_count"], s["material_count"]) for s in trashed] == [(mine["id"], 1, 1)]
+    store.CURRENT.set("other")
+    assert deleted() == []
+    try:
+        restore(id=mine["id"])
+    except NotFound:
+        pass
+    else:
+        raise AssertionError("foreign restore")
+    store.CURRENT.set(store.USER)
+    back = restore(id=mine["id"])
+    assert back["purpose"] == "goal" and [m["id"] for m in back["materials"]] == [kept["id"]]
+    assert [c["id"] for c in back["conversations"]] == [talk["id"]] and get_material(id=note["id"]) is None
+    assert deleted() == [] and [s["id"] for s in listed()] == [mine["id"]]
+    try:
+        restore(id=mine["id"])
+    except NotFound:
+        pass
+    else:
+        raise AssertionError("restored twice")
     print("ok")

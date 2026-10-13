@@ -27,6 +27,7 @@ from usecase.space.record import record as spaces
 from usecase.setting.login import login
 from usecase.setting.record import record as settings
 from usecase.user.account import account
+from usecase.user.trash import trash
 from usecase.collected.collect import job
 from usecase.collected.read import read
 from usecase.collected.search import search
@@ -73,6 +74,8 @@ ROUTES = [
     Route(method="GET", pattern="/api/health", guard="public", handle=lambda request: health()),
     Route(method="GET", pattern="/api/auth/me", guard="user", handle=lambda request: request.account),
     Route(method="GET", pattern="/api/users", guard="admin", handle=lambda request: {"items": account.listed()}, denied="관리자만 볼 수 있습니다."),
+    Route(method="GET", pattern="/api/users/deleted", guard="admin", handle=lambda request: {"items": account.deleted()}, denied="관리자만 볼 수 있습니다."),
+    Route(method="GET", pattern="/api/trash", guard="user", handle=lambda request: trash.listed()),
     Route(method="GET", pattern="/api/settings", guard="user", handle=lambda request: settings.get()),
     Route(method="GET", pattern="/api/login", guard="trusted", handle=lambda request: login.status(provider=argument(query=request.query, name="provider"), method=argument(query=request.query, name="method", default="plan_key"))),
     Route(method="GET", pattern="/api/models", guard="user", handle=lambda request: converse.models()),
@@ -92,6 +95,8 @@ ROUTES = [
     Route(method="GET", pattern=CONVERSATION, guard="user", handle=lambda request: converse.get(domain=request.groups[0], id=request.groups[1])),
     Route(method="POST", pattern="/api/auth/login", guard="public", handle=lambda request: signin(request=request)),
     Route(method="POST", pattern="/api/users", guard="admin", handle=lambda request: account.create(email=str(request.body.get("email") or ""), name=str(request.body.get("name") or "")), denied="관리자만 사용자를 추가할 수 있습니다."),
+    Route(method="POST", pattern=f"/api/users/({ID})/restore", guard="admin", handle=lambda request: restore_user(request=request), denied="관리자만 사용자를 되살릴 수 있습니다."),
+    Route(method="POST", pattern="/api/trash/restore", guard="trusted", handle=lambda request: trash.restore(data=request.body)),
     Route(method="POST", pattern="/api/auth/password", guard="trusted", handle=lambda request: password(request=request)),
     Route(method="POST", pattern="/api/auth/logout", guard="trusted", handle=lambda request: signout(request=request)),
     Route(method="POST", pattern="/api/opened", guard="trusted", handle=lambda request: opened(request=request)),
@@ -260,6 +265,12 @@ def remove_user(*, request: Request) -> dict:
     return {"ok": True}
 
 
+def restore_user(*, request: Request) -> dict:
+    account.restore(user_id=request.groups[0])
+
+    return {"ok": True}
+
+
 def opened(*, request: Request) -> dict:
     wanted = (request.body.get("id") or "").strip()
     if not wanted:
@@ -395,6 +406,10 @@ def check() -> None:
         ("POST", "/api/spaces/abc/materials"): ("trusted", ("abc",)),
         ("POST", "/api/agent/conversations/c1/retry"): ("trusted", ("agent", "c1")),
         ("DELETE", "/api/users/u1"): ("admin", ("u1",)),
+        ("GET", "/api/users/deleted"): ("admin", ()),
+        ("POST", "/api/users/u1/restore"): ("admin", ("u1",)),
+        ("GET", "/api/trash"): ("user", ()),
+        ("POST", "/api/trash/restore"): ("trusted", ()),
     }
     for (method, path), (guard, groups) in cases.items():
         route, found = matched(method=method, path=path)

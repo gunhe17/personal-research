@@ -148,6 +148,14 @@ export type Account = { id: string; name: string; email: string; role: "admin" |
 
 export type Member = Account & { created_at: string };
 
+export type DeletedMember = Account & { deleted_at: string };
+
+export type DeletedSpace = { id: string; title: string; deleted_at: string; conversation_count: number; material_count: number };
+
+export type DeletedConversation = { id: string; title: string; deleted_at: string; domain: Domain; space_id: string; space_title: string };
+
+export type Trash = { spaces: DeletedSpace[]; conversations: DeletedConversation[] };
+
 export type CollectEvent = { at: number } & (
   | { type: "step"; key: string; text: string; state?: string }
   | { type: "collected"; id: string; path: string }
@@ -215,6 +223,11 @@ export const api = {
   users: () => request<List<Member>>("/api/users"),
   addUser: (name: string, email: string) => send<Account & { password: string }>("/api/users", { name, email }),
   removeUser: (id: string) => request<Ok>(`/api/users/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  deletedUsers: () => request<List<DeletedMember>>("/api/users/deleted"),
+  restoreUser: (id: string) => send<Ok>(`/api/users/${encodeURIComponent(id)}/restore`, {}),
+  trash: () => request<Trash>("/api/trash"),
+  restoreSpace: (id: string) => send<{ id: string }>("/api/trash/restore", { kind: "space", id }),
+  restoreConversation: (domain: Domain, id: string) => send<{ id: string }>("/api/trash/restore", { kind: "conversation", domain, id }),
   models: () => request<ModelCatalog>("/api/models"),
   skills: () => request<List<Skill>>("/api/skills"),
   startCollect: (input: string) => send<CollectJob>("/api/collect", { input }),

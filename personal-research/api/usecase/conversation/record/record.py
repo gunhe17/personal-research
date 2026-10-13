@@ -37,6 +37,25 @@ def listed(*, domain: str, space_id: str = "") -> list[dict]:
     ]
 
 
+def deleted(*, domain: str) -> list[dict]:
+    assert domain in DOMAINS
+    space, columns = ("JOIN space AS s ON s.id = c.space_id AND s.user_id = c.user_id AND s.deleted_at = ''", "s.id, s.title") if domain == "space" else ("", "'', ''")
+    with store.session() as connection:
+        rows = connection.execute(
+            f"""SELECT c.id, c.title, c.deleted_at, {columns}
+                FROM {domain}_conversation AS c
+                {space}
+                WHERE c.user_id = ? AND c.deleted_at != ''
+                ORDER BY c.deleted_at DESC""",
+            (store.user(),),
+        ).fetchall()
+
+    return [
+        {"id": r[0], "title": r[1], "deleted_at": r[2], "domain": domain, "space_id": r[3], "space_title": r[4]}
+        for r in rows
+    ]
+
+
 def by_collected(*, collected_id: str) -> list[dict]:
     with store.session() as connection:
         rows = connection.execute(
@@ -161,6 +180,20 @@ def remove(*, domain: str, id: str) -> bool:
         ).rowcount
 
     return removed > 0
+
+
+def restore(*, domain: str, id: str) -> dict:
+    assert domain in DOMAINS
+    with store.session() as connection:
+        owner = "space_id" if domain == "space" else "id"
+        row = connection.execute(f"SELECT {owner} FROM {domain}_conversation WHERE id = ? AND user_id = ? AND deleted_at != ''", (id, store.user())).fetchone()
+        if row is None:
+            raise NotFound("지운 대화를 찾을 수 없습니다.")
+        if domain == "space" and not connection.execute("SELECT 1 FROM space WHERE id = ? AND deleted_at = ''", (row[0],)).fetchone():
+            raise ValueError("먼저 space 를 되살려 주세요.")
+        connection.execute(f"UPDATE {domain}_conversation SET deleted_at = '' WHERE id = ?", (id,))
+
+    return get(domain=domain, id=id)
 
 
 def ask(*, domain: str, id: str, data: dict) -> dict:
@@ -303,4 +336,30 @@ if __name__ == "__main__":
         deleted_at = connection.execute("SELECT deleted_at FROM agent_conversation WHERE id = ?", (mine["id"],)).fetchone()[0]
         kept = connection.execute("SELECT COUNT(*) FROM agent_message WHERE conversation_id = ?", (mine["id"],)).fetchone()[0]
     assert deleted_at and kept == 2
+    assert [c["id"] for c in deleted(domain="agent")] == [mine["id"]]
+    store.CURRENT.set("other")
+    assert deleted(domain="agent") == []
+    try:
+        restore(domain="agent", id=mine["id"])
+    except NotFound:
+        pass
+    else:
+        raise AssertionError("foreign restore")
+    store.CURRENT.set(store.USER)
+    assert len(restore(domain="agent", id=mine["id"])["messages"]) == 2 and deleted(domain="agent") == []
+    with store.session() as connection:
+        connection.execute("INSERT INTO space (id, title, created_at, updated_at, user_id) VALUES ('s1', 'S', '', '', ?)", (store.USER,))
+    assert [(c["id"], c["space_title"]) for c in deleted(domain="space")] == [(space_side["id"], "S")]
+    with store.session() as connection:
+        connection.execute("UPDATE space SET deleted_at = 'x' WHERE id = 's1'")
+    assert deleted(domain="space") == []
+    try:
+        restore(domain="space", id=space_side["id"])
+    except ValueError as error:
+        assert "space" in str(error)
+    else:
+        raise AssertionError("restore under deleted space")
+    with store.session() as connection:
+        connection.execute("UPDATE space SET deleted_at = '' WHERE id = 's1'")
+    assert restore(domain="space", id=space_side["id"])["space_id"] == "s1" and deleted(domain="space") == []
     print("ok")

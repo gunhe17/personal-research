@@ -8,6 +8,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from usecase.common import store
+from usecase.common.error import NotFound
 
 DAYS = 30
 ROLES = ("admin", "user")
@@ -57,6 +58,25 @@ def remove(*, user_id: str, by: str) -> None:
         if not removed:
             raise ValueError("없는 사용자입니다.")
         connection.execute("DELETE FROM user_session WHERE user_id = ?", (user_id,))
+
+
+def deleted() -> list[dict]:
+    with store.session() as connection:
+        rows = connection.execute("SELECT id, name, email, role, deleted_at FROM user WHERE password != '' AND deleted_at != '' ORDER BY deleted_at DESC").fetchall()
+
+    return [
+        {"id": id, "name": name, "email": email, "role": role, "deleted_at": deleted_at} for id, name, email, role, deleted_at in rows
+    ]
+
+
+def restore(*, user_id: str) -> None:
+    with store.session() as connection:
+        row = connection.execute("SELECT email FROM user WHERE id = ? AND password != '' AND deleted_at != ''", (user_id,)).fetchone()
+        if row is None:
+            raise NotFound("지운 사용자를 찾을 수 없습니다.")
+        if connection.execute("SELECT 1 FROM user WHERE email = ? AND password != '' AND deleted_at = ''", (row[0],)).fetchone():
+            raise ValueError("같은 이메일의 사용자가 있습니다.")
+        connection.execute("UPDATE user SET deleted_at = '' WHERE id = ?", (user_id,))
 
 
 def change_password(*, user_id: str, password: str) -> None:
@@ -209,4 +229,21 @@ if __name__ == "__main__":
         kept = connection.execute("SELECT COUNT(*) FROM user_meta WHERE user_id = ?", (issued["id"],)).fetchone()[0]
         sessions = connection.execute("SELECT COUNT(*) FROM user_session WHERE user_id = ?", (issued["id"],)).fetchone()[0]
     assert deleted_at and kept == 1 and sessions == 0
+    assert [u["id"] for u in deleted()] == [issued["id"]]
+    try:
+        restore(user_id=issued["id"])
+    except ValueError as error:
+        assert "이메일" in str(error)
+    else:
+        raise AssertionError("email conflict")
+    remove(user_id=again["id"], by=store.USER)
+    restore(user_id=issued["id"])
+    assert verify(email="new@example.com", password="my own pass")["id"] == issued["id"] and [u["id"] for u in deleted()] == [again["id"]]
+    for user_id in (issued["id"], "missing"):
+        try:
+            restore(user_id=user_id)
+        except NotFound:
+            pass
+        else:
+            raise AssertionError(user_id)
     print("ok")
