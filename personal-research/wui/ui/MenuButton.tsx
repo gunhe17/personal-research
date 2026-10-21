@@ -35,7 +35,7 @@ export default function MenuButton({ label, name, open, onToggle, onClose, up, c
         <span className="truncate">{label}</span>
         <Icon name="down" className="h-3.5 w-3.5 shrink-0 text-slate-400" />
       </button>
-      {open && <Menu label={name} className={cx("absolute w-56 max-w-[calc(100vw-32px)]", flip ? "left-0" : "right-0", up ? "bottom-full mb-2" : "top-full mt-2")}>{children}</Menu>}
+      <Menu open={open} label={name} className={cx("absolute w-56 max-w-[calc(100vw-32px)]", flip ? "left-0" : "right-0", up ? "bottom-full mb-2" : "top-full mt-2")}>{children}</Menu>
     </div>
   );
 }

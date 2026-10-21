@@ -1,14 +1,5 @@
 import { format } from "@/lib/number";
-
-function ticks(lo: number, hi: number, count: number): number[] {
-  const rough = (hi - lo) / count;
-  const scale = 10 ** Math.floor(Math.log10(rough));
-  const fraction = rough / scale;
-  const step = (fraction <= 1 ? 1 : fraction <= 2 ? 2 : fraction <= 5 ? 5 : 10) * scale;
-  const out: number[] = [];
-  for (let v = Math.ceil(lo / step) * step; v <= hi + step / 100; v += step) out.push(v);
-  return out;
-}
+import { fitted } from "@/lib/visual";
 
 type ChartProps = {
   width: number;
@@ -50,13 +41,13 @@ export default function Chart({ width, clip, x, y, w, h, zoom, secant, tangent, 
           <rect x={pad.l} y={pad.t} width={pad.r - pad.l} height={pad.b - pad.t} />
         </clipPath>
       </defs>
-      {ticks(bottom, top, 4).map((v) => (
+      {fitted(bottom, top, 4).marks.filter((v) => v >= bottom - 1e-9 && v <= top + 1e-9).map((v) => (
         <g key={`y${v}`}>
           <line x1={pad.l} x2={pad.r} y1={Y(v)} y2={Y(v)} stroke="var(--color-slate-100)" />
           <text x={pad.l - 9} y={Y(v) + 4} textAnchor="end">{format(v, 3)}</text>
         </g>
       ))}
-      {ticks(low, high, width < 500 ? 4 : 6).map((v) => (
+      {fitted(low, high, width < 500 ? 4 : 6).marks.filter((v) => v >= low - 1e-9 && v <= high + 1e-9).map((v) => (
         <g key={`x${v}`}>
           <line x1={X(v)} x2={X(v)} y1={pad.t} y2={pad.b} stroke="var(--color-slate-50)" />
           <text x={X(v)} y={pad.b + 20} textAnchor="middle">{format(v, 3)}</text>

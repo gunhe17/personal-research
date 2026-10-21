@@ -2,7 +2,7 @@ import Icon from "@/ui/Icon";
 
 export default function Search({ value, onChange, label }: { value: string; onChange: (value: string) => void; label: string }) {
   return (
-    <label className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-[7px] text-slate-400 transition focus-within:border-apple focus-within:bg-white">
+    <label className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-[7px] text-slate-400 transition duration-150 focus-within:border-apple focus-within:bg-white">
       <Icon name="search" className="h-3.5 w-3.5" />
       <input
         value={value}

@@ -5,6 +5,7 @@ import type { ModelCatalog, ModelChoice } from "@/lib/api";
 import InputBar from "@/ui/InputBar";
 import Menu, { MenuItem } from "@/ui/Menu";
 import SendButton from "@/ui/SendButton";
+import Skeleton from "@/ui/Skeleton";
 import ModelPicker from "./ModelPicker";
 
 const COMMANDS = [
@@ -19,7 +20,7 @@ export function commanded(text: string) {
 type Props = {
   value: string;
   sending: boolean;
-  catalog: ModelCatalog | null;
+  catalog: ModelCatalog | null | undefined;
   choice: ModelChoice | null;
   input: RefObject<HTMLTextAreaElement | null>;
   onPick: (choice: ModelChoice) => void;
@@ -48,11 +49,9 @@ export default function Composer({ value, sending, catalog, choice, input, onPic
 
   return (
     <InputBar>
-      {shown && (
-        <Menu label="명령어" className="absolute right-0 bottom-full left-0 mb-2">
-          {matches.map((command, i) => <MenuItem key={command.name} title={command.name} hint={command.hint} selected={i === Math.min(index, matches.length - 1)} onPick={() => choose(command.name)} />)}
-        </Menu>
-      )}
+      <Menu open={shown} label="명령어" className="absolute right-0 bottom-full left-0 mb-2">
+        {matches.map((command, i) => <MenuItem key={command.name} title={command.name} hint={command.hint} selected={i === Math.min(index, matches.length - 1)} onPick={() => choose(command.name)} />)}
+      </Menu>
       <textarea
         ref={input}
         rows={1}
@@ -85,9 +84,14 @@ export default function Composer({ value, sending, catalog, choice, input, onPic
         className="max-h-[180px] min-w-0 flex-1 resize-none self-center bg-transparent px-1 py-1 leading-normal text-slate-900 placeholder:text-slate-400 focus:outline-none"
         style={{ fontSize: "calc(17px * var(--chat-zoom))" }}
       />
-      {catalog && choice && (
-        <div className="flex min-w-0 items-center @max-lg:order-first @max-lg:w-full">
+      {catalog && choice ? (
+        <div className="enter-fade flex min-w-0 items-center @max-lg:order-first @max-lg:w-full">
           <ModelPicker catalog={catalog} choice={choice} onPick={onPick} />
+        </div>
+      ) : catalog === undefined && (
+        <div className="flex min-w-0 items-center gap-4 self-center px-2 py-[7px] @max-lg:order-first @max-lg:w-full">
+          <Skeleton className="w-14" />
+          <Skeleton className="w-24" />
         </div>
       )}
       <SendButton disabled={sending} onClick={onSend} />

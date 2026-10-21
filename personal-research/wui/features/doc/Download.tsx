@@ -72,13 +72,14 @@ export default function Download({ id, path, paired, html, lang, texts, content,
   };
 
   useEffect(() => {
+    if (!open) return;
     const slot = document.getElementById("tab-menu");
-    setAnchor(open && slot && slot.getClientRects().length ? slot : null);
+    setAnchor(slot && slot.getClientRects().length ? slot : null);
   }, [open]);
 
   const menu = (
     <div ref={sheet} className="contents">
-      <Menu label="Download" className="absolute top-full right-0 mt-1 w-64 p-3">
+      <Menu open={open} label="Download" className="absolute top-full right-0 mt-1 w-64 p-3">
         <SectionHeader title="Language" size="sm" />
         <Segmented
           label="Language"
@@ -113,7 +114,7 @@ export default function Download({ id, path, paired, html, lang, texts, content,
   return (
     <div ref={box} className="relative flex">
       <IconButton icon="download" size={tabbed ? "md" : "sm"} label="Download" active={open} aria-expanded={open} onClick={() => setOpen(!open)} />
-      {open && (anchor ? createPortal(menu, anchor) : menu)}
+      {anchor ? createPortal(menu, anchor) : menu}
     </div>
   );
 }

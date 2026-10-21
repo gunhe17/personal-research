@@ -1,6 +1,7 @@
 "use client";
 
 import type { Message, MessageContext, Source } from "@/lib/api";
+import { cx } from "@/lib/cx";
 import { chatHtml } from "@/lib/markdown";
 import Button from "@/ui/Button";
 import Blocks, { type Scene } from "@/features/blocks/Blocks";
@@ -8,6 +9,7 @@ import Profile from "./Profile";
 
 type Props = {
   message: Message;
+  fresh: boolean;
   label: string;
   provider: string | null;
   scene: Scene | null;
@@ -17,9 +19,9 @@ type Props = {
   onOpen: (source: Source) => void;
 };
 
-export default function Answer({ message, label, provider, scene, onContext, onAsk, onCopy, onOpen }: Props) {
+export default function Answer({ message, fresh, label, provider, scene, onContext, onAsk, onCopy, onOpen }: Props) {
   return (
-    <article data-answer-id={message.id} className="mb-10">
+    <article data-answer-id={message.id} className={cx(fresh && "enter-fade", "mb-10")}>
       <Profile provider={provider} label={label} />
       <div data-article className="article">
         {message.rich ? (

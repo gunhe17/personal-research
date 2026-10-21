@@ -24,7 +24,7 @@ type Props = {
 export default function Button({ tone = "line", size = "md", className, children, ...rest }: Props) {
   const classes = cx(
     "inline-flex shrink-0 items-center justify-center gap-1 transition duration-150 disabled:opacity-40",
-    tone === "link" ? "text-[12px]" : cx("rounded-full", SIZES[size]),
+    tone === "link" ? "text-[12px]" : cx("rounded-full enabled:active:scale-[0.97]", SIZES[size]),
     TONES[tone],
     className,
   );

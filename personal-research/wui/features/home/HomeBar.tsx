@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { listen } from "@/lib/events";
 import { load, save } from "@/lib/storage";
 import InputBar from "@/ui/InputBar";
 import { MenuItem } from "@/ui/Menu";
@@ -23,6 +24,10 @@ export default function HomeBar({ busy, onSend }: { busy: boolean; onSend: (text
   useEffect(() => {
     setMode(load<Mode>("homeMode", "ask"));
     input.current?.focus();
+    return listen("collect", () => {
+      setMode("collect");
+      input.current?.focus();
+    });
   }, []);
 
   useEffect(() => {

@@ -53,7 +53,7 @@ export default function AccountPane({ account }: { account: Account | null }) {
           />
           <Button size="sm" disabled={next.length < 8} onClick={change}>Change</Button>
         </KeyValue>
-        {message && <p className={message.ok ? "mt-1 text-[12px] text-slate-500" : "mt-1 text-[12px] text-red-600"}>{message.text}</p>}
+        {message && <p className={message.ok ? "enter-fade mt-1 text-[12px] text-slate-500" : "enter-fade mt-1 text-[12px] text-red-600"}>{message.text}</p>}
       </section>
     </SettingsPage>
   );

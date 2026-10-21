@@ -60,10 +60,31 @@ export type Space = {
 };
 
 export type Block = {
-  kind: "paragraph" | "heading" | "formula" | "bullet" | "code" | "playground";
+  kind: "paragraph" | "heading" | "formula" | "math" | "bullet" | "code" | "playground" | "visual";
   text: string;
   playground: PlaygroundConfig | null;
+  visual?: Visual | null;
 };
+
+export type Visual =
+  | { type: "heatmap"; rows: string[]; columns: string[]; values: number[][] }
+  | { type: "scatter"; x_label: string; y_label: string; points: { x: number; y: number; label: string; group: string }[] }
+  | { type: "tokens"; items: { text: string; id: number | null; highlight: boolean }[] }
+  | {
+      type: "plot";
+      x_label: string;
+      y_label: string;
+      x_range: { min: number; max: number };
+      y_range: { min: number; max: number } | null;
+      functions: { expression: string; label: string }[];
+      series: { label: string; points: { x: number; y: number }[] }[];
+      points: { x: number; y: number; label: string }[];
+      marks: { x: number; label: string }[];
+    }
+  | { type: "bar"; x_label: string; y_label: string; bars: { label: string; value: number; highlight: boolean }[] }
+  | { type: "vectors"; vectors: { x: number; y: number; from_x: number; from_y: number; label: string }[] }
+  | { type: "table"; columns: string[]; rows: string[][] }
+  | { type: "graph"; direction: "right" | "down"; nodes: { id: string; label: string; group: string }[]; edges: { from: string; to: string; label: string }[] };
 
 export type PlaygroundConfig = { mode: "loss" | "rate" | "derivative" | "descent"; x: number; y: number; w: number; h: number; learning_rate: number };
 
@@ -204,6 +225,7 @@ export const api = {
   spaces: () => request<List<SpaceItem>>("/api/spaces"),
   space: (id: string) => request<Space>(`/api/spaces/${encodeURIComponent(id)}`),
   createSpace: (title: string, purpose: string) => send<{ id: string }>("/api/spaces", { title, purpose }),
+  removeSpace: (id: string) => request<Ok>(`/api/spaces/${encodeURIComponent(id)}`, { method: "DELETE" }),
 
   material: (id: string) => request<Material>(`/api/materials/${encodeURIComponent(id)}`),
 

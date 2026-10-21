@@ -6,6 +6,7 @@ import { docHtml, interleavedHtml } from "@/lib/markdown";
 import { load, save } from "@/lib/storage";
 import Button from "@/ui/Button";
 import Segmented from "@/ui/Segmented";
+import Skeleton from "@/ui/Skeleton";
 import { toast } from "@/ui/Toaster";
 import Body from "@/features/workbench/Body";
 import Pane from "@/features/workbench/Pane";
@@ -93,10 +94,11 @@ export default function DocPane({ group, id }: { group: Group; id: string }) {
   };
 
   const body = () => {
-    if (texts.orig === null || !file) return <p className="py-24 text-center text-[14px] text-slate-400">{error || "Loading…"}</p>;
+    if (error) return <p className="enter-fade py-24 text-center text-[14px] text-slate-400">{error}</p>;
+    if (texts.orig === null || !file) return <ArticleSkeleton title />;
     if (html) {
       return (
-        <div className="enter-fade py-24 text-center">
+        <div key={file.id} className="enter-fade py-24 text-center">
           <p className="px-6 text-[21px] font-semibold tracking-tight break-all text-slate-800">{file.name}</p>
           <p className="mt-2 text-[14px] font-light text-slate-500">An HTML document with its original typesetting. Opens as is in a new tab.</p>
           <div className="mt-6 flex items-center justify-center gap-2">
@@ -106,11 +108,11 @@ export default function DocPane({ group, id }: { group: Group; id: string }) {
         </div>
       );
     }
-    if (!markdown) return <pre className="enter-fade rounded-xl bg-white p-4 font-mono text-[0.92em] whitespace-pre-wrap text-slate-800">{texts.orig}</pre>;
-    if (shown !== "orig" && texts.trans === null) return <p className="py-24 text-center text-[14px] text-slate-400">Loading…</p>;
+    if (!markdown) return <pre key={file.id} className="enter-fade rounded-xl bg-white p-4 font-mono text-[0.92em] whitespace-pre-wrap text-slate-800">{texts.orig}</pre>;
+    if (shown !== "orig" && texts.trans === null) return <ArticleSkeleton />;
     const base = meta?.url;
     const source = shown === "trans" ? docHtml(texts.trans!, base) : shown === "both" ? interleavedHtml(texts.orig, texts.trans!, base) : docHtml(texts.orig, base);
-    return <div className="prose-doc enter-fade" dangerouslySetInnerHTML={{ __html: source }} />;
+    return <div key={`${file.id}:${shown}`} className="prose-doc enter-fade" dangerouslySetInnerHTML={{ __html: source }} />;
   };
 
   return (
@@ -134,7 +136,7 @@ export default function DocPane({ group, id }: { group: Group; id: string }) {
         )}
         <Body ref={content}>
           {meta?.url && (
-            <p className="enter-fade mb-4 text-[12px] break-all text-slate-500">
+            <p key={meta.url} className="enter-fade mb-4 text-[12px] break-all text-slate-500">
               Source <a href={meta.url} target="_blank" rel="noopener" className="text-apple-link hover:underline">{meta.url}</a>
             </p>
           )}
@@ -143,5 +145,20 @@ export default function DocPane({ group, id }: { group: Group; id: string }) {
         <SelectionBar scope={content} onQuote={(text) => (file ? workbench.sendQuote({ text, path: file.path, id }) : false)} />
       </main>
     </Pane>
+  );
+}
+
+const PARAGRAPHS = [
+  ["w-full", "w-full", "w-11/12", "w-3/5"],
+  ["w-full", "w-full", "w-full", "w-10/12", "w-2/5"],
+  ["w-full", "w-11/12", "w-4/5"],
+];
+
+function ArticleSkeleton({ title }: { title?: boolean }) {
+  return (
+    <div>
+      {title && <Skeleton className="mb-8 h-7 w-3/5" />}
+      {PARAGRAPHS.map((lines, index) => <Skeleton key={index} lines={lines} className="mb-7" />)}
+    </div>
   );
 }

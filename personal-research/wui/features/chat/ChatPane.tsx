@@ -2,8 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { api, type Message, type MessageContext } from "@/lib/api";
+import { cx } from "@/lib/cx";
 import { emit } from "@/lib/events";
 import Button from "@/ui/Button";
+import Skeleton from "@/ui/Skeleton";
+import usePresence from "@/ui/usePresence";
 import type { Scene } from "@/features/blocks/Blocks";
 import Pane from "@/features/workbench/Pane";
 import type { Group } from "@/lib/items";
@@ -33,12 +36,17 @@ export default function ChatPane({ group }: { group: Group }) {
   const [status, setStatus] = useState("");
   const [scene, setScene] = useState<Scene | null>(null);
   const [catalog, choice, choose] = useModel();
-  const { domain, chat, banner, refresh, ensure } = useConversation(group);
+  const { domain, chat, banner, loading, refresh, ensure } = useConversation(group);
   const scroller = useRef<HTMLDivElement>(null);
   const thread = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const [selection, clearSelection] = useThreadSelection(thread);
   const { below, onScroll, jump } = useChatScroll(scroller, chat?.messages.length || 0, group.id);
+  const [known, setKnown] = useState<{ chat: string; ids: Set<string> } | null>(null);
+  if (chat && known?.chat !== chat.id) setKnown({ chat: chat.id, ids: new Set(chat.messages.map((m) => m.id)) });
+  const fresh = (id: string) => known?.chat === chat?.id && !known?.ids.has(id);
+  const jumper = usePresence(below);
+  const asker = usePresence(Boolean(selection), selection);
   const notes = useAnnotations(stored.annotations || [], (annotations) => {
     setRetry(null);
     persist({ annotations, retryPayload: null });
@@ -116,8 +124,9 @@ export default function ChatPane({ group }: { group: Group }) {
     <Pane group={group} name={chat?.title || "새 대화"}>
       <div className="relative flex min-h-0 flex-1 flex-col">
         <div ref={scroller} onScroll={onScroll} className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
-          {banner && <div role="alert" className="mx-4 mt-3 rounded-lg border border-slate-200 bg-ice px-3.5 py-2.5 text-[13px]">{banner}</div>}
-          {!chat?.messages.length && (
+          {banner && <div role="alert" className="enter-fade mx-4 mt-3 rounded-lg border border-slate-200 bg-ice px-3.5 py-2.5 text-[13px]">{banner}</div>}
+          {loading && <ThreadSkeleton />}
+          {!loading && !chat?.messages.length && (
             <div className="mx-auto max-w-[560px] px-6 pt-16 text-center text-[14px] leading-relaxed text-slate-500">
               <p className="mb-2 text-[21px] font-semibold text-slate-800">{domain === "agent" ? "무엇을 물어볼까요?" : "이 space 에서 무엇을 배울까요?"}</p>
               <p>질문하면 수집물을 먼저 조사해 근거와 함께 답합니다. 문서에서 문장을 골라 인용할 수 있습니다.</p>
@@ -133,10 +142,10 @@ export default function ChatPane({ group }: { group: Group }) {
                 window.getSelection()?.removeAllRanges();
               }
             }}
-            className="relative mx-auto max-w-[760px] px-5 pt-8 pb-12 empty:hidden"
+            className="enter-fade relative mx-auto max-w-[760px] px-5 pt-8 pb-12 empty:hidden"
           >
             {exchanges.map(({ question, answers }) => (
-              <Exchange key={question.id} question={question} canRetry={Boolean(chat?.codex_available)} onScene={(c) => setScene({ context: c, nonce: Date.now() })} onAction={async (action) => {
+              <Exchange key={question.id} question={question} fresh={fresh(question.id)} canRetry={Boolean(chat?.codex_available)} onScene={(c) => setScene({ context: c, nonce: Date.now() })} onAction={async (action) => {
                 try {
                   await api.act(chat!.domain, chat!.id, action, question.id);
                   await refresh(chat!.domain, chat!.id);
@@ -158,6 +167,7 @@ export default function ChatPane({ group }: { group: Group }) {
                   <Answer
                     key={answer.id}
                     message={answer}
+                    fresh={fresh(answer.id)}
                     label={label(question, answer)}
                     provider={question.context?.model?.provider || catalog?.default.provider || "openai"}
                     scene={scene}
@@ -183,15 +193,16 @@ export default function ChatPane({ group }: { group: Group }) {
             ))}
             <AnnotationLayer scope={thread} notes={notes} version={chat} />
           </div>
-          {below && (
-            <Button className="sticky bottom-3 left-1/2 -translate-x-1/2 bg-white" size="sm" onClick={jump}>새 답변으로 ↓</Button>
+          {jumper.mounted && (
+            <Button className={cx(jumper.leaving ? "exit-pop" : "enter-pop", "sticky bottom-3 left-1/2 -translate-x-1/2 bg-white")} size="sm" onClick={jump}>새 답변으로 ↓</Button>
           )}
         </div>
-        {selection && (
-          <Button className="absolute top-3 left-1/2 z-20 -translate-x-1/2 bg-white" size="sm" onClick={() => {
+        {asker.mounted && asker.content && (
+          <Button className={cx(asker.leaving ? "exit-pop" : "enter-pop", "absolute top-3 left-1/2 z-20 -translate-x-1/2 bg-white")} size="sm" onClick={() => {
+            const picked = asker.content!;
             const candidate = capture(window.getSelection());
             if (candidate) notes.add(candidate);
-            attach({ text: selection.text }, selection.answer ? { source_answer_id: selection.answer } : undefined);
+            attach({ text: picked.text }, picked.answer ? { source_answer_id: picked.answer } : undefined);
             clearSelection();
           }}>선택한 내용에 질문 ↗</Button>
         )}
@@ -199,11 +210,24 @@ export default function ChatPane({ group }: { group: Group }) {
           <div className="mx-auto max-w-[760px]">
             <Attachments notes={notes} quote={quote} onDropQuote={() => attach(null)} />
             <Composer value={text} sending={sending} catalog={catalog} choice={choice} input={input} onPick={pick} onChange={write} onSend={send} />
-            <p role="status" className="mx-auto my-1 min-h-4 text-[12px] text-slate-500">{status}</p>
+            <p role="status" className="mx-auto my-1 min-h-4 text-[12px] text-slate-500"><span key={status} className="enter-fade">{status}</span></p>
           </div>
         </div>
       </div>
     </Pane>
+  );
+}
+
+function ThreadSkeleton() {
+  return (
+    <div className="mx-auto max-w-[760px] px-5 pt-8 pb-12">
+      <Skeleton className="mb-8 ml-auto h-[72px] w-2/5 rounded-lg" />
+      <div className="mb-4 flex items-center gap-2">
+        <Skeleton className="h-5 w-5 rounded-full" />
+        <Skeleton className="w-16" />
+      </div>
+      <Skeleton lines={["w-full", "w-full", "w-11/12", "w-full", "w-3/5"]} />
+    </div>
   );
 }
 

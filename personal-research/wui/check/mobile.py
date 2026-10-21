@@ -132,6 +132,7 @@ with sync_playwright() as p:
     page.wait_for_timeout(300)
     print("11 back:", hidden, dialog.get_by_role("button", name="Anthropic", exact=True).is_visible(), "| pane hidden:", not add.is_visible())
     dialog.get_by_label("Close").click()
+    page.wait_for_timeout(300)
     print("12 closed:", page.get_by_role("dialog").count() == 0)
     desk = browser.new_page(viewport={"width": 1280, "height": 800})
     sign_in(desk, BASE)

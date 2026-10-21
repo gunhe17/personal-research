@@ -7,8 +7,8 @@ import { load, save } from "@/lib/storage";
 import { MenuItem } from "@/ui/Menu";
 import MenuButton from "@/ui/MenuButton";
 
-export function useModel(): [ModelCatalog | null, ModelChoice | null, (next: ModelChoice) => void] {
-  const [catalog, setCatalog] = useState<ModelCatalog | null>(null);
+export function useModel(): [ModelCatalog | null | undefined, ModelChoice | null, (next: ModelChoice) => void] {
+  const [catalog, setCatalog] = useState<ModelCatalog | null>();
   const [choice, setChoice] = useState<ModelChoice | null>(null);
 
   useEffect(() => {
@@ -17,7 +17,7 @@ export function useModel(): [ModelCatalog | null, ModelChoice | null, (next: Mod
       const saved = load<ModelChoice | null>("model", null);
       const provider = data.providers.find((p) => p.id === saved?.provider);
       setChoice(provider?.models.some((m) => m.id === saved?.model) ? saved : data.default);
-    }, () => {});
+    }, () => setCatalog((current) => current ?? null));
     fetchCatalog();
     return listen("settings", fetchCatalog);
   }, []);

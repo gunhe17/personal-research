@@ -12,7 +12,7 @@ const sizes = {
 export default function TextInput({ size = "sm", className, ...rest }: Props) {
   return (
     <input
-      className={cx("rounded-lg border border-slate-200 bg-slate-50 text-slate-900 placeholder:text-slate-400 focus:border-apple focus:bg-white focus:outline-none", sizes[size], className)}
+      className={cx("rounded-lg border transition duration-150 border-slate-200 bg-slate-50 text-slate-900 placeholder:text-slate-400 focus:border-apple focus:bg-white focus:outline-none", sizes[size], className)}
       {...rest}
     />
   );

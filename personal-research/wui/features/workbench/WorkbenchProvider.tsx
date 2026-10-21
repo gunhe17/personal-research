@@ -5,6 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { Source } from "@/lib/api";
 import { load, save } from "@/lib/storage";
 import { toast } from "@/ui/Toaster";
+import { EXIT } from "@/ui/usePresence";
 import { itemKey, legacy, LIMIT, type Group, type Item, type Side } from "@/lib/items";
 
 type Quote = { target: string; text: string; path: string; id: string; nonce: number };
@@ -16,6 +17,7 @@ type Value = {
   open: (item: Item, options?: { group?: number; beside?: string }) => void;
   split: (item: Item, index: number, side: Side) => void;
   close: (group: string) => void;
+  leaving: string[];
   move: (from: string, to: string, side: Side) => void;
   focusGroup: (group: string) => void;
   replace: (group: string, item: Item) => void;
@@ -47,6 +49,7 @@ export default function WorkbenchProvider({ children }: { children: ReactNode })
   const [ready, setReady] = useState(false);
   const [doc, setDoc] = useState<Source | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null);
+  const [leaving, setLeaving] = useState<string[]>([]);
   const lastChat = useRef<string | null>(null);
 
   useEffect(() => {
@@ -108,7 +111,8 @@ export default function WorkbenchProvider({ children }: { children: ReactNode })
     show();
   }, [focus, show]);
 
-  const close = useCallback((group: string) => {
+  const remove = useCallback((group: string) => {
+    setLeaving((all) => all.filter((id) => id !== group));
     setGroups((current) => {
       const removed = current.findIndex((g) => g.id === group);
       const next = current.filter((g) => g.id !== group);
@@ -116,6 +120,12 @@ export default function WorkbenchProvider({ children }: { children: ReactNode })
       return next;
     });
   }, []);
+
+  const close = useCallback((group: string) => {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return remove(group);
+    setLeaving((all) => (all.includes(group) ? all : [...all, group]));
+    setTimeout(() => remove(group), EXIT);
+  }, [remove]);
 
   const move = useCallback((from: string, to: string, side: Side) => {
     setGroups((current) => {
@@ -168,6 +178,7 @@ export default function WorkbenchProvider({ children }: { children: ReactNode })
     open,
     split,
     close,
+    leaving,
     move,
     focusGroup,
     replace,
@@ -179,7 +190,7 @@ export default function WorkbenchProvider({ children }: { children: ReactNode })
     clearQuote: () => setQuote(null),
     activeKey: focused ? itemKey(focused.item) : "",
     activeSpace: focused?.item.kind === "chat" ? focused.item.space : null,
-  }), [groups, focus, ready, open, split, close, move, focusGroup, replace, rename, doc, quote, sendQuote, focused]);
+  }), [groups, focus, ready, open, split, close, leaving, move, focusGroup, replace, rename, doc, quote, sendQuote, focused]);
 
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }

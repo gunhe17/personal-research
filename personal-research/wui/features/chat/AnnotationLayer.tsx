@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useLayoutEffect, useState, type RefObject } from "react";
 import type { Annotation } from "@/lib/api";
 import Button from "@/ui/Button";
+import { cx } from "@/lib/cx";
 import { uuid } from "@/lib/id";
+import useLeaving from "@/ui/useLeaving";
+import usePresence from "@/ui/usePresence";
 
 export type Notes = ReturnType<typeof useAnnotations>;
 
@@ -153,31 +156,35 @@ export default function AnnotationLayer({ scope, notes, version }: { scope: RefO
     };
   }, [notes]);
 
-  const active = notes.items.find((a) => a.id === notes.editing);
+  const pins = useLeaving(marks, (mark) => mark.id);
+  const current = notes.items.find((a) => a.id === notes.editing);
+  const presence = usePresence(Boolean(current && editor), current && editor ? { active: current, editor } : null);
+  const shown = presence.mounted ? presence.content : null;
   return (
     <>
-      {marks.map((mark) => (
+      {pins.map(({ item: mark, key, leaving }) => (
         <button
-          key={mark.id}
+          key={key}
           type="button"
           data-annotation
           aria-label={`주석 ${mark.number} 수정`}
           onClick={() => notes.edit(mark.id)}
-          className="absolute z-40 h-[18px] w-[18px] rounded-full bg-slate-800 text-[11px] text-white"
+          className={cx(leaving ? "exit-pop" : "enter-pop", "absolute z-40 h-[18px] w-[18px] rounded-full bg-slate-800 text-[11px] text-white")}
           style={{ left: mark.left, top: mark.top }}
         >
           {mark.number}
         </button>
       ))}
-      {active && editor && (
-        <div data-annotation className="absolute z-50 flex w-[min(360px,calc(100%-20px))] gap-1.5 rounded-lg border border-slate-200 bg-white p-1.5" style={editor}>
+      {shown && (
+        <div data-annotation className={cx(presence.leaving ? "exit-pop" : "enter-pop", "absolute z-50 flex w-[min(360px,calc(100%-20px))] gap-1.5 rounded-lg border border-slate-200 bg-white p-1.5")} style={shown.editor}>
           <input
             autoFocus
+            readOnly={presence.leaving}
             maxLength={2000}
             aria-label="주석 코멘트"
             placeholder="코멘트 (선택)"
-            value={active.comment}
-            onChange={(event) => notes.comment(active.id, event.target.value)}
+            value={shown.active.comment}
+            onChange={(event) => notes.comment(shown.active.id, event.target.value)}
             onKeyDown={(event) => event.key === "Enter" && !event.nativeEvent.isComposing && notes.done()}
             className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[13px]"
           />

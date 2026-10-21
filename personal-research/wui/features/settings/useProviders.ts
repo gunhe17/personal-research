@@ -11,6 +11,7 @@ export default function useProviders(open: boolean) {
   const [statuses, setStatuses] = useState<Record<string, Login | undefined>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [sheet, setSheet] = useState<Sheet | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
   const check = useCallback((list: Provider[]) => {
     for (const provider of list) {
@@ -23,8 +24,9 @@ export default function useProviders(open: boolean) {
   const reload = useCallback(() => {
     api.settings().then((data) => {
       setProviders(data.providers);
+      setLoaded(true);
       check(data.providers);
-    }, () => {});
+    }, () => setLoaded(true));
   }, [check]);
 
   useEffect(() => {
@@ -71,5 +73,5 @@ export default function useProviders(open: boolean) {
     reload();
   };
 
-  return { providers, statuses, errors, sheet, openSheet: setSheet, saveProvider, logout, prune, closeSheet };
+  return { providers, loaded, statuses, errors, sheet, openSheet: setSheet, saveProvider, logout, prune, closeSheet };
 }

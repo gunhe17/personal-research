@@ -31,8 +31,8 @@ export default function Fold({ open, children, className }: { open: boolean; chi
     const to = open ? full : shut;
     Object.assign(node.style, { overflow: "hidden", height: to.height, opacity: String(to.opacity), marginTop: to.marginTop });
     const animation = node.animate([from, to], {
-      duration: open ? 240 : 180,
-      easing: open ? "cubic-bezier(0.22, 1, 0.36, 1)" : "cubic-bezier(0.4, 0, 0.2, 1)",
+      duration: open ? 260 : 200,
+      easing: open ? "cubic-bezier(0.22, 1, 0.36, 1)" : "cubic-bezier(0.4, 0, 0.6, 1)",
     });
     let live = true;
     const settle = () => {
@@ -45,7 +45,7 @@ export default function Fold({ open, children, className }: { open: boolean; chi
     const fallback = setTimeout(() => {
       animation.cancel();
       settle();
-    }, (open ? 240 : 180) + 80);
+    }, (open ? 260 : 200) + 80);
     return () => {
       live = false;
       clearTimeout(fallback);

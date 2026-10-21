@@ -1,6 +1,8 @@
-import { Fragment, type ReactNode } from "react";
 import type { MessageContext, Rich } from "@/lib/api";
+import { mathHtml } from "@/lib/math";
+import Inline from "./Inline";
 import Playground from "./Playground";
+import VisualBlock from "./VisualBlock";
 
 export type Scene = { context: MessageContext; nonce: number };
 
@@ -9,7 +11,7 @@ type Props = { rich: Rich; id: string; onContext?: (context: MessageContext) => 
 export default function Blocks({ rich, id, onContext, scene }: Props) {
   return (
     <>
-      <h2>{rich.title}</h2>
+      <h2><Inline text={rich.title} /></h2>
       {rich.blocks.map((block, index) => {
         const key = `${id}:${index}`;
         if (block.kind === "playground" && block.playground) {
@@ -19,7 +21,9 @@ export default function Blocks({ rich, id, onContext, scene }: Props) {
             </Playground>
           );
         }
-        if (block.kind === "heading") return <h3 key={key}>{block.text}</h3>;
+        if (block.kind === "visual" && block.visual) return <VisualBlock key={key} visual={block.visual} caption={block.text} />;
+        if (block.kind === "heading") return <h3 key={key}><Inline text={block.text} /></h3>;
+        if (block.kind === "math") return <div key={key} className="math-block" dangerouslySetInnerHTML={{ __html: mathHtml(block.text, true) }} />;
         if (block.kind === "formula") return <div key={key} className="formula">{block.text}</div>;
         if (block.kind === "code") return <pre key={key} className="code-block">{block.text}</pre>;
         if (block.kind === "bullet") return <ul key={key}><li><Inline text={block.text} /></li></ul>;
@@ -41,12 +45,4 @@ function Paragraph({ text, className }: { text: string; className?: string }) {
       })}
     </>
   );
-}
-
-function Inline({ text }: { text: string }): ReactNode {
-  return text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).map((piece, index) => {
-    if (piece.startsWith("**") && piece.endsWith("**")) return <strong key={index}>{piece.slice(2, -2)}</strong>;
-    if (piece.startsWith("`") && piece.endsWith("`")) return <code key={index}>{piece.slice(1, -1)}</code>;
-    return <Fragment key={index}>{piece}</Fragment>;
-  });
 }

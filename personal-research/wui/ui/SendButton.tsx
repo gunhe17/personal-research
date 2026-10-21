@@ -8,7 +8,7 @@ export default function SendButton({ disabled, onClick }: { disabled?: boolean; 
       title="Send (Enter)"
       disabled={disabled}
       onClick={onClick}
-      className="inline-flex h-8 w-8 shrink-0 items-center justify-center self-center rounded-full bg-apple text-white transition hover:bg-apple-hover disabled:opacity-40"
+      className="inline-flex h-8 w-8 shrink-0 items-center justify-center self-center rounded-full bg-apple text-white transition duration-150 hover:bg-apple-hover enabled:active:scale-[0.97] disabled:opacity-40"
     >
       <Icon name="up" width={2} className="h-4 w-4" />
     </button>

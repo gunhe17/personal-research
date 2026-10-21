@@ -11,6 +11,7 @@ export default function useConversation(group: Group) {
   const [space, setSpace] = useState<Space | null>(null);
   const [chat, setChat] = useState<Conversation | null>(null);
   const [banner, setBanner] = useState("");
+  const [loading, setLoading] = useState(false);
   const loaded = useRef("");
   const generation = useRef(0);
 
@@ -23,6 +24,8 @@ export default function useConversation(group: Group) {
       setBanner(data.codex_available ? "" : "서버에서 codex CLI 를 찾지 못했습니다. 컨테이너에서 codex login --device-auth 를 확인해 주세요.");
     } catch (error) {
       setBanner(`대화를 불러오지 못했습니다. ${(error as Error).message}`);
+    } finally {
+      if (at === generation.current) setLoading(false);
     }
   }, []);
 
@@ -36,9 +39,10 @@ export default function useConversation(group: Group) {
     const item = group.item;
     if (loaded.current === itemKey(item)) return;
     loaded.current = itemKey(item);
-    generation.current += 1;
+    const at = ++generation.current;
     setChat(null);
     setBanner("");
+    setLoading(item.kind === "agent" ? Boolean(item.agent) : item.kind === "chat" && item.conversation !== "");
     (async () => {
       if (item.kind === "agent") {
         setDomain("agent");
@@ -51,6 +55,7 @@ export default function useConversation(group: Group) {
       setSpace(detail);
       const id = item.conversation === "" ? null : item.conversation || detail?.conversations[0]?.id || null;
       if (id) await refresh("space", id);
+      else if (at === generation.current) setLoading(false);
     })();
   }, [group.item, refresh]);
 
@@ -94,7 +99,7 @@ export default function useConversation(group: Group) {
     return current;
   };
 
-  return { domain, chat, banner, refresh, ensure };
+  return { domain, chat, banner, loading, refresh, ensure };
 }
 
 function named(text: string, path?: string): string {

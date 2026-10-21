@@ -2,17 +2,20 @@
 
 import type { ReactNode } from "react";
 import type { Message, MessageContext } from "@/lib/api";
+import { cx } from "@/lib/cx";
 import { format } from "@/lib/number";
 import Button from "@/ui/Button";
+import Fold from "@/ui/Fold";
+import usePresence from "@/ui/usePresence";
 
-type Props = { question: Message; canRetry: boolean; children: ReactNode; onScene: (context: MessageContext) => void; onAction: (action: "retry" | "cancel") => void };
+type Props = { question: Message; fresh: boolean; canRetry: boolean; children: ReactNode; onScene: (context: MessageContext) => void; onAction: (action: "retry" | "cancel") => void };
 
-export default function Exchange({ question, canRetry, children, onScene, onAction }: Props) {
+export default function Exchange({ question, fresh, canRetry, children, onScene, onAction }: Props) {
   const context = question.context || {};
   const quote = "mb-2 border-l-2 border-slate-200 pl-2.5 text-slate-500";
   return (
     <section className="mt-12 first:mt-0">
-      <div className="mb-8 ml-auto w-fit max-w-[85%] rounded-lg border border-slate-100 bg-white px-4 py-3 leading-[1.7] break-words whitespace-pre-wrap" style={{ fontSize: "calc(14px * var(--chat-zoom))" }}>
+      <div className={cx(fresh && "enter-rise", "mb-8 ml-auto w-fit max-w-[85%] rounded-lg border border-slate-100 bg-white px-4 py-3 leading-[1.7] break-words whitespace-pre-wrap")} style={{ fontSize: "calc(14px * var(--chat-zoom))" }}>
         <div className="mb-1 text-[11px] text-slate-500">나</div>
         {context.selected_text && <blockquote className={quote}>{context.selected_text}</blockquote>}
         {(context.citations || []).map((cite, i) => <blockquote key={i} className={quote}>{cite.text}</blockquote>)}
@@ -51,10 +54,19 @@ function readable(text: string): string {
 }
 
 function Status({ question, canRetry, onAction }: { question: Message; canRetry: boolean; onAction: (action: "retry" | "cancel") => void }) {
-  if (!question.status || question.status === "completed") return null;
+  const open = Boolean(question.status && question.status !== "completed");
+  const shown = usePresence(open, question).content;
+  return (
+    <Fold open={open}>
+      {shown && <StatusLine key={shown.status} question={shown} canRetry={canRetry} onAction={onAction} />}
+    </Fold>
+  );
+}
+
+function StatusLine({ question, canRetry, onAction }: { question: Message; canRetry: boolean; onAction: (action: "retry" | "cancel") => void }) {
   if (question.status === "queued" || question.status === "running") {
     return (
-      <div role="status" className="flex items-center gap-2.5 text-[13px] text-slate-500">
+      <div role="status" className="enter-fade flex items-center gap-2.5 text-[13px] text-slate-500">
         <span className="pulse-dot h-2 w-2 rounded-full bg-apple" />
         <span>{question.status === "queued" ? "차례를 기다리고 있습니다." : "수집물을 조사하고 답을 쓰고 있습니다."}</span>
         <Button tone="link" onClick={() => onAction("cancel")}>중지</Button>
@@ -62,7 +74,7 @@ function Status({ question, canRetry, onAction }: { question: Message; canRetry:
     );
   }
   return (
-    <div role="status" className="flex items-center gap-2.5 text-[13px] text-red-700">
+    <div role="status" className="enter-fade flex items-center gap-2.5 text-[13px] text-red-700">
       <span>{question.error ? readable(question.error) : (question.status === "cancelled" ? "답변 생성을 중지했습니다." : "답변을 받지 못했습니다.")}</span>
       {canRetry && <Button tone="link" onClick={() => onAction("retry")}>다시 시도</Button>}
     </div>

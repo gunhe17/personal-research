@@ -30,7 +30,7 @@ export default function PaneBar({ group, name, title, actions }: { group: Group;
         event.dataTransfer.setData("application/x-research-group", group.id);
         event.dataTransfer.effectAllowed = "move";
       }}
-      className={cx("flex h-[34px] shrink-0 cursor-grab items-center gap-1.5 border-b px-2.5 transition-colors duration-200 select-none max-md:hidden", active ? "border-slate-100 bg-white" : "border-slate-200 bg-slate-50")}
+      className={cx("flex h-[34px] shrink-0 cursor-grab items-center gap-1.5 border-b px-2.5 transition-colors duration-150 select-none max-md:hidden", active ? "border-slate-100 bg-white" : "border-slate-200 bg-slate-50")}
     >
       {many && active && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-apple" />}
       <span className={cx("text-[12px]", active ? "text-slate-400" : "text-slate-300")}>{kindLabel(group.item)}</span>

@@ -4,7 +4,11 @@ import { useState } from "react";
 import type { Login, Method, Provider } from "@/lib/api";
 import Button from "@/ui/Button";
 import Dot from "@/ui/Dot";
+import FoldList from "@/ui/FoldList";
+import usePresence from "@/ui/usePresence";
+import { cx } from "@/lib/cx";
 import SectionHeader from "@/ui/SectionHeader";
+import Skeleton from "@/ui/Skeleton";
 import MethodRow, { plan, usable } from "./MethodRow";
 import SettingsPage from "./SettingsPage";
 
@@ -28,6 +32,19 @@ export default function ProviderPane({ provider, statuses, error, onSave, onLogi
       setSaving(false);
     }
   };
+  const order = provider.methods.map((m) => m.id).join(" ");
+  const [seen, setSeen] = useState({ order, moves: {} as Record<string, number> });
+  if (seen.order !== order) {
+    const before = seen.order.split(" ");
+    const kept = before.filter((id) => provider.methods.some((m) => m.id === id));
+    const now = provider.methods.map((m) => m.id).filter((id) => kept.includes(id));
+    const moves = { ...seen.moves };
+    now.forEach((id, at) => {
+      if (kept[at] !== id) moves[id] = (moves[id] || 0) + 1;
+    });
+    setSeen({ order, moves });
+  }
+  const failure = usePresence(Boolean(error), error);
   const status = (method: Method) => statuses[method.id];
   const first = provider.methods.find((m) => usable(m, status(m)));
   const checking = provider.methods.some((m) => m.enabled && plan(m) && !status(m));
@@ -58,10 +75,19 @@ export default function ProviderPane({ provider, statuses, error, onSave, onLogi
       status={
         <>
           <div className="mt-1 flex items-center gap-1.5 text-[12px] text-slate-500">
-            <Dot on={Boolean(first)} />
-            <span>{!first && checking ? "Checking…" : first ? "Ready" : "Not ready"}</span>
+            {!first && checking ? (
+              <>
+                <Skeleton className="h-1.5 w-1.5 rounded-full" />
+                <Skeleton className="w-16" />
+              </>
+            ) : (
+              <>
+                <Dot on={Boolean(first)} />
+                <span key={first ? "ready" : "idle"} className="enter-fade">{first ? "Ready" : "Not ready"}</span>
+              </>
+            )}
           </div>
-          {error && <p className="mt-2 text-[12px] text-red-600">{error}</p>}
+          {failure.mounted && <p className={cx("mt-2 text-[12px] text-red-600", failure.leaving ? "exit-fade" : "enter-fade")}>{failure.content}</p>}
         </>
       }
     >
@@ -70,29 +96,33 @@ export default function ProviderPane({ provider, statuses, error, onSave, onLogi
           <Button onClick={() => add("plan_key")}>+ Plan login</Button>
           <Button onClick={() => add("api_key")}>+ API key</Button>
         </SectionHeader>
-        <div className="space-y-0.5">
-          {provider.methods.map((method, i) => {
-            const blocked = (to: number) => to < 0 || to >= provider.methods.length || provider.methods[to].enabled !== method.enabled;
-            return (
-              <MethodRow
-                key={method.id}
-                provider={provider}
-                method={method}
-                status={status(method)}
-                rank={enabled.indexOf(method) + 1}
-                first={method === first}
-                expanded={open.has(method.id)}
-                saving={saving}
-                canMoveUp={!blocked(i - 1)}
-                canMoveDown={!blocked(i + 1)}
-                onToggle={() => toggle(method.id)}
-                onShift={(by) => shift(method, by)}
-                onSave={save}
-                onLogin={() => onLogin(method)}
-                onLogout={() => onLogout(method)}
-              />
-            );
-          })}
+        <div className="flex flex-col gap-0.5">
+          <FoldList items={provider.methods} keyOf={(m) => m.id}>
+            {(method) => {
+              const i = provider.methods.indexOf(method);
+              const blocked = (to: number) => i < 0 || to < 0 || to >= provider.methods.length || provider.methods[to].enabled !== method.enabled;
+              return (
+                <MethodRow
+                  key={seen.moves[method.id] || 0}
+                  moved={Boolean(seen.moves[method.id])}
+                  provider={provider}
+                  method={method}
+                  status={status(method)}
+                  rank={enabled.indexOf(method) + 1}
+                  first={method === first}
+                  expanded={open.has(method.id)}
+                  saving={saving}
+                  canMoveUp={!blocked(i - 1)}
+                  canMoveDown={!blocked(i + 1)}
+                  onToggle={() => toggle(method.id)}
+                  onShift={(by) => shift(method, by)}
+                  onSave={save}
+                  onLogin={() => onLogin(method)}
+                  onLogout={() => onLogout(method)}
+                />
+              );
+            }}
+          </FoldList>
         </div>
       </section>
     </SettingsPage>

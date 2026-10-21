@@ -92,7 +92,7 @@ export default function HomePage() {
         {!empty && (
           <div ref={list} className="min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto py-6" style={{ fontSize: "calc(14px * var(--chat-zoom))" }}>
             {replies.map((reply, i) => (
-              <div key={i} className="space-y-3">
+              <div key={i} className="enter-rise space-y-3">
                 <div className="flex justify-end">
                   <div className="max-w-[36rem] rounded-2xl rounded-tr-md bg-slate-900 px-3.5 py-2.5 leading-relaxed break-words whitespace-pre-wrap text-white">{reply.input}</div>
                 </div>
@@ -116,13 +116,13 @@ function Answer({ reply, onOpen }: { reply: Progress; onOpen: (source: Source) =
       {reply.streaming && empty ? (
         <div className="typing py-0.5" aria-label="Generating"><span /><span /><span /></div>
       ) : (
-        <div className="md-chat min-w-0">
+        <div className="enter-fade md-chat min-w-0">
           <div dangerouslySetInnerHTML={{ __html: chatHtml(reply.content) }} />
           {reply.streaming && <span className="stream-cursor" aria-hidden="true" />}
         </div>
       )}
       {reply.sources.length > 0 && (
-        <div className="mt-2.5 border-t border-slate-100 pt-2">
+        <div className="enter-fade mt-2.5 border-t border-slate-100 pt-2">
           <div className="mb-1 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Sources</div>
           {reply.sources.map((source) => (
             <Button key={source.id} tone="link" size="sm" onClick={() => onOpen(source)} className="block! w-full truncate text-left">

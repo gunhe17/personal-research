@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { cx } from "@/lib/cx";
 import Icon from "@/ui/Icon";
 import { toast } from "@/ui/Toaster";
 import useEscape from "@/ui/useEscape";
 import useOutside from "@/ui/useOutside";
+import usePresence from "@/ui/usePresence";
 
 type Picked = { text: string; range: Range; left: number; top: number };
 
@@ -48,21 +50,23 @@ export default function SelectionBar({ scope, onQuote }: { scope: RefObject<HTML
   useOutside(bar, close, Boolean(picked));
   useEscape(close, { when: Boolean(picked) });
 
-  if (!picked) return null;
+  const presence = usePresence(Boolean(picked), picked);
+  const shown = presence.content;
+  if (!presence.mounted || !shown) return null;
   const quote = () => {
-    if (globalThis.Highlight && CSS.highlights) CSS.highlights.set("doc-selection", new Highlight(picked.range));
+    if (globalThis.Highlight && CSS.highlights) CSS.highlights.set("doc-selection", new Highlight(shown.range));
     window.getSelection()?.removeAllRanges();
-    if (onQuote(picked.text)) toast("Quoted");
+    if (onQuote(shown.text)) toast("Quoted");
     setPicked(null);
   };
   const copy = async () => {
-    await navigator.clipboard.writeText(picked.text).catch(() => {});
+    await navigator.clipboard.writeText(shown.text).catch(() => {});
     toast("Copied");
     setPicked(null);
   };
-  const button = "inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 hover:text-slate-900";
+  const button = "inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-600 transition duration-150 hover:bg-slate-100 hover:text-slate-900";
   return (
-    <div ref={bar} onMouseDown={(event) => event.preventDefault()} className="enter-pop fixed z-[55] flex items-center gap-0.5 rounded-full border border-slate-200 bg-white p-0.5" style={{ left: picked.left, top: picked.top }}>
+    <div ref={bar} onMouseDown={(event) => event.preventDefault()} className={cx(presence.leaving ? "exit-pop" : "enter-pop", "fixed z-[55] flex items-center gap-0.5 rounded-full border border-slate-200 bg-white p-0.5")} style={{ left: shown.left, top: shown.top }}>
       <button type="button" title="Quote in chat" aria-label="Quote in chat" className={button} onClick={quote}><Icon name="chat" className="h-4 w-4" /></button>
       <button type="button" title="Copy" aria-label="Copy" className={button} onClick={copy}><Icon name="copy" className="h-4 w-4" /></button>
     </div>

@@ -5,7 +5,7 @@ export default function Heading({ label, icon, onToggle, onCollapse, collapseLab
   return (
     <div className="relative">
       <TreeRow variant="nav" label={label} icon={icon} onClick={onToggle} />
-      {onCollapse && <IconButton icon="collapse" size="sm" label={collapseLabel} onClick={onCollapse} className="absolute top-1/2 right-0 -translate-y-1/2" />}
+      {onCollapse && <IconButton icon="collapse" size="sm" label={collapseLabel} onClick={onCollapse} className="enter-fade absolute top-1/2 right-0 -translate-y-1/2" />}
     </div>
   );
 }

@@ -5,7 +5,9 @@ import { api, type CollectEvent, type CollectJob, type Source } from "@/lib/api"
 import { clock, lead, origin, recalled, seconds, stepsOf, type Step, type Texts } from "@/lib/collect";
 import { cx } from "@/lib/cx";
 import Button from "@/ui/Button";
+import Fold from "@/ui/Fold";
 import Segmented from "@/ui/Segmented";
+import Skeleton from "@/ui/Skeleton";
 import StepMark from "@/ui/StepMark";
 import Profile from "./Profile";
 
@@ -22,31 +24,38 @@ type Props = {
 };
 
 export default function CollectCard({ input, events, state, collected, onOpen }: Props) {
-  const texts = useTexts(state === "done" && collected && !collected.path.endsWith(".html") ? collected.id : null);
+  const previewed = state === "done" && collected && !collected.path.endsWith(".html") ? collected.id : null;
+  const texts = useTexts(previewed);
+  const waiting = Boolean(previewed) && !texts;
   const recorded = events.length > 0;
   const steps = recorded ? stepsOf(events) : state === "done" && collected ? recalled(collected.path, texts) : [];
   const now = useNow(state === "running");
   const [host, rest] = origin(input);
   return (
-    <article className="mb-10">
+    <article className="enter-fade mb-10">
       <Profile provider={null} label="수집" />
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-2.5 text-[12px] text-slate-500">
           <span className="font-semibold text-slate-800">{host}</span>
           <span className="min-w-0 flex-1 truncate">{rest}</span>
         </div>
-        {state === "queued" && (
+        <Fold open={state === "queued"}>
           <div className="flex items-center gap-2 border-b border-slate-100 bg-ice px-4 py-2 text-[12px] text-slate-600">
             <span className="breathe block h-[7px] w-[7px] rounded-full bg-apple" />
             앞의 수집이 끝나기를 기다리는 중
           </div>
-        )}
+        </Fold>
         {(steps.length > 0 || state === "queued" || state === "running") && (
           <ul className="px-4 py-2">
             {STAGES.map(([key, label]) => (
-              <Row key={key} label={label} step={steps.find((s) => s.key === key)} now={now} />
+              <Row key={key} label={label} step={steps.find((s) => s.key === key)} now={now} waiting={waiting && !recorded && key === "translate"} />
             ))}
           </ul>
+        )}
+        {waiting && (
+          <div className="border-t border-slate-100 px-4 py-3">
+            <Skeleton lines={["w-full", "w-11/12", "w-2/3"]} />
+          </div>
         )}
         {texts && texts.eng.length > 0 && <Preview texts={texts} />}
         {collected && (
@@ -59,7 +68,7 @@ export default function CollectCard({ input, events, state, collected, onOpen }:
   );
 }
 
-function Row({ label, step, now }: { label: string; step?: Step; now: number }) {
+function Row({ label, step, now, waiting }: { label: string; step?: Step; now: number; waiting: boolean }) {
   const state = step?.state || "idle";
   const time = state === "running" && step ? clock(now - step.at) : step?.took ? seconds(step.took) : "";
   return (
@@ -69,7 +78,7 @@ function Row({ label, step, now }: { label: string; step?: Step; now: number }) 
       </span>
       <span className={cx("w-10 shrink-0 text-[12px]", state === "idle" ? "text-slate-300" : "text-slate-800")}>{label}</span>
       <span className={cx("min-w-0 flex-1 truncate text-[12px]", state === "running" ? "sweep" : state === "error" ? "text-red-600" : state === "skip" ? "text-slate-400" : "text-slate-500")} title={step?.text}>
-        {step?.text || ""}
+        {waiting ? <Skeleton className="w-40" /> : step?.text || ""}
       </span>
       {step && step.at === 0 ? (
         <span className="shrink-0 font-mono text-[11px] text-slate-300" aria-label="시간 기록 없음">–</span>
@@ -100,7 +109,7 @@ function Preview({ texts }: { texts: Texts }) {
   const paired = texts.kor.length > 0;
   const shown = paired ? view : "eng";
   return (
-    <div className="border-t border-slate-100 px-4 py-3">
+    <div className="enter-fade border-t border-slate-100 px-4 py-3">
       {paired && (
         <Segmented
           label="Preview"

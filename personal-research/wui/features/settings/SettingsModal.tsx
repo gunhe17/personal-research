@@ -8,7 +8,9 @@ import Dot from "@/ui/Dot";
 import Icon from "@/ui/Icon";
 import IconButton from "@/ui/IconButton";
 import Modal from "@/ui/Modal";
+import Skeleton from "@/ui/Skeleton";
 import TreeRow from "@/ui/TreeRow";
+import PendingRows from "@/features/shell/PendingRows";
 import AccountPane from "./AccountPane";
 import FunctionPane from "./FunctionPane";
 import UsersPane from "./UsersPane";
@@ -31,7 +33,7 @@ export default function SettingsModal({ open, account, onClose }: { open: boolea
     return () => media.removeEventListener("change", sync);
   }, []);
   const chosen = (key: string) => tab === key && !narrow;
-  const { providers, statuses, errors, sheet, openSheet, saveProvider, logout, prune, closeSheet } = useProviders(open);
+  const { providers, loaded, statuses, errors, sheet, openSheet, saveProvider, logout, prune, closeSheet } = useProviders(open);
 
   useEffect(() => save("settingsTab", tab, true), [tab]);
   useEffect(() => save("settingsPage", paned, true), [paned]);
@@ -52,7 +54,7 @@ export default function SettingsModal({ open, account, onClose }: { open: boolea
 
   return (
     <Modal open={open} onClose={close} label="Settings" className="flex h-[min(560px,90vh)] max-w-2xl">
-      <nav className={cx("flex w-48 shrink-0 flex-col gap-1 border-r border-slate-100 bg-white px-2 pt-3 pb-2 max-sm:w-full max-sm:border-r-0", paned && "max-sm:hidden")}>
+      <nav className={cx("enter-fade flex w-48 shrink-0 flex-col gap-1 border-r border-slate-100 bg-white px-2 pt-3 pb-2 max-sm:w-full max-sm:border-r-0", paned && "max-sm:hidden")}>
         <div className="mb-2 px-2 text-sm font-semibold text-slate-900">Settings</div>
         <Group icon="gear" label="General">
           <TreeRow variant="nav" label="Font" active={chosen("font")} onClick={() => pick("font")} />
@@ -63,16 +65,26 @@ export default function SettingsModal({ open, account, onClose }: { open: boolea
           {account.role === "admin" && <TreeRow variant="nav" label="Users" active={chosen("users")} onClick={() => pick("users")} />}
         </Group>
         <Group icon="chip" label="Models">
-          {providers.map((provider) => (
-            <TreeRow key={provider.id} variant="nav" label={provider.label} active={chosen(provider.id)} trailing={<Dot on={ready(provider)} />} onClick={() => pick(provider.id)} />
-          ))}
+          {loaded ? (
+            <div className="enter-fade flex flex-col gap-1">
+              {providers.map((provider) => (
+                <TreeRow key={provider.id} variant="nav" label={provider.label} active={chosen(provider.id)} trailing={<Dot on={ready(provider)} />} onClick={() => pick(provider.id)} />
+              ))}
+            </div>
+          ) : (
+            ["w-16", "w-20", "w-12"].map((width) => (
+              <div key={width} className="flex h-8 items-center px-2">
+                <Skeleton className={width} />
+              </div>
+            ))
+          )}
         </Group>
         <Group icon="agent" label="Agent">
           <TreeRow variant="nav" label="Function" active={chosen("function")} onClick={() => pick("function")} />
         </Group>
       </nav>
       <IconButton icon="close" label="Close" className="absolute top-3 right-3 z-10 bg-white" onClick={close} />
-      <div className={cx("min-w-0 flex-1 overflow-y-auto p-6", !paned && "max-sm:hidden")}>
+      <div key={tab} className={cx("enter-fade min-w-0 flex-1 overflow-y-auto p-6", !paned && "max-sm:hidden")}>
         <IconButton icon="back" label="Back" className="-mt-3 -ml-2 mb-3 align-top sm:hidden" onClick={() => setPaned(false)} />
         {current ? (
           <ProviderPane
@@ -84,6 +96,8 @@ export default function SettingsModal({ open, account, onClose }: { open: boolea
             onLogin={(method) => openSheet({ provider: current, method })}
             onLogout={(method) => logout(current, method)}
           />
+        ) : !loaded && !panes.includes(tab) ? (
+          <PendingRows />
         ) : tab === "account" ? (
           <AccountPane account={account} />
         ) : tab === "users" && account.role === "admin" ? (
@@ -96,18 +110,22 @@ export default function SettingsModal({ open, account, onClose }: { open: boolea
           <FontPane />
         )}
       </div>
-      {sheet && (
-        <LoginSheet
-          provider={sheet.provider.id}
-          method={sheet.method.id}
-          title={`Log in to ${sheet.provider.label}${sheet.method.label === "Plan login" ? "" : ` · ${sheet.method.label}`}`}
-          initial={statuses[statusKey(sheet.provider, sheet.method)]}
-          onClose={closeSheet}
-        />
-      )}
+      <LoginSheet
+        target={
+          sheet && {
+            provider: sheet.provider.id,
+            method: sheet.method.id,
+            title: `Log in to ${sheet.provider.label}${sheet.method.label === "Plan login" ? "" : ` · ${sheet.method.label}`}`,
+            initial: statuses[statusKey(sheet.provider, sheet.method)],
+          }
+        }
+        onClose={closeSheet}
+      />
     </Modal>
   );
 }
+
+const panes = ["font", "trash", "account", "users", "function"];
 
 function Group({ icon, label, children }: { icon: string; label: string; children: ReactNode }) {
   return (

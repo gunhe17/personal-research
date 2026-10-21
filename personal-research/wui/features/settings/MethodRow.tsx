@@ -11,12 +11,14 @@ import Fold from "@/ui/Fold";
 import Icon from "@/ui/Icon";
 import KeyValue from "@/ui/KeyValue";
 import Popup from "@/ui/Popup";
+import Skeleton from "@/ui/Skeleton";
 import Switch from "@/ui/Switch";
 import TextInput from "@/ui/TextInput";
 
 type Props = {
   provider: Provider;
   method: Method;
+  moved: boolean;
   status?: Login;
   rank: number;
   first: boolean;
@@ -38,10 +40,10 @@ export function usable(method: Method, status?: Login): boolean {
   return plan(method) ? Boolean(status?.logged_in) : Boolean(method.secret);
 }
 
-export default function MethodRow({ provider, method, status, rank, first, expanded, saving, canMoveUp, canMoveDown, onToggle, onShift, onSave, onLogin, onLogout }: Props) {
+export default function MethodRow({ provider, method, moved, status, rank, first, expanded, saving, canMoveUp, canMoveDown, onToggle, onShift, onSave, onLogin, onLogout }: Props) {
   const [removing, setRemoving] = useState(false);
   return (
-    <div>
+    <div className={cx(moved && "enter-fade")}>
       <div className="group flex items-center gap-1.5 rounded-lg py-1.5 pr-1.5 pl-1 text-sm transition duration-150 hover:bg-slate-50">
         <button type="button" aria-expanded={expanded} onClick={onToggle} className="flex min-w-0 flex-1 items-center gap-1.5 text-left">
           <Chevron open={expanded} />
@@ -54,10 +56,10 @@ export default function MethodRow({ provider, method, status, rank, first, expan
             <span className="truncate">{method.label}</span>
           </span>
           <span className="min-w-0 flex-1 truncate text-[12px] text-slate-400 max-sm:hidden">
-            {method.enabled && plan(method) && !status ? "…" : usable(method, status) ? "On" : "Off"}
+            {method.enabled && plan(method) && !status ? <Skeleton className="w-6" /> : usable(method, status) ? "On" : "Off"}
           </span>
         </button>
-        <span className="flex shrink-0 items-center text-slate-400 opacity-60 transition group-hover:opacity-100">
+        <span className="flex shrink-0 items-center text-slate-400 opacity-60 transition duration-150 group-hover:opacity-100">
           <Arrow label="Move up" path="M4 10l4-4 4 4" disabled={saving || !canMoveUp} onClick={() => onShift(-1)} />
           <Arrow label="Move down" path="M4 6l4 4 4-4" disabled={saving || !canMoveDown} onClick={() => onShift(1)} />
         </span>
@@ -76,11 +78,9 @@ export default function MethodRow({ provider, method, status, rank, first, expan
               <Button tone="quiet" size="sm" aria-label="Remove method" onClick={() => setRemoving(true)}>Remove</Button>
             </KeyValue>
           )}
-          {removing && (
-            <Ask title="Remove key" action="Remove" onConfirm={() => onSave({ remove: method.id })} onClose={() => setRemoving(false)}>
-              {method.label} 를 지웁니다. 저장된 키도 함께 지워집니다.
-            </Ask>
-          )}
+          <Ask open={removing} title="Remove key" action="Remove" onConfirm={() => onSave({ remove: method.id })} onClose={() => setRemoving(false)}>
+            {method.label} 를 지웁니다. 저장된 키도 함께 지워집니다.
+          </Ask>
         </div>
       </Fold>
     </div>
@@ -94,7 +94,7 @@ function removable(provider: Provider, method: Method): boolean {
 
 function Arrow({ label, path, disabled, onClick }: { label: string; path: string; disabled: boolean; onClick: () => void }) {
   return (
-    <button type="button" aria-label={label} disabled={disabled} onClick={onClick} className="flex h-6 w-5 items-center justify-center hover:text-slate-800 disabled:opacity-25">
+    <button type="button" aria-label={label} disabled={disabled} onClick={onClick} className="flex h-6 w-5 items-center justify-center transition duration-150 hover:text-slate-800 disabled:opacity-25">
       <svg viewBox="0 0 16 16" className="h-3 w-3" aria-hidden="true">
         <path d={path} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
@@ -102,9 +102,10 @@ function Arrow({ label, path, disabled, onClick }: { label: string; path: string
   );
 }
 
-function Ask({ title, action, children, onConfirm, onClose }: { title: string; action: string; children: ReactNode; onConfirm: () => void; onClose: () => void }) {
+function Ask({ open, title, action, children, onConfirm, onClose }: { open: boolean; title: string; action: string; children: ReactNode; onConfirm: () => void; onClose: () => void }) {
   return (
     <Popup
+      open={open}
       label={title}
       title={title}
       onClose={onClose}
@@ -142,11 +143,9 @@ function PlanDetail({ method, status, cli, onLogin, onLogout }: { method: Method
         </Button>
         {status?.logged_in && <Button tone="quiet" size="sm" onClick={() => setLeaving(true)}>Log out</Button>}
       </KeyValue>
-      {leaving && (
-        <Ask title="Remove login" action="Log out" onConfirm={onLogout} onClose={() => setLeaving(false)}>
-          {method.label} 에서 로그아웃하고 저장된 로그인을 지웁니다.
-        </Ask>
-      )}
+      <Ask open={leaving} title="Remove login" action="Log out" onConfirm={onLogout} onClose={() => setLeaving(false)}>
+        {method.label} 에서 로그아웃하고 저장된 로그인을 지웁니다.
+      </Ask>
       <KeyValue label="Logs in with">{cli}</KeyValue>
     </>
   );
@@ -191,11 +190,9 @@ function KeyDetail({ method, label, onSave }: { method: Method; label: string; o
           </>
         )}
       </KeyValue>
-      {removing && (
-        <Ask title="Remove key" action="Remove" onConfirm={() => onSave({ keys: { [method.id]: null } })} onClose={() => setRemoving(false)}>
-          저장된 {method.label} 를 지웁니다.
-        </Ask>
-      )}
+      <Ask open={removing} title="Remove key" action="Remove" onConfirm={() => onSave({ keys: { [method.id]: null } })} onClose={() => setRemoving(false)}>
+        저장된 {method.label} 를 지웁니다.
+      </Ask>
       <KeyValue label="Billing">Per request on the provider account</KeyValue>
     </>
   );

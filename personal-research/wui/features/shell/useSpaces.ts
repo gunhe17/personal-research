@@ -4,13 +4,12 @@ import { listen } from "@/lib/events";
 
 export function useSpaces(wanted: (space: SpaceItem) => boolean) {
   const [spaces, setSpaces] = useState<SpaceItem[] | null>(null);
-  const [details, setDetails] = useState<Record<string, Space>>({});
+  const [details, setDetails] = useState<Record<string, Space | null>>({});
   const requested = useRef(new Set<string>());
 
   const refresh = useCallback(() => {
     api.spaces().then((data) => setSpaces(data.items), () => setSpaces([]));
     requested.current.clear();
-    setDetails({});
   }, []);
 
   useEffect(() => {
@@ -22,7 +21,7 @@ export function useSpaces(wanted: (space: SpaceItem) => boolean) {
     for (const space of spaces || []) {
       if (wanted(space) && !requested.current.has(space.id)) {
         requested.current.add(space.id);
-        api.space(space.id).then((detail) => setDetails((all) => ({ ...all, [space.id]: detail })), () => {});
+        api.space(space.id).then((detail) => setDetails((all) => ({ ...all, [space.id]: detail })), () => setDetails((all) => ({ ...all, [space.id]: null })));
       }
     }
   });

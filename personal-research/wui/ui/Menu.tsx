@@ -1,10 +1,15 @@
+"use client";
+
 import type { ReactNode } from "react";
 import { cx } from "@/lib/cx";
+import usePresence from "./usePresence";
 
-export default function Menu({ children, className, label }: { children: ReactNode; className?: string; label: string }) {
+export default function Menu({ open, children, className, label }: { open: boolean; children: ReactNode; className?: string; label: string }) {
+  const presence = usePresence(open, children);
+  if (!presence.mounted) return null;
   return (
-    <div role="menu" aria-label={label} className={cx("enter-pop z-30 flex flex-col gap-1 rounded-2xl bg-white p-1.5 ring-1 ring-slate-200", className)}>
-      {children}
+    <div role="menu" aria-label={label} className={cx("z-30 flex flex-col gap-1 rounded-2xl bg-white p-1.5 ring-1 ring-slate-200", presence.leaving ? "exit-pop" : "enter-pop", className)}>
+      {presence.content}
     </div>
   );
 }
