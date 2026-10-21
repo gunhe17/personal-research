@@ -13,7 +13,6 @@ from cryptography.fernet import InvalidToken
 
 from usecase.common import store
 
-KEY_FILE = store.API / "database" / "encryption.key"
 HOMES = {
     "openai": ("CODEX_HOME", store.CLI / "codex"),
     "xai": ("GROK_HOME", store.CLI / "grok"),
@@ -25,6 +24,8 @@ PROVIDERS = {
         "cli": "Codex CLI",
         "variable": "CODEX_API_KEY",
         "models": [
+            {"id": "gpt-5.6-terra", "label": "GPT-5.6-Terra"},
+            {"id": "gpt-5.6-luna", "label": "GPT-5.6-Luna"},
             {"id": "gpt-6-astra", "label": "GPT-6-Astra"},
             {"id": "gpt-6-sol", "label": "GPT-6-Sol"},
             {"id": "gpt-6-luna", "label": "GPT-6-Luna"},
@@ -342,12 +343,7 @@ def decrypt(*, token: str) -> str:
 def cipher() -> Fernet:
     secret = os.environ.get("ENCRYPTION_KEY")
     if not secret:
-        if not KEY_FILE.is_file():
-            KEY_FILE.parent.mkdir(parents=True, exist_ok=True)
-            descriptor = os.open(KEY_FILE, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-            with os.fdopen(descriptor, "wb") as file:
-                file.write(Fernet.generate_key())
-        secret = KEY_FILE.read_text(encoding="ascii").strip()
+        raise RuntimeError("ENCRYPTION_KEY 가 없습니다. .env 의 ENCRYPTION_KEY 를 환경 변수로 넣고 다시 띄워 주세요.")
 
     return Fernet(secret.encode("ascii"))
 
@@ -361,7 +357,7 @@ if __name__ == "__main__":
     folder = Path(tempfile.mkdtemp())
     store.DATABASE = folder / "check.db"
     store.CURRENT.set(store.USER)
-    KEY_FILE = folder / "encryption.key"
+    os.environ["ENCRYPTION_KEY"] = Fernet.generate_key().decode("ascii")
     HOMES = {"openai": ("CODEX_HOME", folder / "codex")}
     with store.session() as connection:
         for column in PROVIDERS:
@@ -412,14 +408,21 @@ if __name__ == "__main__":
             (store.now(), store.now()),
         )
     assert {m["id"]: m["usage"]["month"] for m in by()["anthropic"]["methods"]}["plan_key"] == 1
-    KEY_FILE.unlink()
-    KEY_FILE = folder / "other.key"
+    os.environ["ENCRYPTION_KEY"] = Fernet.generate_key().decode("ascii")
     try:
         methods(provider="anthropic")
     except RuntimeError:
         pass
     else:
         raise AssertionError("undecryptable key")
+    present = os.environ.pop("ENCRYPTION_KEY")
+    try:
+        cipher()
+    except RuntimeError:
+        pass
+    else:
+        raise AssertionError("missing key")
+    os.environ["ENCRYPTION_KEY"] = present
     for broken in (
         {"x": {}},
         {"xai": {"order": ["api_key"]}},

@@ -38,7 +38,7 @@ docker compose --env-file .env/.env.develop -f .docker/docker-compose.develop.ym
 
 ## 로그인
 
-화면의 로그인 창에 만든 이메일과 비밀번호로 들어간다. 그다음 모델 요금제를 연결한다. 오른쪽 위 톱니바퀴 → Models → 제공사(OpenAI, Anthropic, xAI) → `Log in`. 화면의 안내대로 브라우저에서 승인하면 끝난다. ChatGPT 계정은 `gpt-6-luna` 모델만 쓸 수 있다.
+화면의 로그인 창에 만든 이메일과 비밀번호로 들어간다. 그다음 모델 요금제를 연결한다. 오른쪽 위 톱니바퀴 → Models → 제공사(OpenAI, Anthropic, xAI) → `Log in`. 화면의 안내대로 브라우저에서 승인하면 끝난다. ChatGPT 계정은 `gpt-5.6-terra` 와 `gpt-5.6-luna` 만 쓸 수 있다. 기본값은 `gpt-5.6-terra` 다.
 
 ## 쓰기
 

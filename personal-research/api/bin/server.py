@@ -376,6 +376,10 @@ def main() -> None:
     load_dotenv(path=store.API / ".env")
     if not store.DATABASE.is_file():
         raise SystemExit(f"DB 없음: {store.DATABASE}")
+    try:
+        settings.cipher()
+    except RuntimeError as error:
+        raise SystemExit(str(error))
     conversations.recover()
     log.write(level="info", message=f"start {HOST}:{PORT} database={store.DATABASE} codex={converse.BIN}")
     print(f"API http://{HOST}:{PORT}/api/health")

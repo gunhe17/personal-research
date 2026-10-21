@@ -85,7 +85,7 @@ personal-research/
 | develop | 저장소 전체를 연결해 고치면 바로 반영된다. wui 는 `next dev` | 8765 | 3000 | 수동 |
 | production | 이미지에 넣는다. `database/` 만 호스트 폴더를 연결한다. wui 는 `next build` 의 standalone | 8766 | 3001 | 자동 |
 
-컨테이너 없이 화면만 고칠 때는 api 를 8768 에 띄우고 `personal-research/wui` 에서 `npm run dev` 를 쓴다. `API_URL` 로 넘길 곳을 바꾼다.
+컨테이너 없이 화면만 고칠 때는 api 를 `ENCRYPTION_KEY` 와 함께 8768 에 띄우고 `personal-research/wui` 에서 `npm run dev` 를 쓴다. `API_URL` 로 넘길 곳을 바꾼다.
 
 ```sh
 docker compose --env-file .env/.env.develop -f .docker/docker-compose.develop.yml up -d --build
@@ -100,7 +100,7 @@ docker compose --env-file .env/.env.production -f .docker/docker-compose.product
 
 답변은 세 제공사 모두 만든다. OpenAI 는 codex, Anthropic 은 claude, xAI 는 grok 이 수집물 사본을 읽기 전용으로 조사해 맡고, 입력창의 제공사와 모델 드롭다운으로 메시지마다 고른다. 기본값은 OpenAI 의 `CODEX_MODEL` 이다. 입력창에 `/` 를 치면 `/next` `/retrieval` 명령 목록이 뜬다.
 
-설정의 제공사 화면은 인증 수단(요금제 로그인, API 키)을 시도할 순서대로 나열한다. 목록 끝의 `+ Plan login` `+ API key` 로 같은 종류를 여러 개 더할 수 있다(`plan_key_2`, `api_key_2` …). 계정이 여럿이면 한도에 걸린 계정 다음 계정으로 넘어간다. 수단마다 켜고 끌 수 있고, 켠 수단은 언제나 끈 수단보다 앞에 온다. 답변은 앞 수단부터 시도하고, 사용 한도나 로그아웃이나 실행 실패로 CLI 가 답하지 못하면 같은 요청을 다음 수단으로 한 번 다시 보낸다. 대화에 저장된 세션을 찾지 못하면 새 세션으로 한 번 더 시도한다. 어느 수단으로 답했는지는 `llm.auth` 와 답변의 `via` 에 남고, 설정 화면은 이 기록으로 수단별 이번 달 사용 횟수와 마지막 사용 시각을 보여 준다. 모델 목록은 `usecase/setting/record/record.py` 의 `PROVIDERS` 에 있다. 선택은 `user_meta` 에 행으로 남는다. `kind` 가 `{제공사}` 인 행의 `value` 에 수단 목록(순서와 켜짐)을, `{제공사}_{수단}` 행(`openai_plan_key_2` 처럼)의 `secret` 에 API 키나 로그인 정보를 Fernet 으로 암호화해 둔다. codex 와 grok 은 플랜마다 홈이 따로다(`api/data/cli/codex/plan_key_2`). 값이 없으면 그 행이 없다. 암호화 키는 `ENCRYPTION_KEY` 환경 변수이고, 없으면 처음 저장할 때 `api/database/encryption.key` 를 권한 600 으로 만든다. 그 파일은 DB 와 같은 폴더라서, 서버에서는 `python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` 로 만든 값을 `.env/.env.{환경}` 의 `ENCRYPTION_KEY` 에 넣는다. 이 파일을 잃으면 저장한 API 키를 다시 입력해야 한다. 화면에는 키의 끝 네 자리만 보인다. API 키를 고르면 그 제공사 CLI 에 `CODEX_API_KEY` `ANTHROPIC_API_KEY` `XAI_API_KEY` 로 넘겨 API 과금으로 바뀐다. 요금제 로그인을 고르면 환경 변수에 키가 있어도 지우고 CLI 로그인을 쓴다. 번역의 claude 도 같은 설정을 따른다. 모든 `/api/*` 는 세션이 필요하고, 쓰기 요청(GET 이 아닌 것)은 모두 Origin 이 서버 호스트와 같아야 한다. 그래도 외부 서버에 둘 때는 포트를 `127.0.0.1` 에만 열고 Tailscale 이나 SSH 터널로 접속한다.
+설정의 제공사 화면은 인증 수단(요금제 로그인, API 키)을 시도할 순서대로 나열한다. 목록 끝의 `+ Plan login` `+ API key` 로 같은 종류를 여러 개 더할 수 있다(`plan_key_2`, `api_key_2` …). 계정이 여럿이면 한도에 걸린 계정 다음 계정으로 넘어간다. 수단마다 켜고 끌 수 있고, 켠 수단은 언제나 끈 수단보다 앞에 온다. 답변은 앞 수단부터 시도하고, 사용 한도나 로그아웃이나 실행 실패로 CLI 가 답하지 못하면 같은 요청을 다음 수단으로 한 번 다시 보낸다. 대화에 저장된 세션을 찾지 못하면 새 세션으로 한 번 더 시도한다. 어느 수단으로 답했는지는 `llm.auth` 와 답변의 `via` 에 남고, 설정 화면은 이 기록으로 수단별 이번 달 사용 횟수와 마지막 사용 시각을 보여 준다. 모델 목록은 `usecase/setting/record/record.py` 의 `PROVIDERS` 에 있다. 선택은 `user_meta` 에 행으로 남는다. `kind` 가 `{제공사}` 인 행의 `value` 에 수단 목록(순서와 켜짐)을, `{제공사}_{수단}` 행(`openai_plan_key_2` 처럼)의 `secret` 에 API 키나 로그인 정보를 Fernet 으로 암호화해 둔다. codex 와 grok 은 플랜마다 홈이 따로다(`api/data/cli/codex/plan_key_2`). 값이 없으면 그 행이 없다. 암호화 키는 `.env/.env.{환경}` 의 `ENCRYPTION_KEY` 하나뿐이고, 없으면 api 가 시작하지 않는다. 같은 DB 를 쓰는 서버는 모두 같은 값을 넣어야 한다. 컨테이너 없이 로컬에서 띄울 때도 `export $(grep ^ENCRYPTION_KEY= .env/.env.develop)` 로 같은 값을 넘긴다. 이 값을 잃으면 저장한 로그인 정보와 API 키를 다시 입력해야 한다. 화면에는 키의 끝 네 자리만 보인다. API 키를 고르면 그 제공사 CLI 에 `CODEX_API_KEY` `ANTHROPIC_API_KEY` `XAI_API_KEY` 로 넘겨 API 과금으로 바뀐다. 요금제 로그인을 고르면 환경 변수에 키가 있어도 지우고 CLI 로그인을 쓴다. 번역의 claude 도 같은 설정을 따른다. 모든 `/api/*` 는 세션이 필요하고, 쓰기 요청(GET 이 아닌 것)은 모두 Origin 이 서버 호스트와 같아야 한다. 그래도 외부 서버에 둘 때는 포트를 `127.0.0.1` 에만 열고 Tailscale 이나 SSH 터널로 접속한다.
 
 뷰어를 열면 홈이 먼저 나온다. 입력창 왼쪽 배지로 `ask` 와 `collect` 를 고른다. `ask` 는 질문으로 새 agent 대화를 열고, `collect` 는 주소를 받아 원문을 받고 한국어판까지 만든다.
 
